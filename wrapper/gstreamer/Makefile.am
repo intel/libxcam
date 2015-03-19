@@ -1,7 +1,5 @@
 lib_LTLIBRARIES = libstub.la
 
-GST_CFLAGS = -I/usr/include/gstreamer-1.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/lib/glib-2.0/include
-
 PTHREAD_LDFLAGS = -pthread
 
 STUB_CXXFLAGS = -fPIC -std=c++11
@@ -12,6 +10,8 @@ if HAVE_LIBDRM
 STUB_CXXFLAGS += $(LIBDRM_CFLAGS)
 STUB_LIBS += $(LIBDRM_LIBS)
 endif
+
+if ENABLE_GST
 
 libstub_la_SOURCES = stub.cpp bufmap.cpp v4l2dev.cpp fmt.cpp
 
@@ -34,18 +34,7 @@ noinst_HEADERS = stub.h bufmap.h v4l2dev.h fmt.h
 # Note: plugindir is set in configure
 plugindir="\$(libdir)/gstreamer-1.0"
 
-##############################################################################
-# TODO: change libgstxcamsrc.la to something else, e.g. libmysomething.la     #
-##############################################################################
 plugin_LTLIBRARIES = libgstxcamsrc.la
-
-##############################################################################
-# TODO: for the next set of variables, name the prefix if you named the .la, #
-#  e.g. libmysomething.la => libmysomething_la_SOURCES                       #
-#                            libmysomething_la_CFLAGS                        #
-#                            libmysomething_la_LIBADD                        #
-#                            libmysomething_la_LDFLAGS                       #
-##############################################################################
 
 # sources used to compile this plug-in
 libgstxcamsrc_la_SOURCES = gstxcambufferpool.c	\
@@ -65,5 +54,7 @@ libgstxcamsrc_la_LDFLAGS = $(GST_PLUGIN_LDFLAGS)
 libgstxcamsrc_la_LIBTOOLFLAGS = --tag=disable-static
 
 # headers we need but don't want installed
-noinst_HEADERS = gstxcambufferpool.h	\
+noinst_HEADERS += gstxcambufferpool.h	\
 		 gstxcamsrc.h
+
+endif 	# ENABLE_GST
