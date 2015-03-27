@@ -33,10 +33,14 @@
 #include <unistd.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <string>
 #include "test_common.h"
 
-
 using namespace XCam;
+
+static Mutex g_mutex;
+static Cond  g_cond;
+static bool  g_stop = false;
 
 class MainDeviceManager
     : public DeviceManager
@@ -47,6 +51,7 @@ public:
         , _save_file (false)
         , _interval (1)
         , _frame_count (0)
+        , _frame_save (0)
     {}
 
     ~MainDeviceManager () {
@@ -58,6 +63,9 @@ public:
     }
     void set_interval (uint32_t inteval) {
         _interval = inteval;
+    }
+    void set_frame_save (uint32_t frame_save) {
+        _frame_save = frame_save;
     }
 
 protected:
@@ -72,6 +80,7 @@ private:
     bool       _save_file;
     uint32_t   _interval;
     uint32_t   _frame_count;
+    uint32_t   _frame_save;
 };
 
 void
@@ -88,6 +97,13 @@ MainDeviceManager::handle_buffer (SmartPtr<VideoBuffer> &buf)
 
     if ((_frame_count++ % _interval) != 0)
         return;
+
+    if ((_frame_save != 0) && (_frame_count > _frame_save)) {
+        SmartLock locker (g_mutex);
+        g_stop = true;
+        g_cond.broadcast ();
+        return;
+    }
 
     const VideoBufferInfo & frame_info = buf->get_video_info ();
     uint8_t *frame = buf->map ();
@@ -126,9 +142,17 @@ MainDeviceManager::handle_buffer (SmartPtr<VideoBuffer> &buf)
 void
 MainDeviceManager::open_file ()
 {
-    if (_file)
+    if ((_file) && (_frame_save == 0))
         return;
-    _file = fopen (DEFAULT_SAVE_FILE_NAME, "wb");
+
+    std::string file_name = DEFAULT_SAVE_FILE_NAME;
+
+    if (_frame_save != 0) {
+        file_name += std::to_string(_frame_count);
+    }
+    file_name += ".raw";
+
+    _file = fopen(file_name.c_str(), "wb");
 }
 
 void
@@ -142,11 +166,6 @@ MainDeviceManager::close_file ()
 #define V4L2_CAPTURE_MODE_STILL   0x2000
 #define V4L2_CAPTURE_MODE_VIDEO   0x4000
 #define V4L2_CAPTURE_MODE_PREVIEW 0x8000
-
-
-static Mutex g_mutex;
-static Cond  g_cond;
-static bool  g_stop = false;
 
 void dev_stop_handler(int sig)
 {
@@ -162,18 +181,19 @@ void dev_stop_handler(int sig)
 void print_help (const char *bin_name)
 {
     printf ("Usage: %s [-a analyzer]\n"
-            "\t -a analyzer  specify a analyzer\n"
-            "\t              select from [simple, aiq], default is [simple]\n"
-            "\t -m mem_type  specify video memory type\n"
-            "\t              mem_type select from [dma, mmap], default is [mmap]\n"
-            "\t -s           save file to %s\n"
-            "\t -n interval  save file on every [interval] frame\n"
-            "\t -c           process image with cl kernel\n"
-            "\t -f pixel_fmt specify output pixel format\n"
-            "\t              pixel_fmt select from [NV12, YUYV, BA10], default is [NV12]\n"
-            "\t -d cap_mode  specify capture mode\n"
-            "\t              cap_mode select from [video, still], default is [video]\n"
-            "\t -h           help\n"
+            "\t -a analyzer   specify a analyzer\n"
+            "\t               select from [simple, aiq], default is [simple]\n"
+            "\t -m mem_type   specify video memory type\n"
+            "\t               mem_type select from [dma, mmap], default is [mmap]\n"
+            "\t -s            save file to %s\n"
+            "\t -n interval   save file on every [interval] frame\n"
+            "\t -c            process image with cl kernel\n"
+            "\t -f pixel_fmt  specify output pixel format\n"
+            "\t               pixel_fmt select from [NV12, YUYV, BA10], default is [NV12]\n"
+            "\t -d cap_mode   specify capture mode\n"
+            "\t               cap_mode select from [video, still], default is [video]\n"
+            "\t -p frame_save specify the frame count to save, default is 0 which means endless\n"
+            "\t -h            help\n"
             , bin_name
             , DEFAULT_SAVE_FILE_NAME);
 }
@@ -197,7 +217,7 @@ int main (int argc, char *argv[])
     uint32_t capture_mode = V4L2_CAPTURE_MODE_VIDEO;
     uint32_t pixel_format = V4L2_PIX_FMT_NV12;
 
-    while ((opt =  getopt(argc, argv, "sca:n:m:f:d:h")) != -1) {
+    while ((opt =  getopt(argc, argv, "sca:n:m:f:d:p:h")) != -1) {
         switch (opt) {
         case 'a': {
             if (!strcmp (optarg, "simple"))
@@ -248,6 +268,9 @@ int main (int argc, char *argv[])
                 print_help (bin_name);
                 return -1;
             }
+            break;
+        case 'p':
+            device_manager->set_frame_save(atoi(optarg));
             break;
         case 'h':
             print_help (bin_name);
