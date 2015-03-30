@@ -1,5 +1,5 @@
 /*
- * cl_csc_handler.h - CL csc handler
+ * cl_wb_handler.h - CL white balance handler
  *
  *  Copyright (c) 2015 Intel Corporation
  *
@@ -18,25 +18,27 @@
  * Author: wangfei <feix.w.wang@intel.com>
  */
 
-#ifndef XCAM_CL_CSC_HANLDER_H
-#define XCAM_CL_CSC_HANLDER_H
+#ifndef XCAM_CL_WB_HANLDER_H
+#define XCAM_CL_WB_HANLDER_H
 
 #include "xcam_utils.h"
 #include "cl_image_handler.h"
+#include "base/xcam_3a_result.h"
 
 namespace XCam {
 
-enum CLCscType {
-    CL_CSC_TYPE_NONE = 0,
-    CL_CSC_TYPE_RGBATONV12,
-    CL_CSC_TYPE_RGBATOLAB,
-};
+typedef struct {
+    float           r_gain;
+    float           gr_gain;
+    float           gb_gain;
+    float           b_gain;
+} CLWBConfig;
 
-class CLCscImageKernel
+class CLWbImageKernel
     : public CLImageKernel
 {
 public:
-    explicit CLCscImageKernel (SmartPtr<CLContext> &context, const char *name);
+    explicit CLWbImageKernel (SmartPtr<CLContext> &context,  XCam3aResultWhiteBalance wb);
 
 protected:
     virtual XCamReturn prepare_arguments (
@@ -45,33 +47,14 @@ protected:
         CLWorkSize &work_size);
 
 private:
-    XCAM_DEAD_COPY (CLCscImageKernel);
+    XCAM_DEAD_COPY (CLWbImageKernel);
 
-    uint32_t _vertical_offset;
-};
-
-class CLCscImageHandler
-    : public CLImageHandler
-{
-public:
-    explicit CLCscImageHandler (const char *name, CLCscType type);
-
-protected:
-    virtual XCamReturn prepare_buffer_pool_video_info (
-        const VideoBufferInfo &input,
-        VideoBufferInfo &output);
-
-private:
-    XCAM_DEAD_COPY (CLCscImageHandler);
-
-private:
-    uint32_t  _output_format;
-    CLCscType _csc_type;
+    CLWBConfig _wb_config;
 };
 
 SmartPtr<CLImageHandler>
-create_cl_csc_image_handler (SmartPtr<CLContext> &context, CLCscType type);
+create_cl_wb_image_handler (SmartPtr<CLContext> &context, XCam3aResultWhiteBalance wb);
 
 };
 
-#endif //XCAM_CL_CSC_HANLDER_H
+#endif //XCAM_CL_WB_HANLDER_H
