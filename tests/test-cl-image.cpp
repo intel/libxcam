@@ -114,8 +114,10 @@ print_help (const char *bin_name)
             "\t -i input     specify input file path\n"
             "\t -o output    specify output file path\n"
             "\t -p count     specify cl kernel loop count\n"
-            "\t -c csc_type    specify csc type\n"
-            "\t 			 select from [rgba2nv12, rgba2lab]\n"
+            "\t -c csc_type  specify csc type\n"
+            "\t              select from [rgba2nv12, rgba2lab]\n"
+            "\t -d hdr_type  specify hdr type\n"
+            "\t              select from [rgb, lab]\n"
             "\t -h           help\n"
             , bin_name);
 }
@@ -137,9 +139,10 @@ int main (int argc, char *argv[])
     SmartPtr<DrmDisplay> display;
     SmartPtr<DrmBoBufferPool> buf_pool;
     int opt = 0;
-    CLCscType csc_type = CL_CSC_TYPE_NONE;
+    CLCscType csc_type = CL_CSC_TYPE_RGBATONV12;
+    CLHdrType hdr_type = CL_HDR_TYPE_RGB;
 
-    while ((opt =  getopt(argc, argv, "f:i:o:t:p:c:h")) != -1) {
+    while ((opt =  getopt(argc, argv, "f:i:o:t:p:c:d:h")) != -1) {
         switch (opt) {
         case 'i':
             input_file = optarg;
@@ -155,6 +158,7 @@ int main (int argc, char *argv[])
                 format = V4L2_PIX_FMT_SGRBG10;
             else if (! strcasecmp (optarg, "rgba"))
                 format = V4L2_PIX_FMT_RGB32;
+
             else
                 print_help (bin_name);
             break;
@@ -189,6 +193,15 @@ int main (int argc, char *argv[])
             else
                 print_help (bin_name);
             break;
+        case 'd':
+            if (!strcasecmp (optarg, "rgb"))
+                hdr_type = CL_HDR_TYPE_RGB;
+            else if (!strcasecmp (optarg, "lab"))
+                hdr_type = CL_HDR_TYPE_LAB;
+            else
+                print_help (bin_name);
+            break;
+
         case 'h':
             print_help (bin_name);
             return 0;
@@ -235,7 +248,7 @@ int main (int argc, char *argv[])
         break;
     }
     case TestHandlerHDR:
-        image_handler = create_cl_hdr_image_handler (context);
+        image_handler = create_cl_hdr_image_handler (context, hdr_type);
         break;
     case TestHandlerWhiteBalance: {
         XCam3aResultWhiteBalance wb;
