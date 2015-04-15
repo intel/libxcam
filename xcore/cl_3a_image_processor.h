@@ -28,6 +28,7 @@ namespace XCam {
 
 class CLBayer2RGBImageHandler;
 class CLCscImageHandler;
+class CLGammaImageHandler;
 
 class CL3aImageProcessor
     : public CLImageProcessor
@@ -49,6 +50,9 @@ public:
     void set_denoise (bool enable) {
         _enable_denoise = enable;
     }
+    void set_gamma (bool enable) {
+        _enable_gamma = enable;
+    }
 
 protected:
 
@@ -65,6 +69,7 @@ private:
     uint32_t                           _output_fourcc;
     bool                               _enable_hdr;
     bool                               _enable_denoise;
+    bool                               _enable_gamma;
     OutSampleType                      _out_smaple_type;
 
     SmartPtr<CLImageHandler>           _black_level;
@@ -72,6 +77,7 @@ private:
     SmartPtr<CLImageHandler>           _hdr;
     SmartPtr<CLCscImageHandler>        _csc;
     SmartPtr<CLImageHandler>    _denoise;
+    SmartPtr<CLGammaImageHandler> _gamma;
 };
 
 };
