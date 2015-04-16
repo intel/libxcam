@@ -69,6 +69,7 @@ protected:
 class AiqAeHandler
     : public AeHandler
 {
+    friend class AiqCompositor;
 private:
     struct AiqAeResult {
         ia_aiq_ae_results                 ae_result;
@@ -254,6 +255,9 @@ public:
     SmartPtr<X3aResult> generate_3a_configs (struct atomisp_parameters *parameters);
     void convert_window_to_ia (const XCam3AWindow &window, ia_rectangle &ia_window);
 
+    double get_ae_ev_shift_unlock () {
+        return _ae_handler->get_ev_shift_unlock();
+    }
 private:
 
     XCAM_DEAD_COPY (AiqCompositor);
