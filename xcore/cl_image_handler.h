@@ -49,11 +49,19 @@ class CLImageKernel
     : public CLKernel
 {
 public:
-    explicit CLImageKernel (SmartPtr<CLContext> &context, const char *name);
+    explicit CLImageKernel (SmartPtr<CLContext> &context, const char *name, bool enable = true);
     virtual ~CLImageKernel ();
 
     XCamReturn pre_execute (SmartPtr<DrmBoBuffer> &input, SmartPtr<DrmBoBuffer> &output);
     virtual XCamReturn post_execute ();
+
+    void set_enable (bool enable) {
+        _enable = enable;
+    }
+
+    bool is_enable () {
+        return _enable;
+    }
 
 protected:
     virtual XCamReturn prepare_arguments (
@@ -63,6 +71,7 @@ protected:
 
 private:
     XCAM_DEAD_COPY (CLImageKernel);
+    bool _enable;
 
 protected:
     SmartPtr<CLImage>   _image_in;
@@ -71,7 +80,6 @@ protected:
 
 class CLImageHandler
 {
-    typedef std::list<SmartPtr<CLImageKernel>> KernelList;
 public:
     explicit CLImageHandler (const char *name);
     virtual ~CLImageHandler ();
@@ -95,12 +103,15 @@ protected:
         return _buf_pool;
     }
 
+protected:
+    typedef std::list<SmartPtr<CLImageKernel>> KernelList;
+    KernelList                 _kernels;
+
 private:
     XCAM_DEAD_COPY (CLImageHandler);
 
 private:
     char                      *_name;
-    KernelList                 _kernels;
     SmartPtr<BufferPool>       _buf_pool;
 };
 

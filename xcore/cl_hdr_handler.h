@@ -27,8 +27,35 @@
 namespace XCam {
 
 enum CLHdrType {
+    CL_HDR_DISABLE = 0,
     CL_HDR_TYPE_RGB,
     CL_HDR_TYPE_LAB,
+};
+
+class CLHdrImageKernel
+    : public CLImageKernel
+{
+public:
+    explicit CLHdrImageKernel (SmartPtr<CLContext> &context,
+                               const char *name,
+                               CLHdrType type);
+    CLHdrType get_type () {
+        return _type;
+    }
+
+private:
+    CLHdrType _type;
+};
+
+class CLHdrImageHandler
+    : public CLImageHandler
+{
+public:
+    explicit CLHdrImageHandler (const char *name);
+    bool set_mode (uint32_t mode);
+
+private:
+    XCAM_DEAD_COPY (CLHdrImageHandler);
 };
 
 SmartPtr<CLImageHandler>

@@ -20,7 +20,7 @@
 #include "xcam_utils.h"
 #include "cl_macc_handler.h"
 
-float default_macc_table[XCAM_CHROMA_AXIS_SIZE*XCAM_CHROMA_MATRIX_SIZE] = {
+float default_macc_table[XCAM_CHROMA_AXIS_SIZE * XCAM_CHROMA_MATRIX_SIZE] = {
     1.000000, 0.000000, 0.000000, 1.000000, 1.000000, 0.000000, 0.000000, 1.000000,
     1.000000, 0.000000, 0.000000, 1.000000, 1.000000, 0.000000, 0.000000, 1.000000,
     1.000000, 0.000000, 0.000000, 1.000000, 1.000000, 0.000000, 0.000000, 1.000000,
@@ -34,7 +34,7 @@ float default_macc_table[XCAM_CHROMA_AXIS_SIZE*XCAM_CHROMA_MATRIX_SIZE] = {
 namespace XCam {
 
 CLMaccImageKernel::CLMaccImageKernel (SmartPtr<CLContext> &context)
-    : CLImageKernel (context, "kernel_macc")
+    : CLImageKernel (context, "kernel_macc", false)
 {
     set_macc (default_macc_table);
 }
@@ -86,9 +86,21 @@ CLMaccImageKernel::set_macc (float *macc)
     memcpy(_macc_table, macc, sizeof(float)*XCAM_CHROMA_AXIS_SIZE * XCAM_CHROMA_MATRIX_SIZE);
     return true;
 }
+
 CLMaccImageHandler::CLMaccImageHandler (const char *name)
     : CLImageHandler (name)
 {
+}
+
+bool
+CLMaccImageHandler::set_enable (bool enable)
+{
+    for (KernelList::iterator i_kernel = _kernels.begin ();
+            i_kernel != _kernels.end (); ++i_kernel) {
+        (*i_kernel)->set_enable (enable);
+    }
+
+    return true;
 }
 
 bool

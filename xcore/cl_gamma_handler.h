@@ -54,6 +54,7 @@ public:
     explicit CLGammaImageHandler (const char *name);
     bool set_gamma_table (XCam3aResultGammaTable gamma);
     bool set_gamma_kernel(SmartPtr<CLGammaImageKernel> &kernel);
+    bool set_enable (bool enable);
 
 private:
     XCAM_DEAD_COPY (CLGammaImageHandler);

@@ -58,7 +58,7 @@ float default_gamma_table[XCAM_GAMMA_TABLE_SIZE] = {
 namespace XCam {
 
 CLGammaImageKernel::CLGammaImageKernel (SmartPtr<CLContext> &context)
-    : CLImageKernel (context, "kernel_gamma")
+    : CLImageKernel (context, "kernel_gamma", false)
 {
     set_gamma(default_gamma_table);
 }
@@ -111,9 +111,21 @@ CLGammaImageKernel::set_gamma (float *gamma)
     memcpy(_gamma_table, gamma, sizeof(float)*XCAM_GAMMA_TABLE_SIZE);
     return true;
 }
+
 CLGammaImageHandler::CLGammaImageHandler (const char *name)
     : CLImageHandler (name)
 {
+}
+
+bool
+CLGammaImageHandler::set_enable (bool enable)
+{
+    for (KernelList::iterator i_kernel = _kernels.begin ();
+            i_kernel != _kernels.end (); ++i_kernel) {
+        (*i_kernel)->set_enable (enable);
+    }
+
+    return true;
 }
 
 bool
