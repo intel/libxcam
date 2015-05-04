@@ -1,5 +1,5 @@
 /*
- * drm_v4l2_buffer.cpp - drm buffer
+ * aiq3a_util.cpp - aiq 3a utility:
  *
  *  Copyright (c) 2015 Intel Corporation
  *
@@ -16,23 +16,32 @@
  * limitations under the License.
  *
  * Author: Wind Yuan <feng.yuan@intel.com>
- * Author: John Ye <john.ye@intel.com>
+ * Author: Shincy Tu <shincy.tu@intel.com>
  */
 
-#include "drm_v4l2_buffer.h"
+#include "aiq3a_utils.h"
 
-namespace XCam {
+using namespace XCam;
 
-DrmV4l2Buffer::~DrmV4l2Buffer ()
+namespace XCamAiq3A {
+
+bool
+translate_3a_stats (XCam3AStats *from, struct atomisp_3a_statistics *to)
 {
-    XCAM_ASSERT (_display.ptr());
-    int handle = _display->get_drm_handle ();
-    if (handle > 0) {
-        struct drm_mode_destroy_dumb gem;
-        xcam_mem_clear (gem);
-        gem.handle = _gem_handle;
-        xcam_device_ioctl (handle, DRM_IOCTL_MODE_DESTROY_DUMB, &gem);
-    }
+    return true;
 }
 
-};
+uint32_t
+translate_3a_results_to_xcam (X3aResultList &list,
+                              XCam3aResultHead *results[], uint32_t max_count)
+{
+    return 0;
+}
+
+void
+free_3a_result (XCam3aResultHead *result)
+{
+    xcam_free (result);
+}
+
+}

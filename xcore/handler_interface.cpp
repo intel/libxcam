@@ -31,7 +31,7 @@ void
 AeHandler::reset_parameters ()
 {
     // in case missing any parameters
-    xcam_mem_clear (&_params);
+    xcam_mem_clear (_params);
 
     _params.mode = XCAM_AE_MODE_AUTO;
     _params.metering_mode = XCAM_AE_METERING_MODE_AUTO;
@@ -237,6 +237,17 @@ bool AeHandler::set_exposure_time_range (int64_t min_time_in_us, int64_t max_tim
 }
 
 bool
+AeHandler::update_parameters (const XCamAeParam &params)
+{
+    {
+        AnalyzerHandler::HanlderLock lock (this);
+        _params = params;
+    }
+    XCAM_LOG_DEBUG ("ae parameters updated");
+    return true;
+}
+
+bool
 AeHandler::get_exposure_time_range (int64_t *min_time_in_us, int64_t *max_time_in_us)
 {
     XCAM_ASSERT (min_time_in_us && max_time_in_us);
@@ -256,7 +267,7 @@ AwbHandler::AwbHandler()
 void
 AwbHandler::reset_parameters ()
 {
-    xcam_mem_clear (&_params);
+    xcam_mem_clear (_params);
     _params.mode = XCAM_AWB_MODE_AUTO;
     _params.speed = 1.0;
     _params.cct_min = 0;
@@ -334,6 +345,28 @@ AwbHandler::set_manual_gain (double gr, double r, double b, double gb)
     return true;
 }
 
+bool
+AwbHandler::update_parameters (const XCamAwbParam &params)
+{
+    {
+        AnalyzerHandler::HanlderLock lock (this);
+        _params = params;
+    }
+    XCAM_LOG_DEBUG ("awb parameters updated");
+    return true;
+}
+
+bool
+AfHandler::update_parameters (const XCamAfParam &params)
+{
+    {
+        AnalyzerHandler::HanlderLock lock (this);
+        _params = params;
+    }
+    XCAM_LOG_DEBUG ("af parameters updated");
+    return true;
+}
+
 CommonHandler::CommonHandler()
 {
     reset_parameters ();
@@ -342,7 +375,7 @@ CommonHandler::CommonHandler()
 void
 CommonHandler::reset_parameters ()
 {
-    xcam_mem_clear (&_params);
+    xcam_mem_clear (_params);
 
     _params.is_manual_gamma = false;
     _params.nr_level = 0.0;
@@ -532,6 +565,17 @@ CommonHandler::set_color_effect (XCamColorEffect effect)
     _params.color_effect = effect;
 
     XCAM_LOG_DEBUG ("common 3A set color effect");
+    return true;
+}
+
+bool
+CommonHandler::update_parameters (const XCamCommonParam &params)
+{
+    {
+        AnalyzerHandler::HanlderLock lock (this);
+        _params = params;
+    }
+    XCAM_LOG_DEBUG ("common parameters updated");
     return true;
 }
 
