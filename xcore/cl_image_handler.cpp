@@ -39,8 +39,9 @@ CLArgument::CLArgument()
 {
 }
 
-CLImageKernel::CLImageKernel (SmartPtr<CLContext> &context, const char *name)
+CLImageKernel::CLImageKernel (SmartPtr<CLContext> &context, const char *name, bool enable)
     : CLKernel (context, name)
+    , _enable (enable)
 {
 }
 
@@ -258,33 +259,37 @@ CLImageHandler::execute (SmartPtr<DrmBoBuffer> &input, SmartPtr<DrmBoBuffer> &ou
     for (KernelList::iterator i_kernel = _kernels.begin ();
             i_kernel != _kernels.end (); ++i_kernel) {
         SmartPtr<CLImageKernel> &kernel = *i_kernel;
+        if (kernel->is_enable ()) {
+            XCAM_FAIL_RETURN (
+                WARNING,
+                kernel.ptr(),
+                ret,
+                "kernel empty");
 
-        XCAM_FAIL_RETURN (
-            WARNING,
-            kernel.ptr(),
-            ret,
-            "kernel empty");
+            XCAM_FAIL_RETURN (
+                WARNING,
+                (ret = kernel->pre_execute (input, output)) == XCAM_RETURN_NO_ERROR,
+                ret,
+                "cl_image_handler(%s) pre_execute kernel(%s) failed",
+                XCAM_STR (_name), kernel->get_kernel_name ());
 
-        XCAM_FAIL_RETURN (
-            WARNING,
-            (ret = kernel->pre_execute (input, output)) == XCAM_RETURN_NO_ERROR,
-            ret,
-            "cl_image_handler(%s) pre_execute kernel(%s) failed",
-            XCAM_STR (_name), kernel->get_kernel_name ());
+            XCAM_FAIL_RETURN (
+                WARNING,
+                (ret = kernel->execute ()) == XCAM_RETURN_NO_ERROR,
+                ret,
+                "cl_image_handler(%s) execute kernel(%s) failed",
+                XCAM_STR (_name), kernel->get_kernel_name ());
 
-        XCAM_FAIL_RETURN (
-            WARNING,
-            (ret = kernel->execute ()) == XCAM_RETURN_NO_ERROR,
-            ret,
-            "cl_image_handler(%s) execute kernel(%s) failed",
-            XCAM_STR (_name), kernel->get_kernel_name ());
-
-        XCAM_FAIL_RETURN (
-            WARNING,
-            (ret = kernel->post_execute ()) == XCAM_RETURN_NO_ERROR,
-            ret,
-            "cl_image_handler(%s) post_execute kernel(%s) failed",
-            XCAM_STR (_name), kernel->get_kernel_name ());
+            XCAM_FAIL_RETURN (
+                WARNING,
+                (ret = kernel->post_execute ()) == XCAM_RETURN_NO_ERROR,
+                ret,
+                "cl_image_handler(%s) post_execute kernel(%s) failed",
+                XCAM_STR (_name), kernel->get_kernel_name ());
+        }
+        else {
+            output = input;
+        }
     }
 
     return XCAM_RETURN_NO_ERROR;

@@ -54,6 +54,7 @@ public:
     explicit CLMaccImageHandler (const char *name);
     bool set_macc_table (XCam3aResultMaccMatrix macc);
     bool set_macc_kernel(SmartPtr<CLMaccImageKernel> &kernel);
+    bool set_enable (bool enable);
 
 private:
     XCAM_DEAD_COPY (CLMaccImageHandler);
