@@ -26,7 +26,19 @@ namespace XCam {
 CLCscImageKernel::CLCscImageKernel (SmartPtr<CLContext> &context, const char *name)
     : CLImageKernel (context, name)
     , _vertical_offset (0)
+    , _r_gain (1.0)
+    , _g_gain (1.0)
+    , _b_gain (1.0)
 {
+}
+
+bool
+CLCscImageKernel::set_gain (float rgain, float ggain, float bgain)
+{
+    _r_gain = rgain;
+    _g_gain = ggain;
+    _b_gain = bgain;
+    return true;
 }
 
 XCamReturn
@@ -56,13 +68,18 @@ CLCscImageKernel::prepare_arguments (
     args[1].arg_size = sizeof (cl_mem);
     args[2].arg_adress = &_vertical_offset;
     args[2].arg_size = sizeof (_vertical_offset);
-
+    args[3].arg_adress = &_r_gain;
+    args[3].arg_size = sizeof (_r_gain);
+    args[4].arg_adress = &_g_gain;
+    args[4].arg_size = sizeof (_g_gain);
+    args[5].arg_adress = &_b_gain;
+    args[5].arg_size = sizeof (_b_gain);
 
     work_size.dim = XCAM_DEFAULT_IMAGE_DIM;
     if (video_info.format == V4L2_PIX_FMT_NV12) {
         work_size.global[0] = video_info.width / 2;
         work_size.global[1] = video_info.height / 2;
-        arg_count = 3;
+        arg_count = 6;
     }
     else if ((video_info.format == XCAM_PIX_FMT_LAB) || (video_info.format == V4L2_PIX_FMT_RGBA32)) {
         work_size.global[0] = video_info.width;
@@ -95,6 +112,22 @@ CLCscImageHandler::CLCscImageHandler (const char *name, CLCscType type)
     }
 }
 
+bool
+CLCscImageHandler::set_csc_kernel(SmartPtr<CLCscImageKernel> &kernel)
+{
+    SmartPtr<CLImageKernel> image_kernel = kernel;
+    add_kernel (image_kernel);
+    _csc_kernel = kernel;
+    return true;
+}
+
+bool
+CLCscImageHandler::set_rgb_gain (float rgain, float ggain, float bgain)
+{
+    _csc_kernel->set_gain(rgain, ggain, bgain);
+    return true;
+}
+
 XCamReturn
 CLCscImageHandler::prepare_buffer_pool_video_info (
     const VideoBufferInfo &input,
@@ -115,8 +148,8 @@ CLCscImageHandler::prepare_buffer_pool_video_info (
 SmartPtr<CLImageHandler>
 create_cl_csc_image_handler (SmartPtr<CLContext> &context, CLCscType type)
 {
-    SmartPtr<CLImageHandler> csc_handler;
-    SmartPtr<CLImageKernel> csc_kernel;
+    SmartPtr<CLCscImageHandler> csc_handler;
+    SmartPtr<CLCscImageKernel> csc_kernel;
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
 
@@ -155,7 +188,7 @@ create_cl_csc_image_handler (SmartPtr<CLContext> &context, CLCscType type)
     XCAM_ASSERT (csc_kernel->is_valid ());
 
     csc_handler = new CLCscImageHandler ("cl_handler_csc", type);
-    csc_handler->add_kernel (csc_kernel);
+    csc_handler->set_csc_kernel (csc_kernel);
 
     return csc_handler;
 }
