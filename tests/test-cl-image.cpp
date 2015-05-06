@@ -288,7 +288,11 @@ int main (int argc, char *argv[])
         break;
     }
     case TestHandlerColorConversion: {
+        SmartPtr<CLCscImageHandler> csc_handler;
         image_handler = create_cl_csc_image_handler (context, csc_type);
+        csc_handler = image_handler.dynamic_cast_ptr<CLCscImageHandler> ();
+        XCAM_ASSERT (csc_handler.ptr ());
+        csc_handler->set_rgb_gain (1.0, 1.0, 1.0);
         break;
     }
     case TestHandlerHDR:

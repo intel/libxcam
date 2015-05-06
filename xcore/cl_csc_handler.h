@@ -38,6 +38,7 @@ class CLCscImageKernel
 {
 public:
     explicit CLCscImageKernel (SmartPtr<CLContext> &context, const char *name);
+    bool set_gain (float rgain, float ggain, float bgain);
 
 protected:
     virtual XCamReturn prepare_arguments (
@@ -49,6 +50,9 @@ private:
     XCAM_DEAD_COPY (CLCscImageKernel);
 
     uint32_t _vertical_offset;
+    float _r_gain;
+    float _g_gain;
+    float _b_gain;
 };
 
 class CLCscImageHandler
@@ -56,6 +60,8 @@ class CLCscImageHandler
 {
 public:
     explicit CLCscImageHandler (const char *name, CLCscType type);
+    bool set_csc_kernel(SmartPtr<CLCscImageKernel> &kernel);
+    bool set_rgb_gain (float rgain, float ggain, float bgain);
 
 protected:
     virtual XCamReturn prepare_buffer_pool_video_info (
@@ -68,6 +74,7 @@ private:
 private:
     uint32_t  _output_format;
     CLCscType _csc_type;
+    SmartPtr<CLCscImageKernel> _csc_kernel;
 };
 
 SmartPtr<CLImageHandler>
