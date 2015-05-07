@@ -232,6 +232,7 @@ CL3aImageProcessor::create_handlers ()
         _gamma.ptr (),
         XCAM_RETURN_ERROR_CL,
         "CL3aImageProcessor create gamma handler failed");
+    _gamma->set_kernels_enable (enable_gamma);
     add_handler (image_handler);
 
     /* hdr */
@@ -242,6 +243,7 @@ CL3aImageProcessor::create_handlers ()
         _hdr.ptr (),
         XCAM_RETURN_ERROR_CL,
         "CL3aImageProcessor create hdr handler failed");
+    _hdr->set_mode (enable_hdr);
     add_handler (image_handler);
 
     /* demosaic */
@@ -262,6 +264,7 @@ CL3aImageProcessor::create_handlers ()
         _denoise.ptr (),
         XCAM_RETURN_ERROR_CL,
         "CL3aImageProcessor create denoise handler failed");
+    _denoise->set_mode (enable_denoise);
     add_handler (image_handler);
 
 
@@ -273,6 +276,7 @@ CL3aImageProcessor::create_handlers ()
         _snr.ptr (),
         XCAM_RETURN_ERROR_CL,
         "CL3aImageProcessor create snr handler failed");
+    _snr->set_mode (enable_snr);
     add_handler (image_handler);
 
     /* macc */
@@ -283,6 +287,7 @@ CL3aImageProcessor::create_handlers ()
         _macc.ptr (),
         XCAM_RETURN_ERROR_CL,
         "CL3aImageProcessor create macc handler failed");
+    _macc->set_kernels_enable (enable_macc);
     add_handler (image_handler);
 
     /* color space conversion */
@@ -305,56 +310,31 @@ CL3aImageProcessor::create_handlers ()
 bool
 CL3aImageProcessor::set_hdr (uint32_t mode)
 {
-    STREAM_LOCK;
-
-    if (!_hdr.ptr ())
-        return false;
-    else
-        return _hdr->set_mode (mode);
+    enable_hdr = mode;
 }
 
 bool
 CL3aImageProcessor::set_denoise (uint32_t mode)
 {
-    STREAM_LOCK;
-
-    if (!_denoise.ptr ())
-        return false;
-    else
-        return _denoise->set_mode (mode);
+    enable_denoise = mode;
 }
 
 bool
 CL3aImageProcessor::set_gamma (bool enable)
 {
-    STREAM_LOCK;
-
-    if (!_gamma.ptr ())
-        return false;
-    else
-        return _gamma->set_kernels_enable (enable);
+    enable_gamma = enable;
 }
 
 bool
 CL3aImageProcessor::set_snr (uint32_t mode)
 {
-    STREAM_LOCK;
-
-    if (!_snr.ptr ())
-        return false;
-    else
-        return _snr->set_mode (mode);
+    enable_snr = mode;
 }
 
 bool
 CL3aImageProcessor::set_macc (bool enable)
 {
-    STREAM_LOCK;
-
-    if (!_macc.ptr ())
-        return false;
-    else
-        return _macc->set_kernels_enable (enable);
+    enable_macc = enable;
 }
 
 };
