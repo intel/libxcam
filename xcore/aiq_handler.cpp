@@ -1357,18 +1357,86 @@ AiqCompositor::apply_night_mode (struct atomisp_parameters *isp_param)
 {
     static const struct atomisp_cc_config night_yuv2rgb_cc_config = {
         10,
-        { 1 << 10, 0, 0,  /* 1.0, 0, 0 */
-          1 << 10, 0, 0,  /* 1.0, 0, 0 */
-          1 << 10, 0, 0} }; /* 1.0, 0, 0 */
+        {   1 << 10, 0, 0,  /* 1.0, 0, 0 */
+            1 << 10, 0, 0,  /* 1.0, 0, 0 */
+            1 << 10, 0, 0
+        }
+    }; /* 1.0, 0, 0 */
     static const struct atomisp_wb_config night_wb_config = {
         1,
-        1 << 15, 1 << 15, 1 << 15, 1 << 15 }; /* 1.0, 1.0, 1.0, 1.0*/
+        1 << 15, 1 << 15, 1 << 15, 1 << 15
+    }; /* 1.0, 1.0, 1.0, 1.0*/
 
     if (isp_param->ctc_config)
         isp_param->ctc_config = NULL;
 
     *isp_param->wb_config = night_wb_config;
     *isp_param->yuv2rgb_cc_config = night_yuv2rgb_cc_config;
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+double
+AiqCompositor::calculate_value_by_factor (double factor, double min, double mid, double max)
+{
+    XCAM_ASSERT (factor >= -1.0 && factor <= 1.0);
+    XCAM_ASSERT (min <= mid && max >= mid);
+
+    if (factor >= 0.0)
+        return (mid * (1.0 - factor) + max * factor);
+    else
+        return (mid * (1.0 + factor) + min * (-factor));
+}
+
+XCamReturn
+AiqCompositor::limit_nr_levels (struct atomisp_parameters *isp_param)
+{
+#define NR_MIN_FACOTR 0.1
+#define NR_MAX_FACOTR 6.0
+#define NR_MID_FACOTR 1.0
+    SmartPtr<AiqCommonHandler> aiq_common = _common_handler;
+
+    if (!XCAM_DOUBLE_EQUAL_AROUND (aiq_common->_params.nr_level, 0.0)) {
+        double nr_factor;
+        nr_factor = calculate_value_by_factor (
+                        aiq_common->_params.nr_level, NR_MIN_FACOTR, NR_MID_FACOTR, NR_MAX_FACOTR);
+        if (isp_param->nr_config) {
+            isp_param->nr_config->bnr_gain =
+                XCAM_MIN (isp_param->nr_config->bnr_gain * nr_factor, 65535);
+            isp_param->nr_config->ynr_gain =
+                XCAM_MIN (isp_param->nr_config->ynr_gain * nr_factor, 65535);
+        }
+        if (isp_param->cnr_config) {
+            isp_param->cnr_config->sense_gain_vy =
+                XCAM_MIN (isp_param->cnr_config->sense_gain_vy * nr_factor, 8191);
+            isp_param->cnr_config->sense_gain_vu =
+                XCAM_MIN (isp_param->cnr_config->sense_gain_vu * nr_factor, 8191);
+            isp_param->cnr_config->sense_gain_vv =
+                XCAM_MIN (isp_param->cnr_config->sense_gain_vv * nr_factor, 8191);
+            isp_param->cnr_config->sense_gain_hy =
+                XCAM_MIN (isp_param->cnr_config->sense_gain_hy * nr_factor, 8191);
+            isp_param->cnr_config->sense_gain_hu =
+                XCAM_MIN (isp_param->cnr_config->sense_gain_hu * nr_factor, 8191);
+            isp_param->cnr_config->sense_gain_hv =
+                XCAM_MIN (isp_param->cnr_config->sense_gain_hv * nr_factor, 8191);
+        }
+    }
+
+    if (!XCAM_DOUBLE_EQUAL_AROUND (aiq_common->_params.tnr_level, 0.0)) {
+        double tnr_factor;
+        tnr_factor = calculate_value_by_factor (
+                         aiq_common->_params.tnr_level, NR_MIN_FACOTR, NR_MID_FACOTR, NR_MAX_FACOTR);
+        if (isp_param->tnr_config) {
+            isp_param->tnr_config->gain =
+                XCAM_MIN (isp_param->tnr_config->gain * tnr_factor, 65535);
+            if (XCAM_DOUBLE_EQUAL_AROUND (aiq_common->_params.tnr_level, 1.0)) {
+                isp_param->tnr_config->gain = 65535;
+                isp_param->tnr_config->threshold_y = 0;
+                isp_param->tnr_config->threshold_uv = 0;
+            }
+        }
+        XCAM_LOG_DEBUG ("set TNR gain:%u", isp_param->tnr_config->gain);
+    }
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -1413,7 +1481,7 @@ XCamReturn AiqCompositor::integrate (X3aResultList &results)
         XCAM_LOG_WARNING ("AIQ pa run failed"); // but not return error
     }
     _pa_result = pa_result;
-    
+
     if (XCAM_DOUBLE_EQUAL_AROUND (aiq_awb->_params.gr_gain, 0.0) ||
         XCAM_DOUBLE_EQUAL_AROUND (aiq_awb->_params.r_gain, 0.0)  ||
         XCAM_DOUBLE_EQUAL_AROUND (aiq_awb->_params.b_gain, 0.0)  ||
@@ -1451,6 +1519,7 @@ XCamReturn AiqCompositor::integrate (X3aResultList &results)
     }
     isp_3a_result = ((struct atomisp_parameters *)output.data);
     apply_gamma_table (isp_3a_result);
+    limit_nr_levels (isp_3a_result);
     if (aiq_common->_params.enable_night_mode)
     {
         apply_night_mode (isp_3a_result);
