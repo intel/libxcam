@@ -182,6 +182,18 @@ AC_CONFIG_FILES([Makefile
  
 AC_OUTPUT
 
+CL_NOQUOTE_DIR([cl_kernel])
+CL_QUOTE_DIR([.cl_kernel])
+
+dnl CL_QUOTE_SH([shell script directory], [shell script])
+CL_QUOTE_SH([tools], [cl_double_quotation.sh])
+
+dnl clean .cl_kernel directory
+CLEAN_CL_QUOTE_FILE
+
+dnl add double quotation marks on cl file
+CL_QUOTE
+
 if test "$USE_LOCAL_AIQ" -eq 1; then use_local_aiq="yes"; else  use_local_aiq="no"; fi
 if test "$USE_LOCAL_ATOMISP" -eq 1; then use_local_atomisp="yes"; else  use_local_atomisp="no"; fi
 if test "$HAVE_LIBCL" -eq 1; then have_libcl="yes"; else  have_libcl="no"; fi
