@@ -386,8 +386,11 @@ int main (int argc, char *argv[])
     device->set_capture_mode (capture_mode);
     //device->set_mem_type (V4L2_MEMORY_DMABUF);
     device->set_mem_type (v4l2_mem_type);
-    device->set_buffer_count (8);
     device->set_framerate (25, 1);
+    if (need_display)
+        device->set_buffer_count (1);
+    else
+        device->set_buffer_count (8);
     ret = device->open ();
     CHECK (ret, "device(%s) open failed", device->get_device_name());
     ret = device->set_format (1920, 1080, pixel_format, V4L2_FIELD_NONE, 1920 * 2);
