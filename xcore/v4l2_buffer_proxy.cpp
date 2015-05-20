@@ -66,11 +66,6 @@ V4l2BufferProxy::V4l2BufferProxy (SmartPtr<V4l2Buffer> &buf, SmartPtr<V4l2Device
 
 V4l2BufferProxy::~V4l2BufferProxy ()
 {
-    SmartPtr<BufferData> data = get_buffer_data ();
-    SmartPtr<V4l2Buffer> v4l2_data = data.dynamic_cast_ptr<V4l2Buffer> ();
-    if (_device.ptr () && v4l2_data.ptr ())
-        _device->queue_buffer (v4l2_data);
-    XCAM_LOG_DEBUG ("v4l2 buffer released");
 }
 
 void
