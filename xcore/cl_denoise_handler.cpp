@@ -109,7 +109,7 @@ create_cl_denoise_image_handler (SmartPtr<CLContext> &context)
     denoise_kernel = new CLDenoiseImageKernel (context, "kernel_denoise");
     {
         XCAM_CL_KERNEL_FUNC_SOURCE_BEGIN(kernel_denoise)
-#include "kernel_denoise.cl"
+#include "kernel_denoise.clx"
         XCAM_CL_KERNEL_FUNC_END;
         ret = denoise_kernel->load_from_source (kernel_denoise_body, strlen (kernel_denoise_body));
         XCAM_FAIL_RETURN (
