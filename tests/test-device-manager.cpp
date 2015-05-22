@@ -28,6 +28,7 @@
 #endif
 #if HAVE_LIBCL
 #include "cl_3a_image_processor.h"
+#include "cl_csc_image_processor.h"
 #endif
 #if HAVE_LIBDRM
 #include "drm_display.h"
@@ -257,6 +258,7 @@ int main (int argc, char *argv[])
     SmartPtr<IspController> isp_controller;
     SmartPtr<X3aAnalyzer> analyzer;
     SmartPtr<ImageProcessor> isp_processor;
+    SmartPtr<CLCscImageProcessor> cl_csc_proccessor;
     AnalyzerType  analyzer_type = AnalyzerTypeSimple;
 #if HAVE_LIBDRM
     SmartPtr<DrmDisplay> drm_disp = DrmDisplay::instance();
@@ -421,6 +423,11 @@ int main (int argc, char *argv[])
 
     XCAM_ASSERT (isp_processor.ptr ());
     device_manager->add_image_processor (isp_processor);
+    if(!have_cl_processor && need_display) {
+        cl_csc_proccessor = new CLCscImageProcessor();
+        XCAM_ASSERT (cl_csc_proccessor.ptr ());
+        device_manager->add_image_processor (cl_csc_proccessor);
+    }
 
 #if HAVE_LIBCL
     if (have_cl_processor) {
