@@ -11,227 +11,227 @@
 
 
 
-"__constant float gausssingle[25]={0.6411,0.7574,0.8007,0.7574,0.6411,0.7574,0.8948,0.9459,0.8948,0.7574,0.8007,0.94595945,1,0.9459,0.8007,0.7574,0.8948,0.9459,0.8948,0.7574,0.6411,0.7574,0.8007,0.7574,0.6411};                "
-"                "
-"                "
-"__kernel void kernel_denoise(__read_only image2d_t srcRGB, __write_only image2d_t dstRGB, float sigma_r, unsigned int imw, unsigned int imh)                "
-"{                "
-"	int x = get_global_id(1);                 "
-"	int y = get_global_id(0);                 "
-"	float normF=0;                "
-"	float H[25];                "
-"	int i=0;                "
-"	sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE |CLK_FILTER_NEAREST;                "
-"	sigma_r = 2*pown(sigma_r,2);                "
-"                "
-"	float4 line,line1;                "
-"	float4 tmp[2];                "
-"	float delta;                "
-"                "
-"	line = read_imagef(srcRGB, sampler, (int2)(x,y));                "
-"                "
-"                "
-"	if (x > 2 &&                "
-"			x <(imw-3) &&                "
-"			y > 2 &&                "
-"			y <(imh-3))                "
-"	{                "
-"		line1.x=0;                "
-"		line1.y=0;                "
-"		line1.z=0;                "
-"		{                "
-"			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x-2,y-2));                "
-"			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                "
-"			H[0]=exp(-delta/sigma_r)*gausssingle[0];                "
-"			line1.x+=tmp[0].x*H[0];                "
-"			line1.y+=tmp[0].y*H[0];                "
-"			line1.z+=tmp[0].z*H[0];                "
-"                "
-"			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x-2,y-1));                "
-"			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                "
-"			H[1]=exp(-delta/sigma_r)*gausssingle[1];                "
-"			line1.x+=tmp[1].x*H[1];                "
-"			line1.y+=tmp[1].y*H[1];                "
-"			line1.z+=tmp[1].z*H[1];                "
-"                "
-"			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x-2,y));                "
-"			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                "
-"			H[2]=exp(-delta/sigma_r)*gausssingle[2];                "
-"			line1.x+=tmp[0].x*H[2];                "
-"			line1.y+=tmp[0].y*H[2];                "
-"			line1.z+=tmp[0].z*H[2];                "
-"                "
-"			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x-2,y+1));                "
-"			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                "
-"			H[3]=exp(-delta/sigma_r)*gausssingle[3];                "
-"			line1.x+=tmp[1].x*H[3];                "
-"			line1.y+=tmp[1].y*H[3];                "
-"			line1.z+=tmp[1].z*H[3];                "
-"                "
-"			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x-2,y+2));                "
-"			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                "
-"			H[4]=exp(-delta/sigma_r)*gausssingle[4];                "
-"			line1.x+=tmp[0].x*H[4];                "
-"			line1.y+=tmp[0].y*H[4];                "
-"			line1.z+=tmp[0].z*H[4];                "
-"                "
-"                "
-"                "
-"                "
-"			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x-1,y-2));                "
-"			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                "
-"			H[5]=exp(-delta/sigma_r)*gausssingle[5];                "
-"			line1.x+=tmp[1].x*H[5];                "
-"			line1.y+=tmp[1].y*H[5];                "
-"			line1.z+=tmp[1].z*H[5];                "
-"                "
-"			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x-1,y-1));                "
-"			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                "
-"			H[6]=exp(-delta/sigma_r)*gausssingle[6];                "
-"			line1.x+=tmp[0].x*H[6];                "
-"			line1.y+=tmp[0].y*H[6];                "
-"			line1.z+=tmp[0].z*H[6];                "
-"                "
-"			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x-1,y));                "
-"			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                "
-"			H[7]=exp(-delta/sigma_r);                "
-"			H[7]=exp(-delta/sigma_r)*gausssingle[7];                "
-"			line1.x+=tmp[1].x*H[7];                "
-"			line1.y+=tmp[1].y*H[7];                "
-"			line1.z+=tmp[1].z*H[7];                "
-"                "
-"			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x-1,y+1));                "
-"			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                "
-"			H[8]=exp(-delta/sigma_r)*gausssingle[8];                "
-"			line1.x+=tmp[0].x*H[8];                "
-"			line1.y+=tmp[0].y*H[8];                "
-"			line1.z+=tmp[0].z*H[8];                "
-"                "
-"			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x-1,y+2));                "
-"			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                "
-"			H[9]=exp(-delta/sigma_r)*gausssingle[9];                "
-"			line1.x+=tmp[1].x*H[9];                "
-"			line1.y+=tmp[1].y*H[9];                "
-"			line1.z+=tmp[1].z*H[9];                "
-"                "
-"                "
-"			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x,y-2));                "
-"			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                "
-"			H[10]=exp(-delta/sigma_r)*gausssingle[10];                "
-"			line1.x+=tmp[0].x*H[10];                "
-"			line1.y+=tmp[0].y*H[10];                "
-"			line1.z+=tmp[0].z*H[10];                "
-"                "
-"			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x,y-1));                "
-"			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                "
-"			H[11]=exp(-delta/sigma_r)*gausssingle[11];                "
-"			line1.x+=tmp[1].x*H[11];                "
-"			line1.y+=tmp[1].y*H[11];                "
-"			line1.z+=tmp[1].z*H[11];                "
-"                "
-"			H[12]=1;                "
-"			line1.x+=line.x;                "
-"			line1.y+=line.y;                "
-"			line1.z+=line.z;                "
-"                "
-"			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x,y+1));                "
-"			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                "
-"			H[13]=exp(-delta/sigma_r)*gausssingle[13];                "
-"			line1.x+=tmp[0].x*H[13];                "
-"			line1.y+=tmp[0].y*H[13];                "
-"			line1.z+=tmp[0].z*H[13];                "
-"                "
-"			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x,y+2));                "
-"			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                "
-"			H[14]=exp(-delta/sigma_r)*gausssingle[14];                "
-"			line1.x+=tmp[1].x*H[14];                "
-"			line1.y+=tmp[1].y*H[14];                "
-"			line1.z+=tmp[1].z*H[14];                "
-"                "
-"                "
-"			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x+1,y-2));                "
-"			H[15]=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                "
-"			H[15]=exp(-H[15]/sigma_r)*gausssingle[15];                "
-"			line1.x+=tmp[0].x*H[15];                "
-"			line1.y+=tmp[0].y*H[15];                "
-"			line1.z+=tmp[0].z*H[15];                "
-"                "
-"			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x+1,y-1));                "
-"			H[16]=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                "
-"			H[16]=exp(-H[16]/sigma_r)*gausssingle[16];                "
-"			line1.x+=tmp[1].x*H[16];                "
-"			line1.y+=tmp[1].y*H[16];                "
-"			line1.z+=tmp[1].z*H[16];                "
-"                "
-"			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x+1,y));                "
-"			H[17]=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                "
-"			H[17]=exp(-H[17]/sigma_r);                "
-"			H[17]=exp(-H[17]/sigma_r)*gausssingle[17];                "
-"			line1.x+=tmp[0].x*H[17];                "
-"			line1.y+=tmp[0].y*H[17];                "
-"			line1.z+=tmp[0].z*H[17];                "
-"                "
-"			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x+1,y+1));                "
-"			H[18]=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                "
-"			H[18]=exp(-H[18]/sigma_r)*gausssingle[18];                "
-"			line1.x+=tmp[1].x*H[18];                "
-"			line1.y+=tmp[1].y*H[18];                "
-"			line1.z+=tmp[1].z*H[18];                "
-"                "
-"			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x+1,y+2));                "
-"			H[19]=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                "
-"			H[19]=exp(-H[19]/sigma_r)*gausssingle[19];                "
-"			line1.x+=tmp[0].x*H[19];                "
-"			line1.y+=tmp[0].y*H[19];                "
-"			line1.z+=tmp[0].z*H[19];                "
-"                "
-"                "
-"			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x+2,y-2));                "
-"			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                "
-"			H[20]=exp(-delta/sigma_r)*gausssingle[20];                "
-"			line1.x+=tmp[1].x*H[20];                "
-"			line1.y+=tmp[1].y*H[20];                "
-"			line1.z+=tmp[1].z*H[20];                "
-"                "
-"			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x+2,y-1));                "
-"			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                "
-"			H[21]=exp(-delta/sigma_r)*gausssingle[21];                "
-"			line1.x+=tmp[0].x*H[21];                "
-"			line1.y+=tmp[0].y*H[21];                "
-"			line1.z+=tmp[0].z*H[21];                "
-"                "
-"			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x+2,y));                "
-"			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                "
-"			H[22]=exp(-delta/sigma_r);                "
-"			H[22]=exp(-delta/sigma_r)*gausssingle[22];                "
-"			line1.x+=tmp[1].x*H[22];                "
-"			line1.y+=tmp[1].y*H[22];                "
-"			line1.z+=tmp[1].z*H[22];                "
-"                "
-"			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x+2,y+1));                "
-"			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                "
-"			H[23]=exp(-delta/sigma_r)*gausssingle[23];                "
-"			line1.x+=tmp[0].x*H[23];                "
-"			line1.y+=tmp[0].y*H[23];                "
-"			line1.z+=tmp[0].z*H[23];                "
-"                "
-"			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x+2,y+2));                "
-"			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                "
-"			H[24]=exp(-delta/sigma_r)*gausssingle[24];                "
-"			line1.x+=tmp[1].x*H[24];                "
-"			line1.y+=tmp[1].y*H[24];                "
-"			line1.z+=tmp[1].z*H[24];                "
-"                "
-"                "
-"		}                "
-"                "
-"			normF = H[0]+H[1]+H[2]+H[3]+H[4]+H[5]+H[6]+H[7]+H[8]+H[9]+H[10]                "
-"				+H[11]+H[12]+H[13]+H[14]+H[15]+H[16]+H[17]+H[18]+H[19]                "
-"				+H[20]+H[21]+H[22]+H[23]+H[24];                "
-"                "
-"			line.x=line1.x/normF;                "
-"			line.y=line1.y/normF;                "
-"			line.z=line1.z/normF;                "
-"	}                "
-"	write_imagef(dstRGB,(int2)(x,y),line);                "
-"}                "
+__constant float gausssingle[25]={0.6411,0.7574,0.8007,0.7574,0.6411,0.7574,0.8948,0.9459,0.8948,0.7574,0.8007,0.94595945,1,0.9459,0.8007,0.7574,0.8948,0.9459,0.8948,0.7574,0.6411,0.7574,0.8007,0.7574,0.6411};                
+                
+                
+__kernel void kernel_denoise(__read_only image2d_t srcRGB, __write_only image2d_t dstRGB, float sigma_r, unsigned int imw, unsigned int imh)                
+{                
+	int x = get_global_id(1);                 
+	int y = get_global_id(0);                 
+	float normF=0;                
+	float H[25];                
+	int i=0;                
+	sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE |CLK_FILTER_NEAREST;                
+	sigma_r = 2*pown(sigma_r,2);                
+                
+	float4 line,line1;                
+	float4 tmp[2];                
+	float delta;                
+                
+	line = read_imagef(srcRGB, sampler, (int2)(x,y));                
+                
+                
+	if (x > 2 &&                
+			x <(imw-3) &&                
+			y > 2 &&                
+			y <(imh-3))                
+	{                
+		line1.x=0;                
+		line1.y=0;                
+		line1.z=0;                
+		{                
+			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x-2,y-2));                
+			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                
+			H[0]=exp(-delta/sigma_r)*gausssingle[0];                
+			line1.x+=tmp[0].x*H[0];                
+			line1.y+=tmp[0].y*H[0];                
+			line1.z+=tmp[0].z*H[0];                
+                
+			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x-2,y-1));                
+			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                
+			H[1]=exp(-delta/sigma_r)*gausssingle[1];                
+			line1.x+=tmp[1].x*H[1];                
+			line1.y+=tmp[1].y*H[1];                
+			line1.z+=tmp[1].z*H[1];                
+                
+			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x-2,y));                
+			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                
+			H[2]=exp(-delta/sigma_r)*gausssingle[2];                
+			line1.x+=tmp[0].x*H[2];                
+			line1.y+=tmp[0].y*H[2];                
+			line1.z+=tmp[0].z*H[2];                
+                
+			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x-2,y+1));                
+			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                
+			H[3]=exp(-delta/sigma_r)*gausssingle[3];                
+			line1.x+=tmp[1].x*H[3];                
+			line1.y+=tmp[1].y*H[3];                
+			line1.z+=tmp[1].z*H[3];                
+                
+			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x-2,y+2));                
+			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                
+			H[4]=exp(-delta/sigma_r)*gausssingle[4];                
+			line1.x+=tmp[0].x*H[4];                
+			line1.y+=tmp[0].y*H[4];                
+			line1.z+=tmp[0].z*H[4];                
+                
+                
+                
+                
+			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x-1,y-2));                
+			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                
+			H[5]=exp(-delta/sigma_r)*gausssingle[5];                
+			line1.x+=tmp[1].x*H[5];                
+			line1.y+=tmp[1].y*H[5];                
+			line1.z+=tmp[1].z*H[5];                
+                
+			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x-1,y-1));                
+			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                
+			H[6]=exp(-delta/sigma_r)*gausssingle[6];                
+			line1.x+=tmp[0].x*H[6];                
+			line1.y+=tmp[0].y*H[6];                
+			line1.z+=tmp[0].z*H[6];                
+                
+			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x-1,y));                
+			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                
+			H[7]=exp(-delta/sigma_r);                
+			H[7]=exp(-delta/sigma_r)*gausssingle[7];                
+			line1.x+=tmp[1].x*H[7];                
+			line1.y+=tmp[1].y*H[7];                
+			line1.z+=tmp[1].z*H[7];                
+                
+			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x-1,y+1));                
+			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                
+			H[8]=exp(-delta/sigma_r)*gausssingle[8];                
+			line1.x+=tmp[0].x*H[8];                
+			line1.y+=tmp[0].y*H[8];                
+			line1.z+=tmp[0].z*H[8];                
+                
+			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x-1,y+2));                
+			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                
+			H[9]=exp(-delta/sigma_r)*gausssingle[9];                
+			line1.x+=tmp[1].x*H[9];                
+			line1.y+=tmp[1].y*H[9];                
+			line1.z+=tmp[1].z*H[9];                
+                
+                
+			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x,y-2));                
+			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                
+			H[10]=exp(-delta/sigma_r)*gausssingle[10];                
+			line1.x+=tmp[0].x*H[10];                
+			line1.y+=tmp[0].y*H[10];                
+			line1.z+=tmp[0].z*H[10];                
+                
+			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x,y-1));                
+			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                
+			H[11]=exp(-delta/sigma_r)*gausssingle[11];                
+			line1.x+=tmp[1].x*H[11];                
+			line1.y+=tmp[1].y*H[11];                
+			line1.z+=tmp[1].z*H[11];                
+                
+			H[12]=1;                
+			line1.x+=line.x;                
+			line1.y+=line.y;                
+			line1.z+=line.z;                
+                
+			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x,y+1));                
+			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                
+			H[13]=exp(-delta/sigma_r)*gausssingle[13];                
+			line1.x+=tmp[0].x*H[13];                
+			line1.y+=tmp[0].y*H[13];                
+			line1.z+=tmp[0].z*H[13];                
+                
+			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x,y+2));                
+			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                
+			H[14]=exp(-delta/sigma_r)*gausssingle[14];                
+			line1.x+=tmp[1].x*H[14];                
+			line1.y+=tmp[1].y*H[14];                
+			line1.z+=tmp[1].z*H[14];                
+                
+                
+			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x+1,y-2));                
+			H[15]=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                
+			H[15]=exp(-H[15]/sigma_r)*gausssingle[15];                
+			line1.x+=tmp[0].x*H[15];                
+			line1.y+=tmp[0].y*H[15];                
+			line1.z+=tmp[0].z*H[15];                
+                
+			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x+1,y-1));                
+			H[16]=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                
+			H[16]=exp(-H[16]/sigma_r)*gausssingle[16];                
+			line1.x+=tmp[1].x*H[16];                
+			line1.y+=tmp[1].y*H[16];                
+			line1.z+=tmp[1].z*H[16];                
+                
+			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x+1,y));                
+			H[17]=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                
+			H[17]=exp(-H[17]/sigma_r);                
+			H[17]=exp(-H[17]/sigma_r)*gausssingle[17];                
+			line1.x+=tmp[0].x*H[17];                
+			line1.y+=tmp[0].y*H[17];                
+			line1.z+=tmp[0].z*H[17];                
+                
+			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x+1,y+1));                
+			H[18]=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                
+			H[18]=exp(-H[18]/sigma_r)*gausssingle[18];                
+			line1.x+=tmp[1].x*H[18];                
+			line1.y+=tmp[1].y*H[18];                
+			line1.z+=tmp[1].z*H[18];                
+                
+			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x+1,y+2));                
+			H[19]=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                
+			H[19]=exp(-H[19]/sigma_r)*gausssingle[19];                
+			line1.x+=tmp[0].x*H[19];                
+			line1.y+=tmp[0].y*H[19];                
+			line1.z+=tmp[0].z*H[19];                
+                
+                
+			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x+2,y-2));                
+			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                
+			H[20]=exp(-delta/sigma_r)*gausssingle[20];                
+			line1.x+=tmp[1].x*H[20];                
+			line1.y+=tmp[1].y*H[20];                
+			line1.z+=tmp[1].z*H[20];                
+                
+			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x+2,y-1));                
+			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                
+			H[21]=exp(-delta/sigma_r)*gausssingle[21];                
+			line1.x+=tmp[0].x*H[21];                
+			line1.y+=tmp[0].y*H[21];                
+			line1.z+=tmp[0].z*H[21];                
+                
+			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x+2,y));                
+			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                
+			H[22]=exp(-delta/sigma_r);                
+			H[22]=exp(-delta/sigma_r)*gausssingle[22];                
+			line1.x+=tmp[1].x*H[22];                
+			line1.y+=tmp[1].y*H[22];                
+			line1.z+=tmp[1].z*H[22];                
+                
+			tmp[0]=read_imagef(srcRGB, sampler, (int2)(x+2,y+1));                
+			delta=pown(tmp[0].x-line.x,2)+pown(tmp[0].y-line.y,2)+pown(tmp[0].z-line.z,2);                
+			H[23]=exp(-delta/sigma_r)*gausssingle[23];                
+			line1.x+=tmp[0].x*H[23];                
+			line1.y+=tmp[0].y*H[23];                
+			line1.z+=tmp[0].z*H[23];                
+                
+			tmp[1]=read_imagef(srcRGB, sampler, (int2)(x+2,y+2));                
+			delta=pown(tmp[1].x-line.x,2)+pown(tmp[1].y-line.y,2)+pown(tmp[1].z-line.z,2);                
+			H[24]=exp(-delta/sigma_r)*gausssingle[24];                
+			line1.x+=tmp[1].x*H[24];                
+			line1.y+=tmp[1].y*H[24];                
+			line1.z+=tmp[1].z*H[24];                
+                
+                
+		}                
+                
+			normF = H[0]+H[1]+H[2]+H[3]+H[4]+H[5]+H[6]+H[7]+H[8]+H[9]+H[10]                
+				+H[11]+H[12]+H[13]+H[14]+H[15]+H[16]+H[17]+H[18]+H[19]                
+				+H[20]+H[21]+H[22]+H[23]+H[24];                
+                
+			line.x=line1.x/normF;                
+			line.y=line1.y/normF;                
+			line.z=line1.z/normF;                
+	}                
+	write_imagef(dstRGB,(int2)(x,y),line);                
+}                
