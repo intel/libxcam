@@ -106,7 +106,7 @@ private:
     XCamReturn get_crtc(drmModeRes *res);
     XCamReturn get_connector(drmModeRes *res);
     XCamReturn get_plane();
-    XCamReturn set_plane(const FB &fb);
+    XCamReturn set_crtc(const FB &fb);
     XCamReturn page_flip(const FB &fb);
 
 private:
@@ -121,6 +121,7 @@ private:
     unsigned int _con_id;
     unsigned int _encoder_id;
     unsigned int _plane_id;
+    drmModeModeInfo _mode;
     drmModeConnector *_connector;
     bool _is_render_inited;
 
