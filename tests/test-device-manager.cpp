@@ -29,6 +29,8 @@
 #if HAVE_LIBCL
 #include "cl_3a_image_processor.h"
 #include "cl_csc_image_processor.h"
+#include "cl_hdr_handler.h"
+#include "cl_denoise_handler.h"
 #endif
 #if HAVE_LIBDRM
 #include "drm_display.h"
@@ -39,6 +41,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string>
+#include <getopt.h>
 #include "test_common.h"
 
 using namespace XCam;
@@ -235,6 +238,7 @@ void dev_stop_handler(int sig)
 void print_help (const char *bin_name)
 {
     printf ("Usage: %s [-a analyzer]\n"
+            "Configurations:\n"
             "\t -a analyzer   specify a analyzer\n"
             "\t               select from [simple, aiq, dynamic], default is [simple]\n"
             "\t -m mem_type   specify video memory type\n"
@@ -249,8 +253,15 @@ void print_help (const char *bin_name)
             "\t -i frame_save specify the frame count to save, default is 0 which means endless\n"
             "\t -p preview on local display\n"
             "\t -e display_mode    preview mode\n"
-            "\t                select from [primary, overlay], default is [primary]\n"
+            "\t               select from [primary, overlay], default is [primary]\n"
             "\t -h            help\n"
+            "CL features:\n"
+            "\t --hdr         specify hdr type, default is hdr off\n"
+            "\t               select from [rgb, lab]\n"
+            "\t --dns         enable bilateral denoise\n"
+            "\t               select from [true, fasle], default is [false]\n"
+            "\t --snr         enable simple denoise\n"
+            "\t               select from [true, fasle], default is [false]\n"
             , bin_name
             , DEFAULT_SAVE_FILE_NAME);
 }
@@ -279,10 +290,25 @@ int main (int argc, char *argv[])
     enum v4l2_memory v4l2_mem_type = V4L2_MEMORY_MMAP;
     const char *bin_name = argv[0];
     int opt;
+#if HAVE_LIBCL
+    uint32_t hdr_mode = CL_HDR_DISABLE;
+    uint32_t dns_mode = CL_DENOISE_DISABLE;
+    uint32_t snr_mode = CL_DENOISE_DISABLE;
+#endif
     uint32_t capture_mode = V4L2_CAPTURE_MODE_VIDEO;
     uint32_t pixel_format = V4L2_PIX_FMT_NV12;
 
-    while ((opt =  getopt(argc, argv, "sca:n:m:f:d:pi:e:h")) != -1) {
+    const char *short_opts = "sca:n:m:f:d:pi:e:h";
+    const struct option long_opts[] = {
+#if HAVE_LIBCL
+        {"hdr", required_argument, NULL, 'H'},
+        {"dns", required_argument, NULL, 'D'},
+        {"snr", required_argument, NULL, 'S'},
+#endif
+        {0, 0, 0, 0},
+    };
+
+    while ((opt = getopt_long(argc, argv, short_opts, long_opts, NULL)) != -1) {
         switch (opt) {
         case 'a': {
             if (!strcmp (optarg, "dynamic"))
@@ -353,6 +379,41 @@ int main (int argc, char *argv[])
         case 'i':
             device_manager->set_frame_save(atoi(optarg));
             break;
+#if HAVE_LIBCL
+        case 'H': {
+            if (!strcasecmp (optarg, "rgb"))
+                hdr_mode = CL_HDR_TYPE_RGB;
+            else if (!strcasecmp (optarg, "lab"))
+                hdr_mode = CL_HDR_TYPE_LAB;
+            else {
+                print_help (bin_name);
+                return -1;
+            } 
+            break;
+        }
+        case 'D': {
+            if (!strcmp (optarg, "true"))
+                dns_mode = CL_DENOISE_TYPE_BILATERIAL;
+            else if (!strcmp (optarg, "false"))
+                dns_mode = CL_DENOISE_DISABLE;
+            else {
+                print_help (bin_name);
+                return -1;
+            } 
+            break;
+        }
+        case 'S': {
+            if (!strcmp (optarg, "true"))
+                snr_mode = CL_DENOISE_TYPE_SIMPLE;
+            else if (!strcmp (optarg, "false"))
+                snr_mode = CL_DENOISE_DISABLE;
+            else {
+                print_help (bin_name);
+                return -1;
+            } 
+            break;
+        }
+#endif
         case 'h':
             print_help (bin_name);
             return 0;
@@ -452,12 +513,12 @@ int main (int argc, char *argv[])
     if (have_cl_processor) {
         cl_processor = new CL3aImageProcessor ();
         cl_processor->set_stats_callback(device_manager);
-        //cl_processor->set_hdr (true);
-        cl_processor->set_denoise (false);
+        cl_processor->set_hdr (hdr_mode);
+        cl_processor->set_denoise (dns_mode);
         if (need_display) {
             cl_processor->set_output_format (V4L2_PIX_FMT_XBGR32);
         }
-        cl_processor->set_snr (false);
+        cl_processor->set_snr (snr_mode);
         device_manager->add_image_processor (cl_processor);
     }
 #endif
