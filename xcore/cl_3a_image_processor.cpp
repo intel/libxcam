@@ -292,7 +292,7 @@ CL3aImageProcessor::create_handlers ()
     add_handler (image_handler);
 
     /* Temporal Noise Reduction (RGB domain) */
-    {
+    if (CL_TNR_TYPE_RGB & _enable_tnr) {
         image_handler = create_cl_tnr_image_handler(context, CL_TNR_TYPE_RGB);
         _tnr_rgb = image_handler.dynamic_cast_ptr<CLTnrImageHandler> ();
         XCAM_FAIL_RETURN (
@@ -300,7 +300,7 @@ CL3aImageProcessor::create_handlers ()
             _tnr_rgb.ptr (),
             XCAM_RETURN_ERROR_CL,
             "CL3aImageProcessor create tnr handler failed");
-        //_tnr_rgb->set_mode(CL_TNR_TYPE_RGB);
+        _tnr_rgb->set_mode(CL_TNR_TYPE_RGB);
         add_handler (image_handler);
     }
 
@@ -327,7 +327,7 @@ CL3aImageProcessor::create_handlers ()
     add_handler (image_handler);
 
     /* color space conversion */
-    if (_out_smaple_type == OutSampleYuv) {
+    if (CL_TNR_TYPE_YUV & _enable_tnr) {
         image_handler = create_cl_csc_image_handler (context, CL_CSC_TYPE_RGBATONV12);
         _csc = image_handler.dynamic_cast_ptr<CLCscImageHandler> ();
         XCAM_FAIL_RETURN (
@@ -341,7 +341,7 @@ CL3aImageProcessor::create_handlers ()
     }
 
     /* Temporal Noise Reduction (YUV domain) */
-    if (_out_smaple_type == OutSampleYuv) {
+    if (CL_TNR_TYPE_YUV & _enable_tnr) {
         image_handler = create_cl_tnr_image_handler(context, CL_TNR_TYPE_YUV);
         _tnr_yuv = image_handler.dynamic_cast_ptr<CLTnrImageHandler> ();
         XCAM_FAIL_RETURN (
@@ -353,6 +353,16 @@ CL3aImageProcessor::create_handlers ()
         add_handler (image_handler);
     }
 
+    if (CL_TNR_TYPE_YUV & _enable_tnr) {
+        image_handler = create_cl_csc_image_handler (context, CL_CSC_TYPE_NV12TORGBA);
+        _csc = image_handler.dynamic_cast_ptr<CLCscImageHandler> ();
+        XCAM_FAIL_RETURN (
+            WARNING,
+            _csc .ptr (),
+            XCAM_RETURN_ERROR_CL,
+            "CL3aImageProcessor create csc handler failed");
+        add_handler (image_handler);
+    }
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -423,6 +433,8 @@ CL3aImageProcessor::set_macc (bool enable)
 bool
 CL3aImageProcessor::set_tnr (uint32_t mode, uint8_t level)
 {
+    _enable_tnr = mode;
+
     STREAM_LOCK;
     //TODO: map denoise level to threshold & gain
     XCAM_UNUSED(level);
