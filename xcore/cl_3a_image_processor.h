@@ -38,6 +38,7 @@ class CLDenoiseImageHandler;
 class CLSnrImageHandler;
 class CLBlcImageHandler;
 class CLTnrImageHandler;
+class CLYeenrImageHandler;
 
 class CL3aImageProcessor
     : public CLImageProcessor
@@ -92,6 +93,7 @@ private:
     SmartPtr<CLMaccImageHandler>       _macc;
     SmartPtr<CLTnrImageHandler>        _tnr_rgb;
     SmartPtr<CLTnrImageHandler>        _tnr_yuv;
+    SmartPtr<CLYeenrImageHandler>       _yeenr;
 
     uint32_t                           _enable_hdr;
     uint32_t                           _enable_denoise;
@@ -99,6 +101,8 @@ private:
     uint32_t                           _tnr_mode;
     bool                               _enable_gamma;
     bool                               _enable_macc;
+    bool                               _enable_yeenr;
+
 };
 
 };
