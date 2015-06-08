@@ -32,6 +32,7 @@
 #include "cl_gamma_handler.h"
 #include "cl_snr_handler.h"
 #include "cl_macc_handler.h"
+#include "cl_yeenr_handler.h"
 
 using namespace XCam;
 
@@ -48,6 +49,7 @@ enum TestHandlerType {
     TestHandlerGamma,
     TestHandlerSimpleNoiseReduction,
     TestHandlerMacc,
+    TestHandlerYeenr,
 };
 
 struct TestFileHandle {
@@ -115,7 +117,7 @@ print_help (const char *bin_name)
 {
     printf ("Usage: %s [-f format] -i input -o output\n"
             "\t -t type      specify image handler type\n"
-            "\t              select from [demo, blacklevel, defect, demosaic, csc, hdr, wb, denoise, gamma, snr, macc]\n"
+            "\t              select from [demo, blacklevel, defect, demosaic, csc, hdr, wb, denoise, gamma, snr, macc, yeenr]\n"
             "\t -f input_format    specify a input format\n"
             "\t -g output_format    specify a output format\n"
             "\t              select from [NV12, BA10, RGBA]\n"
@@ -210,6 +212,8 @@ int main (int argc, char *argv[])
                 handler_type = TestHandlerSimpleNoiseReduction;
             else if (!strcasecmp (optarg, "macc"))
                 handler_type = TestHandlerMacc;
+            else if (!strcasecmp (optarg, "yeenr"))
+                handler_type = TestHandlerYeenr;
             else
                 print_help (bin_name);
             break;
@@ -338,7 +342,20 @@ int main (int argc, char *argv[])
     case TestHandlerMacc:
         image_handler = create_cl_macc_image_handler (context);
         break;
-
+    case TestHandlerYeenr: {
+        XCam3aResultEdgeEnhancement yee;
+        XCam3aResultNoiseReduction ynr;
+        yee.gain = 4.0;
+        yee.threshold = 32.0;
+        ynr.gain = 0.21875;
+        SmartPtr<CLYeenrImageHandler> yeenr_handler;
+        image_handler = create_cl_yeenr_image_handler (context);
+        yeenr_handler = image_handler.dynamic_cast_ptr<CLYeenrImageHandler> ();
+        XCAM_ASSERT (yeenr_handler.ptr ());
+        yeenr_handler->set_yeenr_config_ee (yee);
+        yeenr_handler->set_yeenr_config_nr (ynr);
+        break;
+    }
     default:
         XCAM_LOG_ERROR ("unsupported image handler type:%d", handler_type);
         return -1;

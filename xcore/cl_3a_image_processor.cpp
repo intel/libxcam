@@ -30,6 +30,7 @@
 #include "cl_snr_handler.h"
 #include "cl_macc_handler.h"
 #include "cl_tnr_handler.h"
+#include "cl_yeenr_handler.h"
 
 namespace XCam {
 
@@ -43,6 +44,7 @@ CL3aImageProcessor::CL3aImageProcessor ()
     , _tnr_mode (0)
     , _enable_gamma (true)
     , _enable_macc (true)
+    , _enable_yeenr (false)
 {
     XCAM_LOG_DEBUG ("CL3aImageProcessor constructed");
 }
@@ -344,6 +346,17 @@ CL3aImageProcessor::create_handlers ()
         XCAM_RETURN_ERROR_CL,
         "CL3aImageProcessor create tnr handler failed");
     _tnr_yuv->set_mode (CL_TNR_TYPE_YUV & _tnr_mode);
+    add_handler (image_handler);
+
+    /* yeenr */
+    image_handler = create_cl_yeenr_image_handler (context);
+    _yeenr = image_handler.dynamic_cast_ptr<CLYeenrImageHandler> ();
+    XCAM_FAIL_RETURN (
+        WARNING,
+        _yeenr.ptr (),
+        XCAM_RETURN_ERROR_CL,
+        "CL3aImageProcessor create yeenr handler failed");
+    _yeenr->set_kernels_enable (_enable_yeenr);
     add_handler (image_handler);
 
     if (_out_smaple_type == OutSampleRGB) {
