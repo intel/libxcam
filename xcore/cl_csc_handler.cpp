@@ -82,7 +82,7 @@ CLCscImageKernel::prepare_arguments (
 
     work_size.dim = XCAM_DEFAULT_IMAGE_DIM;
     if (_kernel_csc_type == CL_CSC_TYPE_RGBATONV12) {
-        work_size.global[0] = video_info.width / 2;
+        work_size.global[0] = video_info.width / 4;
         work_size.global[1] = video_info.height / 2;
         arg_count = 4;
     }
