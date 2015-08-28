@@ -50,7 +50,9 @@ XCAM_BEGIN_DECLARE
 
 typedef enum {
     ISP_IMAGE_PROCESSOR = 0,
+#if HAVE_LIBCL
     CL_IMAGE_PROCESSOR,
+#endif
 } ImageProcessorType;
 
 typedef enum {
