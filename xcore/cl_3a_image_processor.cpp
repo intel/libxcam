@@ -245,6 +245,10 @@ CL3aImageProcessor::apply_3a_result (SmartPtr<X3aResult> &result)
             _rgb_pipe->set_tnr_config(tnr_res->get_standard_result ());
             _rgb_pipe->set_3a_result (result);
         }
+        if (_yuv_pipe.ptr ()) {
+            _yuv_pipe->set_tnr_config(tnr_res->get_standard_result ());
+            _yuv_pipe->set_3a_result (result);
+        }
 
         break;
     }
@@ -320,9 +324,11 @@ CL3aImageProcessor::create_handlers ()
         XCAM_RETURN_ERROR_CL,
         "CL3aImageProcessor create bayer pipe handler failed");
     _bayer_pipe->set_stats_callback (_stats_callback);
+#if 0
     if (get_profile () >= AdvancedPipelineProfile) {
         _bayer_pipe->set_output_format (V4L2_PIX_FMT_ABGR32);
     }
+#endif
     image_handler->set_pool_size (XCAM_CL_3A_IMAGE_MAX_POOL_SIZE);
     add_handler (image_handler);
 
