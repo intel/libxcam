@@ -319,8 +319,6 @@ int main (int argc, char *argv[])
 #endif
 
 #if HAVE_LIBCL
-    SmartPtr<CL3aImageProcessor> cl_processor;
-    CL3aImageProcessor::CaptureStage capture_stage = CL3aImageProcessor::tonemapping;
 #endif
     bool have_cl_processor = false;
     bool need_display = false;
@@ -505,10 +503,13 @@ int main (int argc, char *argv[])
             print_help (bin_name);
             return 0;
 #if HAVE_LIBCL
-	case 'C':
+	case 'C': {
+	    SmartPtr<CL3aImageProcessor> cl_processor;
+            CL3aImageProcessor::CaptureStage capture_stage = CL3aImageProcessor::TonemappingStage;
 	    if (!strcmp (optarg, "bayer"))
-                capture_stage = CL3aImageProcessor::Basicbayer;
-            break;	    
+                capture_stage = CL3aImageProcessor::BasicbayerStage;
+            break;
+	}	    
 #endif
 
         default:

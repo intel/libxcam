@@ -64,8 +64,8 @@ public:
     };
 
     enum CaptureStage {
-        Basicbayer,
-	tonemapping,
+        BasicbayerStage,
+	TonemappingStage,
     };
 
 public:

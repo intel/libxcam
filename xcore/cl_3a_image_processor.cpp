@@ -47,7 +47,7 @@ CL3aImageProcessor::CL3aImageProcessor ()
     , _output_fourcc (V4L2_PIX_FMT_NV12)
     , _out_smaple_type (OutSampleYuv)
     , _pipeline_profile (BasicPipelineProfile)
-    , _capture_stage (tonemapping)
+    , _capture_stage (TonemappingStage)
     , _hdr_mode (0)
     , _tnr_mode (0)
     , _enable_gamma (true)
@@ -306,7 +306,7 @@ CL3aImageProcessor::create_handlers ()
     image_handler->set_pool_size (XCAM_CL_3A_IMAGE_MAX_POOL_SIZE);
     add_handler (image_handler);
     
-    if(_capture_stage == Basicbayer)
+    if(_capture_stage == BasicbayerStage)
         return XCAM_RETURN_NO_ERROR;
 
 #else
