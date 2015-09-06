@@ -181,6 +181,7 @@ MainDeviceManager::handle_buffer (const SmartPtr<VideoBuffer> &buf)
 
     if (!_file) {
         XCAM_LOG_ERROR ("open file failed");
+        return;
     }
 
     if (fwrite (frame, size, 1, _file) <= 0) {
@@ -266,7 +267,9 @@ void print_help (const char *bin_name)
             "\t               mem_type select from [dma, mmap], default is [mmap]\n"
             "\t -s            save file to %s\n"
             "\t -n interval   save file on every [interval] frame\n"
+#if HAVE_LIBCL
             "\t -c            process image with cl kernel\n"
+#endif
             "\t -f pixel_fmt  specify output pixel format\n"
             "\t               pixel_fmt select from [NV12, YUYV, BA10, BA12], default is [NV12]\n"
             "\t -d cap_mode   specify capture mode\n"
@@ -281,6 +284,7 @@ void print_help (const char *bin_name)
             "\t                select from [primary, overlay], default is [primary]\n"
             "\t --sync        set analyzer in sync mode\n"
             "\t -h            help\n"
+#if HAVE_LIBCL
             "CL features:\n"
 	    "\t --capture capture_stage      specify the capture stage of image\n"
 	    "\t               capture_stage select from [bayer, tonemapping], default is [tonemapping]\n"
@@ -295,7 +299,10 @@ void print_help (const char *bin_name)
             "\t --enable-bnr  enable bayer noise reduction\n"
             "\t --enable-dpc  enable defect pixel correction\n"
             "\t --enable-tonemapping  enable tonemapping\n"
+            "\t --pipeline    pipe mode\n"
+            "\t               select from [basic, advance], default is [basic]\n"
             "(e.g.: xxxx --hdr=xx --tnr=xx --tnr-level=xx --bilateral --enable-snr --enable-ee --enable-bnr --enable-dpc)\n\n"
+#endif
             , bin_name
             , DEFAULT_SAVE_FILE_NAME);
 }
@@ -311,7 +318,9 @@ int main (int argc, char *argv[])
     SmartPtr<AnalyzerLoader> loader;
     const char *path_of_3a;
     SmartPtr<ImageProcessor> isp_processor;
+#if HAVE_LIBCL
     SmartPtr<CLCscImageProcessor> cl_csc_proccessor;
+#endif
     AnalyzerType  analyzer_type = AnalyzerTypeSimple;
     DrmDisplayMode display_mode = DRM_DISPLAY_MODE_PRIMARY;
 #if HAVE_LIBDRM
@@ -319,6 +328,14 @@ int main (int argc, char *argv[])
 #endif
 
 #if HAVE_LIBCL
+    SmartPtr<CL3aImageProcessor> cl_processor;
+    uint32_t hdr_type = CL_HDR_DISABLE;
+    uint32_t tnr_type = CL_TNR_DISABLE;
+    uint32_t denoise_type = 0;
+    uint8_t tnr_level = 0;
+    bool dpc_type = false;
+    CL3aImageProcessor::PipelineProfile pipeline_mode = CL3aImageProcessor::BasicPipelineProfile;
+    CL3aImageProcessor::CaptureStage capture_stage = CL3aImageProcessor::TonemappingStage;
 #endif
     bool have_cl_processor = false;
     bool need_display = false;
@@ -327,11 +344,6 @@ int main (int argc, char *argv[])
     int opt;
     uint32_t capture_mode = V4L2_CAPTURE_MODE_VIDEO;
     uint32_t pixel_format = V4L2_PIX_FMT_NV12;
-    uint32_t hdr_type = CL_HDR_DISABLE;
-    uint32_t tnr_type = CL_TNR_DISABLE;
-    uint32_t denoise_type = 0;
-    uint8_t tnr_level = 0;
-    bool dpc_type = false;
     bool tonemapping_type = false;
     int32_t brightness_level = 128;
     bool    have_usbcam = 0;
@@ -352,6 +364,7 @@ int main (int argc, char *argv[])
         {"usb", required_argument, NULL, 'U'},
         {"sync", no_argument, NULL, 'Y'},
 	{"capture", required_argument, NULL, 'C'},
+        {"pipeline", required_argument, NULL, 'P'},
         {0, 0, 0, 0},
     };
 
@@ -391,9 +404,11 @@ int main (int argc, char *argv[])
         case 'n':
             device_manager->set_interval (atoi(optarg));
             break;
+#if HAVE_LIBCL
         case 'c':
             have_cl_processor = true;
             break;
+#endif
         case 'f':
             CHECK_EXP ((strlen(optarg) == 4), "invalid pixel format\n");
             pixel_format = v4l2_fourcc ((unsigned)optarg[0],
@@ -443,6 +458,7 @@ int main (int argc, char *argv[])
         case 'Y':
             sync_mode = true;
             break;
+#if HAVE_LIBCL
         case 'H': {
             if (!strcasecmp (optarg, "rgb"))
                 hdr_type = CL_HDR_TYPE_RGB;
@@ -499,18 +515,26 @@ int main (int argc, char *argv[])
             tonemapping_type = true;
             break;
         }
+        case 'P': {
+            if (!strcasecmp (optarg, "basic"))
+                pipeline_mode = CL3aImageProcessor::BasicPipelineProfile;
+            else if (!strcasecmp (optarg, "advance"))
+                pipeline_mode = CL3aImageProcessor::AdvancedPipelineProfile;
+            else {
+                print_help (bin_name);
+                return -1;
+            }
+            break;
+        }
+        case 'C': {
+            if (!strcmp (optarg, "bayer"))
+                capture_stage = CL3aImageProcessor::BasicbayerStage;
+            break;
+        }
+#endif
         case 'h':
             print_help (bin_name);
             return 0;
-#if HAVE_LIBCL
-	case 'C': {
-	    SmartPtr<CL3aImageProcessor> cl_processor;
-            CL3aImageProcessor::CaptureStage capture_stage = CL3aImageProcessor::TonemappingStage;
-	    if (!strcmp (optarg, "bayer"))
-                capture_stage = CL3aImageProcessor::BasicbayerStage;
-            break;
-	}	    
-#endif
 
         default:
             print_help (bin_name);
@@ -548,7 +572,7 @@ int main (int argc, char *argv[])
         analyzer = new X3aAnalyzerAiq (isp_controller, DEFAULT_CPF_FILE);
         break;
     case AnalyzerTypeHybrid: {
-        path_of_3a = DEFAULT_DYNAMIC_3A_LIB;
+        path_of_3a = DEFAULT_HYBRID_3A_LIB;
         loader = new AnalyzerLoader (path_of_3a);
         analyzer = loader->load_hybrid_analyzer (loader, isp_controller, DEFAULT_CPF_FILE);
         CHECK_EXP (analyzer.ptr (), "load hybrid 3a lib(%s) failed", path_of_3a);
@@ -586,22 +610,25 @@ int main (int argc, char *argv[])
     CHECK (ret, "device(%s) set format failed", device->get_device_name());
 
     ret = event_device->open ();
-    CHECK (ret, "event device(%s) open failed", event_device->get_device_name());
-    int event = V4L2_EVENT_ATOMISP_3A_STATS_READY;
-    ret = event_device->subscribe_event (event);
-    CHECK_CONTINUE (
-        ret,
-        "device(%s) subscribe event(%d) failed",
-        event_device->get_device_name(), event);
-    event = V4L2_EVENT_FRAME_SYNC;
-    ret = event_device->subscribe_event (event);
-    CHECK_CONTINUE (
-        ret,
-        "device(%s) subscribe event(%d) failed",
-        event_device->get_device_name(), event);
+    if (ret == XCAM_RETURN_NO_ERROR) {
+        CHECK (ret, "event device(%s) open failed", event_device->get_device_name());
+        int event = V4L2_EVENT_ATOMISP_3A_STATS_READY;
+        ret = event_device->subscribe_event (event);
+        CHECK_CONTINUE (
+            ret,
+            "device(%s) subscribe event(%d) failed",
+            event_device->get_device_name(), event);
+        event = V4L2_EVENT_FRAME_SYNC;
+        ret = event_device->subscribe_event (event);
+        CHECK_CONTINUE (
+            ret,
+            "device(%s) subscribe event(%d) failed",
+            event_device->get_device_name(), event);
+
+        device_manager->set_event_device (event_device);
+    }
 
     device_manager->set_capture_device (device);
-    device_manager->set_event_device (event_device);
     device_manager->set_isp_controller (isp_controller);
     if (analyzer.ptr())
         device_manager->set_analyzer (analyzer);
@@ -613,15 +640,14 @@ int main (int argc, char *argv[])
 
     XCAM_ASSERT (isp_processor.ptr ());
     device_manager->add_image_processor (isp_processor);
+#if HAVE_LIBCL
     if ((display_mode == DRM_DISPLAY_MODE_PRIMARY) && need_display && (!have_cl_processor)) {
         cl_csc_proccessor = new CLCscImageProcessor();
         XCAM_ASSERT (cl_csc_proccessor.ptr ());
         device_manager->add_image_processor (cl_csc_proccessor);
     }
 
-#if HAVE_LIBCL
     if (have_cl_processor) {
-
         cl_processor = new CL3aImageProcessor ();
         cl_processor->set_stats_callback(device_manager);
         cl_processor->set_dpc(dpc_type);
@@ -633,6 +659,7 @@ int main (int argc, char *argv[])
             cl_processor->set_output_format (V4L2_PIX_FMT_XBGR32);
         }
         cl_processor->set_tnr (tnr_type, tnr_level);
+        cl_processor->set_profile (pipeline_mode);
         analyzer->set_parameter_brightness((brightness_level - 128) / 128.0);
         device_manager->add_image_processor (cl_processor);
     }

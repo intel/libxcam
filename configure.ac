@@ -56,8 +56,8 @@ AC_ARG_ENABLE([gst],
 
 AC_ARG_ENABLE(libcl,
     AS_HELP_STRING([--enable-libcl],
-                   [enable libcl image processor, @<:@default=yes@:>@]),
-    [], [enable_libcl="yes"])
+                   [enable libcl image processor, @<:@default=no@:>@]),
+    [], [enable_libcl="no"])
 
 # documentation
 AC_ARG_ENABLE(docs,
@@ -193,6 +193,8 @@ AC_CONFIG_FILES([Makefile
                  wrapper/gstreamer/Makefile
                  wrapper/gstreamer/interface/Makefile
                  3alib/Makefile
+                 3alib/aiq/Makefile
+                 3alib/hybrid/Makefile
                  tests/Makefile
                  pkgconfig/Makefile
                  pkgconfig/xcam_core.pc
