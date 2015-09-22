@@ -17,4 +17,10 @@ else
 CLX_BIN_DIR =
 endif
 
-SUBDIRS = $(CLX_KERNEL_DIR) $(CLX_BIN_DIR) xcore wrapper tests $(X3ALIB_DIR) pkgconfig
+if ENABLE_SMART_ANALYSIS
+SMART_ANALYSIS_DIR = smartlib
+else
+SMART_ANALYSIS_DIR =
+endif
+
+SUBDIRS = $(CLX_KERNEL_DIR) $(CLX_BIN_DIR) xcore wrapper tests $(X3ALIB_DIR) $(SMART_ANALYSIS_DIR) pkgconfig

@@ -27,7 +27,7 @@
 
 namespace XCam {
 HybridAnalyzer::HybridAnalyzer (XCam3ADescription *desc,
-                                SmartPtr<AnalyzerLoader> &loader,
+                                SmartPtr<X3aAnalyzerLoader> &loader,
                                 SmartPtr<IspController> &isp,
                                 const char *cpf_path)
     : DynamicAnalyzer (desc, loader, "HybridAnalyzer"),
@@ -197,7 +197,7 @@ HybridAnalyzer::analyze_af (XCamAfParam &param)
 }
 
 void
-HybridAnalyzer::x3a_calculation_done (X3aAnalyzer *analyzer, X3aResultList &results)
+HybridAnalyzer::x3a_calculation_done (XAnalyzer *analyzer, X3aResultList &results)
 {
     XCAM_UNUSED (analyzer);
 
@@ -222,7 +222,7 @@ HybridAnalyzer::~HybridAnalyzer ()
 }
 
 void
-HybridAnalyzer::x3a_calculation_failed (X3aAnalyzer *analyzer, int64_t timestamp, const char *msg)
+HybridAnalyzer::x3a_calculation_failed (XAnalyzer *analyzer, int64_t timestamp, const char *msg)
 {
     XCAM_UNUSED (analyzer);
     notify_calculation_failed (NULL, timestamp, msg);
