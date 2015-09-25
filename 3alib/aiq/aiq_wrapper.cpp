@@ -49,7 +49,7 @@ public:
     uint32_t get_results (X3aResultList &results);
 
     // derive from AnalyzerCallback
-    virtual void x3a_calculation_done (X3aAnalyzer *analyzer, X3aResultList &results);
+    virtual void x3a_calculation_done (XAnalyzer *analyzer, X3aResultList &results);
     void update_brightness_result(XCamCommonParam *params);
 
 private:
@@ -127,7 +127,7 @@ XCam3AAiqContext::get_stats_buffer ()
 
 
 void
-XCam3AAiqContext::x3a_calculation_done (X3aAnalyzer *analyzer, X3aResultList &results)
+XCam3AAiqContext::x3a_calculation_done (XAnalyzer *analyzer, X3aResultList &results)
 {
     XCAM_UNUSED (analyzer);
     SmartLock  locker (_result_mutex);
@@ -377,7 +377,7 @@ xcam_combine_analyze_results (XCam3AContext *context, XCam3aResultHead *results[
 
     if (!result_count) {
         *res_count = 0;
-        XCAM_LOG_DEBUG ("aiq wrapper comible with no result out");
+        XCAM_LOG_DEBUG ("aiq wrapper combine with no result out");
         return XCAM_RETURN_NO_ERROR;
     }
 
