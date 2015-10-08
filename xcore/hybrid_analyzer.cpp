@@ -34,29 +34,34 @@ HybridAnalyzer::HybridAnalyzer (XCam3ADescription *desc,
       _isp (isp),
       _cpf_path (cpf_path)
 {
+#if HAVE_IA_AIQ
     _analyzer_aiq = new X3aAnalyzerAiq (isp, cpf_path);
     XCAM_ASSERT (_analyzer_aiq.ptr ());
     _analyzer_aiq->prepare_handlers ();
     _analyzer_aiq->set_results_callback (this);
     _analyzer_aiq->set_sync_mode (true);
+#endif
 }
 
 XCamReturn
 HybridAnalyzer::internal_init (uint32_t width, uint32_t height, double framerate)
 {
+#if HAVE_IA_AIQ
     if (_analyzer_aiq->init (width, height, framerate) != XCAM_RETURN_NO_ERROR) {
         return XCAM_RETURN_ERROR_AIQ;
     }
-
+#endif
     return create_context ();
 }
 
 XCamReturn
 HybridAnalyzer::internal_deinit ()
 {
+#if HAVE_IA_AIQ
     if (_analyzer_aiq->deinit () != XCAM_RETURN_NO_ERROR) {
         return XCAM_RETURN_ERROR_AIQ;
     }
+#endif
 
     return DynamicAnalyzer::internal_deinit ();
 }
@@ -92,17 +97,20 @@ HybridAnalyzer::setup_stats_pool (const XCam3AStats *stats)
 XCamReturn
 HybridAnalyzer::configure_3a ()
 {
+#if HAVE_IA_AIQ
     if (_analyzer_aiq->start () != XCAM_RETURN_NO_ERROR) {
         return XCAM_RETURN_ERROR_AIQ;
     }
-
+#endif
     return DynamicAnalyzer::configure_3a ();
 }
 
 XCamReturn
 HybridAnalyzer::pre_3a_analyze (SmartPtr<X3aStats> &stats)
 {
+#if HAVE_IA_AIQ
     _analyzer_aiq->update_common_parameters (get_common_params ());
+#endif
 
     return DynamicAnalyzer::pre_3a_analyze (stats);
 }
@@ -142,16 +150,20 @@ HybridAnalyzer::post_3a_analyze (X3aResultList &results)
 
         switch (result->get_type ()) {
         case XCAM_3A_RESULT_EXPOSURE: {
+#if HAVE_IA_AIQ
             XCam3aResultExposure *res = (XCam3aResultExposure *) result->get_ptr ();
             _analyzer_aiq->set_ae_mode (XCAM_AE_MODE_MANUAL);
             _analyzer_aiq->set_ae_manual_exposure_time (res->exposure_time);
             _analyzer_aiq->set_ae_manual_analog_gain (res->analog_gain);
+#endif
             break;
         }
         case XCAM_3A_RESULT_WHITE_BALANCE: {
+#if HAVE_IA_AIQ
             _analyzer_aiq->set_awb_mode (XCAM_AWB_MODE_MANUAL);
             XCam3aResultWhiteBalance *res = (XCam3aResultWhiteBalance *) result->get_ptr ();
             _analyzer_aiq->set_awb_manual_gain (res->gr_gain, res->r_gain, res->b_gain, res->gb_gain);
+#endif
             break;
         }
         default:
@@ -172,9 +184,10 @@ HybridAnalyzer::post_3a_analyze (X3aResultList &results)
 XCamReturn
 HybridAnalyzer::analyze_ae (XCamAeParam &param)
 {
+#if HAVE_IA_AIQ
     if (!_analyzer_aiq->update_ae_parameters (param))
         return XCAM_RETURN_ERROR_AIQ;
-
+#endif
     return DynamicAnalyzer::analyze_ae (param);
 }
 

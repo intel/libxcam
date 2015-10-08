@@ -31,11 +31,13 @@ namespace XCam {
 X3aAnalyzeTuner::X3aAnalyzeTuner (struct atomisp_sensor_mode_data &sensor_data, const char *cpf_path)
     : X3aAnalyzer ("X3aAnalyzeTuner")
 {
+#if HAVE_IA_AIQ
     _aiq_analyzer = new X3aAnalyzerAiq (sensor_data, cpf_path);
     XCAM_ASSERT (_aiq_analyzer.ptr ());
     _aiq_analyzer->set_results_callback (this);
     _aiq_analyzer->prepare_handlers ();
     _aiq_analyzer->set_sync_mode (true);
+#endif
 }
 
 X3aAnalyzeTuner::~X3aAnalyzeTuner ()
@@ -76,8 +78,10 @@ X3aAnalyzeTuner::analyze_ae (XCamAeParam &param)
 {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
+#if HAVE_IA_AIQ
     XCAM_ASSERT (_aiq_analyzer.ptr ());
     _aiq_analyzer->update_ae_parameters (param);
+#endif
     return ret;
 }
 
@@ -86,7 +90,9 @@ X3aAnalyzeTuner::analyze_awb (XCamAwbParam &param)
 {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
+#if HAVE_IA_AIQ
     XCAM_ASSERT (_aiq_analyzer.ptr ());
+#endif
     _aiq_analyzer->update_awb_parameters (param);
     return ret;
 }
@@ -96,8 +102,10 @@ X3aAnalyzeTuner::analyze_af (XCamAfParam &param)
 {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
+#if HAVE_IA_AIQ
     XCAM_ASSERT (_aiq_analyzer.ptr ());
     _aiq_analyzer->update_af_parameters (param);
+#endif
     return ret;
 }
 
