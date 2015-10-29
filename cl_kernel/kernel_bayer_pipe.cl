@@ -65,13 +65,12 @@ typedef struct
 } XCamGridStat;
 
 /* BA10=> GRBG  */
-inline void blc (float4 *in_out, CLBLCConfig *blc_config)
+inline void blc (float4 *in_out, CLBLCConfig *blc_config, float blc_multiplier)
 {
-    float multiplier = (float)(1 << (16 - blc_config->color_bits));
-    in_out->x = in_out->x * multiplier - blc_config->level_gr;
-    in_out->y = in_out->y * multiplier - blc_config->level_r;
-    in_out->z = in_out->z * multiplier - blc_config->level_b;
-    in_out->w = in_out->w * multiplier - blc_config->level_gb;
+    in_out->x = mad (in_out->x, blc_multiplier, - blc_config->level_gr);
+    in_out->y = mad (in_out->y, blc_multiplier, - blc_config->level_r);
+    in_out->z = mad (in_out->z, blc_multiplier, - blc_config->level_b);
+    in_out->w = mad (in_out->w, blc_multiplier, - blc_config->level_gb);
 }
 
 inline void wb (float4 *in_out, CLWBConfig *wbconfig)
@@ -111,6 +110,7 @@ inline void simple_calculate (
     int index, __read_only image2d_t input, int x_start, int y_start,
     __local float4 *stats_cache,
     CLBLCConfig *blc_config,
+    float blc_multiplier,
     CLWBConfig *wb_config,
     uint enable_gamma,
     __global float *gamma_table)
@@ -128,7 +128,7 @@ inline void simple_calculate (
     //Gb
     data.w = read_imagef (input, sampler, (int2)(x0 + 1, y0 + 1)).x;
 
-    blc (&data, blc_config);
+    blc (&data, blc_config, blc_multiplier);
 
     /* write back for 3a stats calculation R, G, B, Y */
     stats_cache[index] = data;
@@ -149,7 +149,7 @@ inline void simple_calculate (
 
 inline float2 delta_coff (float2 delta)
 {
-    float2 coff = MAX_DELTA_COFF - 20.0f * fabs(delta);
+    float2 coff = mad (fabs(delta), - 20.0f, MAX_DELTA_COFF);
     return fmax (1.0f, coff);
 }
 
@@ -161,8 +161,12 @@ inline float2 dot_denoise (float2 value, float2 in1, float2 in2, float2 in3, flo
     coff2 = delta_coff (in2 - value);
     coff3 = delta_coff (in3 - value);
     coff4 = delta_coff (in4 - value);
-    return  (in1 * coff1 + in2 * coff2 + in3 * coff3 + in4 * coff4 + value * coff0) /
-            (coff0 + coff1 + coff2 + coff3 + coff4);
+    //(in1 * coff1 + in2 * coff2 + in3 * coff3 + in4 * coff4 + value * coff0)
+    float2 sum1 = (mad (in1, coff1,
+                        mad (in2, coff2,
+                             mad (in3, coff3,
+                                  mad (in4, coff4, value * coff0)))));
+    return  sum1 / (coff0 + coff1 + coff2 + coff3 + coff4);
 }
 
 void demosaic_2_cell (
@@ -307,8 +311,8 @@ void demosaic_denoise_2_cell (
         index = shared_pos (in_x, in_y + 1);
         Gr_x[1] = *(__local float3*)(x_data_in + index);
 
-        value = (Gr_x[0].s01 * 4.0f + Gb_w[0].s01 +
-                 Gb_w[0].s12 + Gb_w[1].s01 + Gb_w[1].s12) * 0.125f;
+        value = mad (Gr_x[0].s01, 4.0f,  (Gb_w[0].s01 +
+                                          Gb_w[0].s12 + Gb_w[1].s01 + Gb_w[1].s12)) * 0.125f;
         out_data[0].s02 = dot_denoise (value, Gb_w[0].s01, Gb_w[0].s12, Gb_w[1].s01, Gb_w[1].s12);
         value = (Gr_x[0].s01 + Gr_x[0].s12 +
                  Gb_w[0].s12 + Gb_w[1].s12) * 0.25f;
@@ -318,8 +322,8 @@ void demosaic_denoise_2_cell (
                  Gb_w[1].s01 + Gb_w[1].s12) * 0.25f;
         out_data[1].s02 = dot_denoise (value, Gr_x[0].s01, Gr_x[1].s01, Gb_w[1].s01, Gb_w[1].s12);
 
-        value = (Gb_w[1].s12 * 4.0f + Gr_x[0].s01 +
-                 Gr_x[0].s12 + Gr_x[1].s01 + Gr_x[1].s12) * 0.125f;
+        value = mad (Gb_w[1].s12, 4.0f, (Gr_x[0].s01 +
+                                         Gr_x[0].s12 + Gr_x[1].s01 + Gr_x[1].s12)) * 0.125f;
         out_data[1].s13 = dot_denoise (value, Gr_x[0].s01, Gr_x[0].s12, Gr_x[1].s01, Gr_x[1].s12);
 
         write_imagef (out, (int2)(out_x / 4, out_y + out_height), out_data[0]);
@@ -382,8 +386,9 @@ inline void stats_3a_calculate (
         stats_output[out_index].avg_gb = convert_uchar_sat(tmp_data.w * 255.0f);
         stats_output[out_index].valid_wb_count = STATS_3A_GRID_SIZE * STATS_3A_GRID_SIZE;
         stats_output[out_index].avg_y =
-            convert_uchar_sat(((tmp_data.x * wb_config->gr_gain + tmp_data.w * wb_config->gb_gain) * 0.2935f +
-                               tmp_data.y * wb_config->r_gain * 0.299f + tmp_data.z * wb_config->b_gain * 0.114f) * 255.0f);
+            convert_uchar_sat(
+                mad ((tmp_data.x * wb_config->gr_gain + tmp_data.w * wb_config->gb_gain), 74.843f,
+                     mad (tmp_data.y * wb_config->r_gain, 76.245f, (tmp_data.z * wb_config->b_gain * 29.070f))));
         stats_output[out_index].f_value1 = 0;
         stats_output[out_index].f_value2 = 0;
     }
@@ -413,6 +418,8 @@ __kernel void kernel_bayer_pipe (__read_only image2d_t input,
     __local float4 p2[SLM_CELL_X_SIZE * SLM_CELL_Y_SIZE];
     __local float4 *stats_cache = p2;
 
+    float blc_multiplier = (float)(1 << (16 - blc_config.color_bits));
+
     int out_x_start, out_y_start;
     int x_start = get_group_id (0) * WORKGROUP_PIXEL_WIDTH;
     int y_start = get_group_id (1) * WORKGROUP_PIXEL_HEIGHT;
@@ -424,6 +431,7 @@ __kernel void kernel_bayer_pipe (__read_only image2d_t input,
                           x_start - SLM_PIXEL_X_OFFSET, y_start - SLM_PIXEL_Y_OFFSET,
                           stats_cache,
                           &blc_config,
+                          blc_multiplier,
                           &wb_config,
                           enable_gamma,
                           gamma_table);
