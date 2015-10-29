@@ -149,7 +149,7 @@ inline void simple_calculate (
 
 inline float2 delta_coff (float2 delta)
 {
-    float2 coff = MAX_DELTA_COFF - 20.0f * fabs(delta);
+    float2 coff = - mad (fabs(delta), 20.0f, -MAX_DELTA_COFF);
     return fmax (1.0f, coff);
 }
 
