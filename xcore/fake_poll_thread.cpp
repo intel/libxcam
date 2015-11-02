@@ -49,7 +49,7 @@ FakePollThread::read_buf (SmartPtr<DrmBoBuffer> &buf)
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
     for (uint32_t index = 0; index < info.components; index++) {
-        info.get_planar_info(info.format, info.width, info.height, planar, index);
+        info.get_planar_info(planar, index);
         uint32_t line_bytes = planar.width * planar.pixel_bytes;
 
         for (uint32_t i = 0; i < planar.height; i++) {
