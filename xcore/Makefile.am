@@ -86,6 +86,7 @@ xcam_sources =               \
 	x3a_analyze_tuner.cpp \
 	x3a_ciq_tuning_handler.cpp \
 	x3a_ciq_tnr_tuning_handler.cpp \
+	x3a_ciq_bnr_ee_tuning_handler.cpp \
 	$(NULL)
 
 if ENABLE_IA_AIQ
@@ -125,6 +126,7 @@ xcam_sources +=              \
 	cl_3a_image_processor.cpp      \
 	cl_csc_image_processor.cpp    \
 	cl_3a_stats_calculator.cpp     \
+	cl_3a_stats_context.cpp  \
 	cl_demo_handler.cpp      \
 	cl_blc_handler.cpp       \
 	cl_hdr_handler.cpp       \
@@ -141,6 +143,7 @@ xcam_sources +=              \
 	priority_buffer_queue.cpp	 \
 	cl_bnr_handler.cpp	     \
 	cl_bayer_pipe_handler.cpp    \
+	cl_bayer_basic_handler.cpp   \
 	cl_yuv_pipe_handler.cpp    \
 	cl_rgb_pipe_handler.cpp       \
 	cl_tonemapping_handler.cpp	\

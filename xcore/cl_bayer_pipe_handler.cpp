@@ -28,261 +28,32 @@
 #define BAYER_LOCAL_X_SIZE 8
 #define BAYER_LOCAL_Y_SIZE 4
 
-float guass_2_0_table[XCAM_GUASS_TABLE_SIZE] = {
-    3.978874, 3.966789, 3.930753, 3.871418, 3.789852, 3.687501, 3.566151, 3.427876, 3.274977, 3.109920,
-    2.935268, 2.753622, 2.567547, 2.379525, 2.191896, 2.006815, 1.826218, 1.651792, 1.484965, 1.326889,
-    1.178449, 1.040267, 0.912718, 0.795950, 0.689911, 0.594371, 0.508957, 0.433173, 0.366437, 0.308103,
-    0.257483, 0.213875, 0.176575, 0.144896, 0.118179, 0.095804, 0.077194, 0.061822, 0.049210, 0.038934,
-    0.030617, 0.023930, 0.018591, 0.014355, 0.011017, 0.008404, 0.006372, 0.004802, 0.003597, 0.002678,
-    0.001981, 0.001457, 0.001065, 0.000774, 0.000559, 0.000401, 0.000286, 0.000203, 0.000143, 0.000100,
-    0.000070, 0.000048, 0.000033, 0.000023
+float table[XCAM_BNR_TABLE_SIZE] = {
+    63.661991, 60.628166, 52.366924, 41.023067, 29.146584, 18.781729, 10.976704,
+    6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000,
+    6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000,
+    6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000,
+    6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000,
+    6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000,
+    6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000,
+    6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000, 6.000000,
+    6.000000
 };
 
 namespace XCam {
-
-CL3AStatsCalculatorContext::CL3AStatsCalculatorContext (const SmartPtr<CLContext> &context)
-    : _context (context)
-    , _stats_buf_index (0)
-    , _data_allocated (false)
-{
-}
-
-CL3AStatsCalculatorContext::~CL3AStatsCalculatorContext ()
-{
-}
-
-bool
-CL3AStatsCalculatorContext::allocate_data (const VideoBufferInfo &buffer_info)
-{
-    _stats_pool = new X3aStatsPool ();
-    _stats_pool->set_video_info (buffer_info);
-
-    XCAM_FAIL_RETURN (
-        WARNING,
-        _stats_pool->reserve (32), // need reserve more if as attachement
-        false,
-        "reserve cl stats buffer failed");
-
-    _stats_info = _stats_pool->get_stats_info ();
-
-    for (uint32_t i = 0; i < XCAM_CL_3A_STATS_BUFFER_COUNT; ++i) {
-        _stats_cl_buffer[i] = new CLBuffer (
-            _context,
-            _stats_info.aligned_width * _stats_info.aligned_height * sizeof (XCamGridStat));
-
-        XCAM_ASSERT (_stats_cl_buffer[i].ptr ());
-        XCAM_FAIL_RETURN (
-            WARNING,
-            _stats_cl_buffer[i]->is_valid (),
-            false,
-            "allocate cl stats buffer failed");
-    }
-    _stats_buf_index = 0;
-    _data_allocated = true;
-
-    return true;
-}
-
-void
-CL3AStatsCalculatorContext::pre_stop ()
-{
-    if (_stats_pool.ptr ())
-        _stats_pool->stop ();
-}
-
-
-void
-CL3AStatsCalculatorContext::clean_up_data ()
-{
-    _data_allocated = false;
-
-    for (uint32_t i = 0; i < XCAM_CL_3A_STATS_BUFFER_COUNT; ++i) {
-        _stats_cl_buffer[i].release ();
-    }
-    _stats_buf_index = 0;
-}
-
-SmartPtr<CLBuffer>
-CL3AStatsCalculatorContext::get_next_buffer ()
-{
-    SmartPtr<CLBuffer> buf = _stats_cl_buffer[_stats_buf_index];
-    _stats_buf_index = ((_stats_buf_index + 1) % XCAM_CL_3A_STATS_BUFFER_COUNT);
-    return buf;
-}
-
-void debug_print_3a_stats (XCam3AStats *stats_ptr)
-{
-
-    for (int y = 30; y < 40; ++y) {
-        printf ("---- y ");
-        for (int x = 54; x < 64; ++x)
-            printf ("%3d", stats_ptr->stats[y * stats_ptr->info.aligned_width + x].avg_y);
-        printf ("\n");
-    }
-
-#if 0
-#define DUMP_STATS(ch, w, h, aligned_w, stats) do {                 \
-        printf ("stats " #ch ":");                                  \
-        for (uint32_t y = 0; y < h; ++y) {                          \
-            for (uint32_t x = 0; x < w; ++x)                        \
-                printf ("%3d ", stats[y * aligned_w + x].avg_##ch); \
-        }                                                           \
-        printf ("\n");                           \
-    } while (0)
-    DUMP_STATS (r,  stats_ptr->info.width, stats_ptr->info.height,
-                stats_ptr->info.aligned_width, stats_ptr->stats);
-    DUMP_STATS (gr, stats_ptr->info.width, stats_ptr->info.height,
-                stats_ptr->info.aligned_width, stats_ptr->stats);
-    DUMP_STATS (gb, stats_ptr->info.width, stats_ptr->info.height,
-                stats_ptr->info.aligned_width, stats_ptr->stats);
-    DUMP_STATS (b,  stats_ptr->info.width, stats_ptr->info.height,
-                stats_ptr->info.aligned_width, stats_ptr->stats);
-    DUMP_STATS (y,  stats_ptr->info.width, stats_ptr->info.height,
-                stats_ptr->info.aligned_width, stats_ptr->stats);
-#endif
-}
-
-void debug_print_histogram (XCam3AStats *stats_ptr)
-{
-#define DUMP_HISTOGRAM(ch, bins, hist) do {      \
-        printf ("histogram " #ch ":");           \
-        for (uint32_t i = 0; i < bins; i++) {    \
-            if (i % 16 == 0) printf ("\n");      \
-            printf ("%4d ", hist[i].ch);         \
-        }                                        \
-        printf ("\n");                           \
-    } while (0)
-
-    DUMP_HISTOGRAM (r,  stats_ptr->info.histogram_bins, stats_ptr->hist_rgb);
-    DUMP_HISTOGRAM (gr, stats_ptr->info.histogram_bins, stats_ptr->hist_rgb);
-    DUMP_HISTOGRAM (gb, stats_ptr->info.histogram_bins, stats_ptr->hist_rgb);
-    DUMP_HISTOGRAM (b,  stats_ptr->info.histogram_bins, stats_ptr->hist_rgb);
-
-    printf ("histogram y:");
-    for (uint32_t i = 0; i < stats_ptr->info.histogram_bins; i++) {
-        if (i % 16 == 0) printf ("\n");
-        printf ("%4d ", stats_ptr->hist_y[i]);
-    }
-    printf ("\n");
-}
-
-SmartPtr<X3aStats>
-CL3AStatsCalculatorContext::copy_stats_out (const SmartPtr<CLBuffer> &stats_cl_buf)
-{
-    SmartPtr<BufferProxy> buffer;
-    SmartPtr<X3aStats> stats;
-    SmartPtr<CLEvent>  event = new CLEvent;
-    XCam3AStats *stats_ptr = NULL;
-    XCamReturn ret = XCAM_RETURN_NO_ERROR;
-
-    XCAM_ASSERT (stats_cl_buf.ptr ());
-
-    buffer = _stats_pool->get_buffer (_stats_pool);
-    XCAM_FAIL_RETURN (WARNING, buffer.ptr (), NULL, "3a stats pool stopped.");
-
-    stats = buffer.dynamic_cast_ptr<X3aStats> ();
-    XCAM_ASSERT (stats.ptr ());
-    stats_ptr = stats->get_stats ();
-    ret = stats_cl_buf->enqueue_read (
-              stats_ptr->stats,
-              0, _stats_info.aligned_width * _stats_info.aligned_height * sizeof (stats_ptr->stats[0]),
-              CLEvent::EmptyList, event);
-
-    XCAM_FAIL_RETURN (WARNING, ret == XCAM_RETURN_NO_ERROR, NULL, "3a stats enqueue read buffer failed.");
-    XCAM_ASSERT (event->get_event_id ());
-
-    ret = event->wait ();
-    XCAM_FAIL_RETURN (WARNING, ret == XCAM_RETURN_NO_ERROR, NULL, "3a stats buffer enqueue event wait failed");
-    event.release ();
-
-    //debug_print_3a_stats (stats_ptr);
-    fill_histogram (stats_ptr);
-    //debug_print_histogram (stats_ptr);
-
-    return stats;
-}
-
-bool
-CL3AStatsCalculatorContext::fill_histogram (XCam3AStats * stats)
-{
-    const XCam3AStatsInfo &stats_info = stats->info;
-    const XCamGridStat *grid_stat;
-    XCamHistogram *hist_rgb = stats->hist_rgb;
-    uint32_t *hist_y = stats->hist_y;
-
-    memset (hist_rgb, 0, sizeof(XCamHistogram) * stats_info.histogram_bins);
-    memset (hist_y, 0, sizeof(uint32_t) * stats_info.histogram_bins);
-    for (uint32_t i = 0; i < stats_info.width; i++) {
-        for (uint32_t j = 0; j < stats_info.height; j++) {
-            grid_stat = &stats->stats[j * stats_info.aligned_width + i];
-            hist_rgb[grid_stat->avg_r].r++;
-            hist_rgb[grid_stat->avg_gr].gr++;
-            hist_rgb[grid_stat->avg_gb].gb++;
-            hist_rgb[grid_stat->avg_b].b++;
-            hist_y[grid_stat->avg_y]++;
-        }
-    }
-    return true;
-}
 
 CLBayerPipeImageKernel::CLBayerPipeImageKernel (
     SmartPtr<CLContext> &context,
     SmartPtr<CLBayerPipeImageHandler> &handler)
     : CLImageKernel (context, "kernel_bayer_pipe")
+    , _input_height (0)
+    , _output_height (0)
     , _enable_denoise (0)
-    , _enable_gamma (1)
     , _handler (handler)
 {
-    _blc_config.level_gr = XCAM_CL_BLC_DEFAULT_LEVEL;
-    _blc_config.level_r = XCAM_CL_BLC_DEFAULT_LEVEL;
-    _blc_config.level_b = XCAM_CL_BLC_DEFAULT_LEVEL;
-    _blc_config.level_gb = XCAM_CL_BLC_DEFAULT_LEVEL;
-    _blc_config.color_bits = 8;
-
-    _wb_config.r_gain = 1.0;
-    _wb_config.gr_gain = 1.0;
-    _wb_config.gb_gain = 1.0;
-    _wb_config.b_gain = 1.0;
-
-    for(int i = 0; i < XCAM_GAMMA_TABLE_SIZE; i++)
-        _gamma_table[i] = (float)i / 256.0f;
-    _gamma_table[XCAM_GAMMA_TABLE_SIZE] = 0.9999f;
-
-    _3a_stats_context = new CL3AStatsCalculatorContext (context);
-    XCAM_ASSERT (_3a_stats_context.ptr ());
-
-    memcpy(_guass_table, guass_2_0_table, sizeof(float)*XCAM_GUASS_TABLE_SIZE);
-
-}
-
-bool
-CLBayerPipeImageKernel::set_blc (const XCam3aResultBlackLevel &blc)
-{
-    _blc_config.level_r = (float)blc.r_level;
-    _blc_config.level_gr = (float)blc.gr_level;
-    _blc_config.level_gb = (float)blc.gb_level;
-    _blc_config.level_b = (float)blc.b_level;
-    //_blc_config.color_bits = 0;
-    return true;
-}
-
-bool
-CLBayerPipeImageKernel::set_wb (const XCam3aResultWhiteBalance &wb)
-{
-    _wb_config.r_gain = (float)wb.r_gain;
-    _wb_config.gr_gain = (float)wb.gr_gain;
-    _wb_config.gb_gain = (float)wb.gb_gain;
-    _wb_config.b_gain = (float)wb.b_gain;
-    return true;
-}
-
-bool
-CLBayerPipeImageKernel::set_gamma_table (const XCam3aResultGammaTable &gamma)
-{
-    for(int i = 0; i < XCAM_GAMMA_TABLE_SIZE; i++)
-        _gamma_table[i] = (float)gamma.table[i] / 256.0f;
-
-    return true;
+    memcpy(_bnr_table, table, sizeof(float)*XCAM_BNR_TABLE_SIZE);
+    _ee_config.ee_gain = 0.8;
+    _ee_config.ee_threshold = 0.025;
 }
 
 bool
@@ -293,9 +64,18 @@ CLBayerPipeImageKernel::enable_denoise (bool enable)
 }
 
 bool
-CLBayerPipeImageKernel::enable_gamma (bool enable)
+CLBayerPipeImageKernel::set_ee (const XCam3aResultEdgeEnhancement &ee)
 {
-    _enable_gamma = (enable ? 1 : 0);
+    _ee_config.ee_gain = (float)ee.gain;
+    _ee_config.ee_threshold = (float)ee.threshold;
+    return true;
+}
+
+bool
+CLBayerPipeImageKernel::set_bnr (const XCam3aResultBayerNoiseReduction &bnr)
+{
+    for(int i = 0; i < XCAM_BNR_TABLE_SIZE; i++)
+        _bnr_table[i] = (float)bnr.table[i];
     return true;
 }
 
@@ -309,20 +89,16 @@ CLBayerPipeImageKernel::prepare_arguments (
     const VideoBufferInfo & in_video_info = input->get_video_info ();
     const VideoBufferInfo & out_video_info = output->get_video_info ();
 
-    if (!_3a_stats_context->is_ready () && !_3a_stats_context->allocate_data (in_video_info)) {
-        XCAM_LOG_WARNING ("CL3AStatsCalculatorContext allocate data failed");
-        return XCAM_RETURN_ERROR_MEM;
-    }
-
     CLImageDesc in_image_info;
     in_image_info.format.image_channel_order = CL_RGBA;
     in_image_info.format.image_channel_data_type = CL_UNORM_INT16; //CL_UNSIGNED_INT32;
-    in_image_info.width = in_video_info.width / 4;
-    in_image_info.height = in_video_info.height;
+    in_image_info.width = in_video_info.width / 4; // 960/4
+    in_image_info.height = in_video_info.aligned_height * 4;  //540
     in_image_info.row_pitch = in_video_info.strides[0];
 
     _image_in = new CLVaImage (context, input, in_image_info);
     _image_out = new CLVaImage (context, output);
+    _input_height = in_video_info.aligned_height;
     _output_height = out_video_info.aligned_height;
 
     XCAM_ASSERT (_image_in->is_valid () && _image_out->is_valid ());
@@ -332,18 +108,9 @@ CLBayerPipeImageKernel::prepare_arguments (
         XCAM_RETURN_ERROR_MEM,
         "cl image kernel(%s) in/out memory not available", get_kernel_name ());
 
-    _blc_config.color_bits = in_video_info.color_bits;
-
-    _gamma_table_buffer = new CLBuffer(
-        context, sizeof(float) * (XCAM_GAMMA_TABLE_SIZE + 1),
-        CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, &_gamma_table);
-
-    _stats_cl_buffer = _3a_stats_context->get_next_buffer ();
-
-    _guass_table_buffer = new CLBuffer(
-        context, sizeof(float) * 64,
-        CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, &_guass_table);
-
+    _bnr_table_buffer = new CLBuffer(
+        context, sizeof(float) * XCAM_BNR_TABLE_SIZE,
+        CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, &_bnr_table);
 
     //set args;
     arg_count = 0;
@@ -351,41 +118,28 @@ CLBayerPipeImageKernel::prepare_arguments (
     args[arg_count].arg_size = sizeof (cl_mem);
     ++arg_count;
 
+    args[arg_count].arg_adress = &_input_height;
+    args[arg_count].arg_size = sizeof (_input_height);
+    ++arg_count;
+
     args[arg_count].arg_adress = &_image_out->get_mem_id ();
     args[arg_count].arg_size = sizeof (cl_mem);
     ++arg_count;
-
 
     args[arg_count].arg_adress = &_output_height;
     args[arg_count].arg_size = sizeof (_output_height);
     ++arg_count;
 
-    args[arg_count].arg_adress = &_blc_config;
-    args[arg_count].arg_size = sizeof (_blc_config);
-    ++arg_count;
-
-    args[arg_count].arg_adress = &_wb_config;
-    args[arg_count].arg_size = sizeof (_wb_config);
+    args[arg_count].arg_adress = &_bnr_table_buffer->get_mem_id ();
+    args[arg_count].arg_size = sizeof (cl_mem);
     ++arg_count;
 
     args[arg_count].arg_adress = &_enable_denoise;
     args[arg_count].arg_size = sizeof (_enable_denoise);
     ++arg_count;
 
-    args[arg_count].arg_adress = &_enable_gamma;
-    args[arg_count].arg_size = sizeof (_enable_gamma);
-    ++arg_count;
-
-    args[arg_count].arg_adress = &_gamma_table_buffer->get_mem_id ();
-    args[arg_count].arg_size = sizeof (cl_mem);
-    ++arg_count;
-
-    args[arg_count].arg_adress = &_stats_cl_buffer->get_mem_id ();
-    args[arg_count].arg_size = sizeof (cl_mem);
-    ++arg_count;
-
-    args[arg_count].arg_adress = &_guass_table_buffer->get_mem_id ();
-    args[arg_count].arg_size = sizeof (cl_mem);
+    args[arg_count].arg_adress = &_ee_config;
+    args[arg_count].arg_size = sizeof (_ee_config);
     ++arg_count;
 
     work_size.dim = XCAM_DEFAULT_IMAGE_DIM;
@@ -396,8 +150,6 @@ CLBayerPipeImageKernel::prepare_arguments (
     work_size.global[1] = (XCAM_ALIGN_UP(out_video_info.height, WORKGROUP_PIXEL_HEIGHT) / WORKGROUP_PIXEL_HEIGHT) *
                           work_size.local[1];
 
-    _output_buffer = output;
-
     return XCAM_RETURN_NO_ERROR;
 }
 
@@ -405,34 +157,11 @@ CLBayerPipeImageKernel::prepare_arguments (
 XCamReturn
 CLBayerPipeImageKernel::post_execute ()
 {
-    SmartPtr<X3aStats> stats_3a;
-
     _image_in.release ();
     _image_out.release ();
-    _gamma_table_buffer.release ();
-    _guass_table_buffer.release ();
+    _bnr_table_buffer.release ();
 
-    stats_3a = _3a_stats_context->copy_stats_out (_stats_cl_buffer);
-    if (!stats_3a.ptr ()) {
-        XCAM_LOG_DEBUG ("copy 3a stats failed, maybe handler stopped");
-        return XCAM_RETURN_ERROR_CL;
-    }
-
-    stats_3a->set_timestamp (_output_buffer->get_timestamp ());
-    _output_buffer->attach_buffer (stats_3a);
-
-    _stats_cl_buffer.release ();
-    _output_buffer.release ();
-
-    XCAM_FAIL_RETURN (WARNING, stats_3a.ptr (), XCAM_RETURN_ERROR_MEM, "3a stats dequeue failed");
-    //return XCAM_RETURN_NO_ERROR;
-    return _handler->post_stats (stats_3a);
-}
-
-void
-CLBayerPipeImageKernel::pre_stop ()
-{
-    _3a_stats_context->pre_stop ();
+    return XCAM_RETURN_NO_ERROR;
 }
 
 CLBayerPipeImageHandler::CLBayerPipeImageHandler (const char *name)
@@ -465,33 +194,22 @@ CLBayerPipeImageHandler::set_bayer_kernel (SmartPtr<CLBayerPipeImageKernel> &ker
 }
 
 bool
-CLBayerPipeImageHandler::set_blc_config (const XCam3aResultBlackLevel &blc)
-{
-    return _bayer_kernel->set_blc (blc);
-}
-
-bool
-CLBayerPipeImageHandler::set_wb_config (const XCam3aResultWhiteBalance &wb)
-{
-    return _bayer_kernel->set_wb (wb);
-}
-
-bool
-CLBayerPipeImageHandler::set_gamma_table (const XCam3aResultGammaTable &gamma)
-{
-    return _bayer_kernel->set_gamma_table (gamma);
-}
-
-bool
 CLBayerPipeImageHandler::enable_denoise (bool enable)
 {
     return _bayer_kernel->enable_denoise (enable);
 }
 
 bool
-CLBayerPipeImageHandler::enable_gamma (bool enable)
+CLBayerPipeImageHandler::set_ee_config (const XCam3aResultEdgeEnhancement &ee)
 {
-    return _bayer_kernel->enable_gamma (enable);
+    _bayer_kernel->set_ee (ee);
+    return true;
+}
+bool
+CLBayerPipeImageHandler::set_bnr_config (const XCam3aResultBayerNoiseReduction &bnr)
+{
+    _bayer_kernel->set_bnr (bnr);
+    return true;
 }
 
 XCamReturn
@@ -500,7 +218,13 @@ CLBayerPipeImageHandler::prepare_buffer_pool_video_info (
     VideoBufferInfo &output)
 {
     uint32_t format = _output_format;
-    bool format_inited = output.init (format, input.width, input.height);
+    uint32_t width = input.width;
+    uint32_t height = input.height;
+    if (input.format == XCAM_PIX_FMT_SGRBG16_planar) {
+        width *= 2;
+        height *= 2;
+    }
+    bool format_inited = output.init (format, width, height);
 
     XCAM_FAIL_RETURN (
         WARNING,
@@ -508,15 +232,6 @@ CLBayerPipeImageHandler::prepare_buffer_pool_video_info (
         XCAM_RETURN_ERROR_PARAM,
         "CL image handler(%s) ouput format(%s) unsupported",
         get_name (), xcam_fourcc_to_string (format));
-
-    return XCAM_RETURN_NO_ERROR;
-}
-
-XCamReturn
-CLBayerPipeImageHandler::post_stats (const SmartPtr<X3aStats> &stats)
-{
-    if (_stats_callback.ptr ())
-        return _stats_callback->x3a_stats_ready (stats);
 
     return XCAM_RETURN_NO_ERROR;
 }
