@@ -51,10 +51,10 @@ double table_0_0_5[XCAM_BNR_TABLE_SIZE] = {
 };
 
 const X3aCiqBnrEeTuningStaticData imx185_tuning[X3A_CIQ_GAIN_STEPS] = {
-    {1.0, 1.5, 0.03},
-    {16.98, 1.0, 0.025},
-    {49.55, 0.5, 0.02},
-    {139.63, 0.2, 0.015},
+    {1.0, 1.0, 0.05},
+    {16.98, 0.8, 0.04},
+    {49.55, 0.5, 0.03},
+    {139.63, 0.2, 0.02},
     {X3A_CIQ_GAIN_MAX, 0.1, 0.01},
 };
 
