@@ -102,23 +102,7 @@ CLTnrImageKernel::prepare_arguments (
     if (CL_TNR_TYPE_RGB == _type) {
         // analyze motion between the latest adjacent two frames
         // Todo: enable analyze when utilize motion compensation next step
-#if 0
-        _gain = analyze_motion (input, CL_TNR_ANALYZE_STATS, _motion_info);
 
-        if (_gain < 0.001) {
-            XCAM_LOG_DEBUG ("_gain(%f) reset stable frame count!", _gain);
-            _stable_frame_count = 1 ;
-        } else {
-            XCAM_LOG_DEBUG ("_gain(%f) increase stable frame count(%d)", _gain, _stable_frame_count);
-            _stable_frame_count ++ ;
-        }
-
-        if (_stable_frame_count < TNR_PROCESSING_FRAME_COUNT) {
-            _gain = 0.0;
-        } else {
-            _stable_frame_count = TNR_PROCESSING_FRAME_COUNT;
-        }
-#endif
         if (_image_in_list.size () < TNR_LIST_FRAME_COUNT) {
             while (_image_in_list.size () < TNR_LIST_FRAME_COUNT) {
                 _image_in_list.push_back (_image_in);
@@ -260,121 +244,7 @@ CLTnrImageKernel::set_yuv_config (const XCam3aResultTemporalNoiseReduction& conf
 float
 CLTnrImageKernel::analyze_motion (SmartPtr<DrmBoBuffer>& input, CLTnrAnalyzeDateType type, CLTnrMotionInfo* info)
 {
-    bool ret = true;
-
-    SmartPtr<X3aStats> stats = NULL;
-    XCam3AStats *stats_ptr = NULL;
-
-    uint32_t hor_hist_bin = 0;
-    uint32_t ver_hist_bin = 0;
-
-    CLTnrMotionInfo motion_info;
-    uint32_t sum_hor_shift = 0;
-    uint32_t sum_ver_shift = 0;
-    int32_t max_hor_shift = 0;
-    int32_t max_ver_shift = 0;
-    uint32_t unrelated_block_count = 0;
-    uint32_t precise_factor = 1;
-
     float tnr_gain = 1.0;
-
-    if (CL_TNR_ANALYZE_STATS == type) {
-        stats = input->find_3a_stats ();
-        if (!stats.ptr ()) {
-            return 0;
-        }
-        stats_ptr = stats->get_stats ();
-        hor_hist_bin = stats_ptr->info.width;
-        ver_hist_bin = stats_ptr->info.height;
-    } else {
-        hor_hist_bin = input->get_video_info ().width;
-        ver_hist_bin = input->get_video_info ().height;
-    }
-
-    // initialize image horizontal & vertical histogram
-    if ((_image_histogram.hor_hist_bin == 0) && (_image_histogram.ver_hist_bin == 0)) {
-        _image_histogram.hor_hist_bin = hor_hist_bin;
-        _image_histogram.ver_hist_bin = ver_hist_bin;
-        _image_histogram.hor_hist_current = (float*)xcam_malloc0(_image_histogram.hor_hist_bin * sizeof(float));
-        _image_histogram.ver_hist_current = (float*)xcam_malloc0(_image_histogram.ver_hist_bin * sizeof(float));
-        _image_histogram.hor_hist_reference = (float*)xcam_malloc0(_image_histogram.hor_hist_bin * sizeof(float));
-        _image_histogram.ver_hist_reference = (float*)xcam_malloc0(_image_histogram.ver_hist_bin * sizeof(float));
-    }
-
-    if (CL_TNR_ANALYZE_STATS == type) {
-        ret &= calculate_image_histogram(stats_ptr, CL_TNR_HIST_HOR_PROJECTION, _image_histogram.hor_hist_current);
-        ret &= calculate_image_histogram(stats_ptr, CL_TNR_HIST_VER_PROJECTION, _image_histogram.ver_hist_current);
-        precise_factor = 1;
-    } else if (CL_TNR_ANALYZE_RGB == type) {
-        ret &= calculate_image_histogram(input, CL_TNR_HIST_HOR_PROJECTION, _image_histogram.hor_hist_current);
-        ret &= calculate_image_histogram(input, CL_TNR_HIST_VER_PROJECTION, _image_histogram.ver_hist_current);
-        precise_factor = 2;
-    } else {
-        return 0;
-    }
-
-    if (ret &&
-            (NULL != _image_histogram.hor_hist_current) &&
-            (NULL != _image_histogram.hor_hist_reference) &&
-            (NULL != _image_histogram.ver_hist_current) &&
-            (NULL != _image_histogram.ver_hist_reference)) {
-
-        uint32_t grid_width = hor_hist_bin / TNR_GRID_HOR_COUNT;
-        uint32_t grid_height = ver_hist_bin / TNR_GRID_VER_COUNT;
-
-        //print_image_histogram ();
-
-        for (uint8_t index_hor = 0; index_hor < TNR_GRID_HOR_COUNT; index_hor++) {
-            for (uint8_t index_ver = 0; index_ver < TNR_GRID_VER_COUNT; index_ver++) {
-                ret &= detect_motion(_image_histogram.hor_hist_current + index_hor * grid_width, _image_histogram.hor_hist_reference + index_hor * grid_width, grid_width, motion_info.hor_shift, motion_info.hor_corr);
-                //XCAM_LOG_DEBUG ("motion_info  hor corr = %f, ver corr = %f", motion_info.hor_corr, motion_info.ver_corr);
-                ret &= detect_motion(_image_histogram.ver_hist_current + index_ver * grid_height, _image_histogram.ver_hist_reference + index_ver * grid_height, grid_height, motion_info.ver_shift, motion_info.ver_corr);
-                //XCAM_LOG_DEBUG ("motion_info  hor shift = %d, ver shift = %d", motion_info.hor_shift, motion_info.ver_shift);
-                info[index_hor * TNR_GRID_HOR_COUNT + index_ver].hor_shift = motion_info.hor_shift;
-                info[index_hor * TNR_GRID_HOR_COUNT + index_ver].ver_shift = motion_info.ver_shift;
-                info[index_hor * TNR_GRID_HOR_COUNT + index_ver].hor_corr = motion_info.hor_corr;
-                info[index_hor * TNR_GRID_HOR_COUNT + index_ver].ver_corr = motion_info.ver_corr;
-
-                if (motion_info.hor_corr > 0.5) {
-                    sum_hor_shift += abs(motion_info.hor_shift);
-                    if (abs(max_hor_shift) < abs(motion_info.hor_shift)) {
-                        max_hor_shift = motion_info.hor_shift;
-                    }
-                } else {
-                    unrelated_block_count ++;
-                }
-                if (motion_info.ver_corr > 0.5) {
-                    sum_ver_shift += abs(motion_info.ver_shift);
-                    if (abs(max_ver_shift) < abs(motion_info.ver_shift)) {
-                        max_ver_shift = motion_info.ver_shift;
-                    }
-                } else {
-                    unrelated_block_count ++;
-                }
-            }
-        }
-    } else {
-        return 0;
-    }
-
-    if (ret) {
-        // copy current histogram to reference and "erase" current histogram content, waiting for next frame calculation
-        memcpy(_image_histogram.hor_hist_reference, _image_histogram.hor_hist_current, hor_hist_bin * sizeof(float));
-        memcpy(_image_histogram.ver_hist_reference, _image_histogram.ver_hist_current, ver_hist_bin * sizeof(float));
-        memset(_image_histogram.hor_hist_current, 0, hor_hist_bin * sizeof(float));
-        memset(_image_histogram.ver_hist_current, 0, ver_hist_bin * sizeof(float));
-    }
-
-    XCAM_LOG_DEBUG ("max_hor_shift = %d, max_ver_shift = %d, sum_hor_shift = %d, sum_ver_shift = %d, unrelated_block_count = %d ===",
-                    max_hor_shift, max_ver_shift, sum_hor_shift, sum_ver_shift, unrelated_block_count);
-    // the motion threshold should be higher when calculate with lager resolution image or stats data
-    if ( (abs(max_hor_shift) >= abs(TNR_MOTION_THRESHOLD * precise_factor)) || (abs(max_ver_shift) >= abs(TNR_MOTION_THRESHOLD * precise_factor)) ||
-            (sum_hor_shift >= TNR_GRID_HOR_COUNT) || (sum_ver_shift >= TNR_GRID_VER_COUNT) ||
-            (unrelated_block_count >= (TNR_GRID_HOR_COUNT >> 1)) ) {
-        // TODO: assign value "0 ~ 1" to tnr_gain according to motion information
-        tnr_gain = 0;
-        XCAM_LOG_DEBUG("Motion detect SKIP TNR !!! ===");
-    }
 
     return tnr_gain;
 }
