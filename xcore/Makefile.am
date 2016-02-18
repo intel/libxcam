@@ -149,6 +149,7 @@ xcam_sources +=              \
 	cl_tonemapping_handler.cpp	\
 	cl_biyuv_handler.cpp	 \
 	cl_image_scaler.cpp   \
+	cl_retinex_handler.cpp	     \
 	$(NULL)
 endif
 
