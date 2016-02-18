@@ -35,6 +35,7 @@ class CLBayerPipeImageHandler;
 class CLYuvPipeImageHandler;
 class CLTonemappingImageHandler;
 class CLImageScaler;
+class CLRetinexImageHandler;
 
 #define ENABLE_YEENR_HANDLER 0
 
@@ -77,6 +78,7 @@ public:
     virtual bool set_dpc (bool enable);
     virtual bool set_tnr (uint32_t mode, uint8_t level);
     virtual bool set_tonemapping (bool enable);
+    virtual bool set_retinex (bool enable);
 
     PipelineProfile get_profile () const {
         return _pipeline_profile;
@@ -106,6 +108,7 @@ private:
 #if ENABLE_YEENR_HANDLER
     SmartPtr<CLEeImageHandler>          _ee;
 #endif
+    SmartPtr<CLRetinexImageHandler>          _retinex;
 
     // simple 3a bayer pipeline
     SmartPtr<CLBayerBasicImageHandler>  _bayer_basic_pipe;
@@ -118,6 +121,7 @@ private:
     bool                                _enable_tonemapping;
     bool                                _enable_macc;
     bool                                _enable_dpc;
+    bool                                _enable_retinex;
     uint32_t                            _snr_mode; // spatial nr mode
 };
 

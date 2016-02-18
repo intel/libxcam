@@ -332,6 +332,7 @@ void print_help (const char *bin_name)
             "\t --enable-bnr  enable bayer noise reduction\n"
             "\t --enable-dpc  enable defect pixel correction\n"
             "\t --enable-wdr  enable wdr\n"
+	   "\t --enable-retinex  enable retinex\n"
             "\t --pipeline    pipe mode\n"
             "\t               select from [basic, advance, extreme], default is [basic]\n"
             "(e.g.: xxxx --hdr=xx --tnr=xx --tnr-level=xx --bilateral --enable-snr --enable-ee --enable-bnr --enable-dpc)\n\n"
@@ -379,6 +380,7 @@ int main (int argc, char *argv[])
     uint32_t pixel_format = V4L2_PIX_FMT_NV12;
     bool tonemapping_type = false;
     bool wdr_type = false;
+    bool retinex_type = false;
     int32_t brightness_level = 128;
     bool    have_usbcam = 0;
     char*   usb_device_name = NULL;
@@ -399,6 +401,7 @@ int main (int argc, char *argv[])
         {"enable-bnr", no_argument, NULL, 'B'},
         {"enable-dpc", no_argument, NULL, 'D'},
         {"enable-wdr", no_argument, NULL, 'W'},
+        {"enable-retinex", no_argument, NULL, 'X'},
         {"usb", required_argument, NULL, 'U'},
         {"resolution", required_argument, NULL, 'R'},
         {"sync", no_argument, NULL, 'Y'},
@@ -535,6 +538,11 @@ int main (int argc, char *argv[])
             denoise_type |= XCAM_DENOISE_TYPE_BNR;
             break;
         }
+        case 'X': {
+            retinex_type = true;
+            break;
+        }
+
         case 'D': {
             dpc_type = true;
             break;
@@ -733,6 +741,7 @@ int main (int argc, char *argv[])
         cl_processor->set_denoise (denoise_type);
         cl_processor->set_tonemapping(tonemapping_type);
         cl_processor->set_gamma (!wdr_type); // disable gamma for WDR
+        cl_processor->set_retinex (retinex_type);
         cl_processor->set_capture_stage (capture_stage);
         if (need_display) {
             cl_processor->set_output_format (V4L2_PIX_FMT_XBGR32);
