@@ -9,7 +9,7 @@
 
 __constant float threshConst[5] = { 5.430166, 2.376415, 1.184031, 0.640919, 0.367972 };
 
-__kernel void kernel_wavelet_denoise(__global uint *src, __global uint *dest, __global float *details,
+__kernel void kernel_wavelet_denoise(__global uint *src, __global uint *approxOut, __global float *details, __global uint *dest,
                                      int inputYOffset, int outputYOffset, uint inputUVoffset, uint outputUVoffset,
                                      int layer, int decomLevels, float hardThresh, float softThresh)
 {
@@ -29,6 +29,7 @@ __kernel void kernel_wavelet_denoise(__global uint *src, __global uint *dest, __
     layer = (layer < decomLevels) ? layer : decomLevels;
 
     src += inputYOffset;
+    approxOut += inputYOffset;
     dest += outputYOffset;
 
     int xScaler = pown(2.0, (layer - 1));
@@ -177,24 +178,24 @@ __kernel void kernel_wavelet_denoise(__global uint *src, __global uint *dest, __
     __global float16 *details_p = (__global float16 *)(&details[pixel_index]);
     if (layer == 1) {
         (*details_p) = detail;
-    } else {
-        (*details_p) += detail;
-    }
-
-    if (layer < decomLevels) {
-        (*(__global uint4*)(src + group_index)) = approx;
-    }
-    else
-    {
-        // Reconstruction
-        __global uint4* dest_p = (__global uint4*)(&dest[group_index]);
-        (*dest_p) = as_uint4(convert_uchar16(*details_p + convert_float16(as_uchar16(approx))));
 
         // copy UV
         if (y % 2 == 0) {
             uv = vload4(0, src + uv_index + inputUVoffset * (imageWidth / 4));
             vstore4(uv, 0, dest + uv_index + outputUVoffset * (imageWidth / 4));
         }
+    } else {
+        (*details_p) += detail;
+    }
+
+    if (layer < decomLevels) {
+        (*(__global uint4*)(approxOut + group_index)) = approx;
+    }
+    else
+    {
+        // Reconstruction
+        __global uint4* dest_p = (__global uint4*)(&dest[group_index]);
+        (*dest_p) = as_uint4(convert_uchar16(*details_p + convert_float16(as_uchar16(approx))));
     }
 }
 
