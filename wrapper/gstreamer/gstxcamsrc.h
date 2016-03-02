@@ -78,6 +78,7 @@ struct _GstXCamSrc
     gboolean                     enable_usb;
     gboolean                     enable_wdr;
     gboolean                     enable_wavelet;
+    gboolean                     enable_retinex;
     char                        *path_to_fake;
 
     gboolean                     time_offset_ready;
