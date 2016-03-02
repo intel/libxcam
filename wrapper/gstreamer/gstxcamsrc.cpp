@@ -66,7 +66,7 @@ using namespace GstXCam;
 #define DEFAULT_PROP_MEM_MODE           V4L2_MEMORY_DMABUF
 #define DEFAULT_PROP_ENABLE_3A          TRUE
 #define DEFAULT_PROP_ENABLE_USB         FALSE
-#define DEFAULT_PROP_ENABLE_WDR         FALSE
+#define DEFAULT_PROP_ENABLE_WDR         0
 #define DEFAULT_PROP_ENABLE_WAVELET     FALSE
 #define DEFAULT_PROP_BUFFERCOUNT        8
 #define DEFAULT_PROP_PIXELFORMAT        V4L2_PIX_FMT_NV12 //420 instead of 0
@@ -336,8 +336,9 @@ gst_xcam_src_class_init (GstXCamSrcClass * klass)
 
     g_object_class_install_property (
         gobject_class, PROP_ENABLE_WDR,
-        g_param_spec_boolean ("enable-wdr", "enable wdr", "Enable WDR",
-                              DEFAULT_PROP_ENABLE_WDR, (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+        g_param_spec_int ("enable-wdr", "enable wdr", "Enable WDR",
+                          0, 2, DEFAULT_PROP_ENABLE_WDR,
+                          (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property (
         gobject_class, PROP_ENABLE_WAVELET,
@@ -512,7 +513,7 @@ gst_xcam_src_get_property (
         break;
 
     case PROP_ENABLE_WDR:
-        g_value_set_boolean (value, src->enable_wdr);
+        g_value_set_int (value, src->enable_wdr);
         break;
 
     case PROP_ENABLE_WAVELET:
@@ -593,7 +594,7 @@ gst_xcam_src_set_property (
         break;
 
     case PROP_ENABLE_WDR:
-        src->enable_wdr = g_value_get_boolean (value);
+        src->enable_wdr = g_value_get_int (value);
         break;
 
     case PROP_ENABLE_WAVELET:
@@ -794,12 +795,21 @@ gst_xcam_src_start (GstBaseSrc *src)
         device_manager->add_image_processor (isp_processor);
         cl_processor = new CL3aImageProcessor ();
         cl_processor->set_stats_callback (device_manager);
-        if(xcamsrc->enable_wdr)
+        if(xcamsrc->enable_wdr != 0)
         {
-            cl_processor->set_tonemapping(true);
             cl_processor->set_gamma (false);
             xcamsrc->in_format = V4L2_PIX_FMT_SGRBG12;
             setenv ("AIQ_CPF_PATH", "/etc/atomisp/imx185_wdr.cpf", 1);
+
+            if(xcamsrc->enable_wdr == 1)
+            {
+                cl_processor->set_tonemapping(true);
+            }
+            else if(xcamsrc->enable_wdr == 2)
+            {
+                cl_processor->set_newtonemapping(true);
+                cl_processor->set_3a_stats_bits(12);
+            }
         }
         if(xcamsrc->enable_wavelet)
         {

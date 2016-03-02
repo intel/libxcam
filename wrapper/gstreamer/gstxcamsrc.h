@@ -71,12 +71,12 @@ struct _GstXCamSrc
     uint32_t                     buf_count;
     uint32_t                     sensor_id;
     uint32_t                     capture_mode;
+    uint32_t                     enable_wdr;
     char                        *device;
     char                        *path_to_cpf;
     char                        *path_to_3alib;
     gboolean                     enable_3a;
     gboolean                     enable_usb;
-    gboolean                     enable_wdr;
     gboolean                     enable_wavelet;
     char                        *path_to_fake;
 
