@@ -23,7 +23,6 @@
 #include "cl_3a_stats_calculator.h"
 #include "cl_bayer_pipe_handler.h"
 #include "cl_yuv_pipe_handler.h"
-#include "cl_retinex_handler.h"
 #if ENABLE_YEENR_HANDLER
 #include "cl_ee_handler.h"
 #endif
@@ -43,7 +42,6 @@ CL3aImageProcessor::CL3aImageProcessor ()
     : CLImageProcessor ("CL3aImageProcessor")
     , _output_fourcc (V4L2_PIX_FMT_NV12)
     , _3a_stats_bits (8)
-    , _out_smaple_type (OutSampleYuv)
     , _pipeline_profile (BasicPipelineProfile)
     , _capture_stage (TonemappingStage)
     , _hdr_mode (0)
@@ -53,7 +51,6 @@ CL3aImageProcessor::CL3aImageProcessor ()
     , _enable_newtonemapping (false)
     , _enable_macc (true)
     , _enable_dpc (false)
-    , _enable_retinex (false)
     , _enable_wavelet (false)
     , _snr_mode (0)
 {
@@ -75,25 +72,12 @@ CL3aImageProcessor::set_stats_callback (const SmartPtr<StatsCallback> &callback)
 bool
 CL3aImageProcessor::set_output_format (uint32_t fourcc)
 {
-    switch (fourcc) {
-    case XCAM_PIX_FMT_RGBA64:
-    case V4L2_PIX_FMT_XBGR32:
-    case V4L2_PIX_FMT_ABGR32:
-    case V4L2_PIX_FMT_BGR32:
-    case V4L2_PIX_FMT_RGB32:
-    case V4L2_PIX_FMT_ARGB32:
-    case V4L2_PIX_FMT_XRGB32:
-        _out_smaple_type = OutSampleRGB;
-        break;
-    case V4L2_PIX_FMT_NV12:
-        _out_smaple_type = OutSampleYuv;
-        break;
-    default:
-        XCAM_LOG_WARNING (
-            "cl 3a processor doesn't support output format:%s",
-            xcam_fourcc_to_string(fourcc));
-        return false;
-    }
+    XCAM_FAIL_RETURN (
+        WARNING,
+        V4L2_PIX_FMT_NV12 == fourcc,
+        false,
+        "cl 3a processor doesn't support output format: %s",
+        xcam_fourcc_to_string (fourcc));
 
     _output_fourcc = fourcc;
     return true;
@@ -413,19 +397,6 @@ CL3aImageProcessor::create_handlers ()
     image_handler->set_pool_size (XCAM_CL_3A_IMAGE_MAX_POOL_SIZE);
     add_handler (image_handler);
 
-    /* retinex*/
-    image_handler = create_cl_retinex_image_handler (context);
-    _retinex = image_handler.dynamic_cast_ptr<CLRetinexImageHandler> ();
-    XCAM_FAIL_RETURN (
-        WARNING,
-        _retinex.ptr (),
-        XCAM_RETURN_ERROR_CL,
-        "CL3aImageProcessor create retinex handler failed");
-    _retinex->set_kernels_enable (_enable_retinex);
-    image_handler->set_pool_type (CLImageHandler::DrmBoPoolType);
-    image_handler->set_pool_size (XCAM_CL_3A_IMAGE_MAX_POOL_SIZE);
-    add_handler (image_handler);
-
     /* image scaler */
     image_handler = create_cl_image_scaler_handler (context, V4L2_PIX_FMT_NV12);
     _scaler = image_handler.dynamic_cast_ptr<CLImageScaler> ();
@@ -439,19 +410,6 @@ CL3aImageProcessor::create_handlers ()
     image_handler->set_pool_type (CLImageHandler::DrmBoPoolType);
     image_handler->set_kernels_enable (false);
     add_handler (image_handler);
-
-    if (_out_smaple_type == OutSampleRGB) {
-        image_handler = create_cl_csc_image_handler (context, CL_CSC_TYPE_NV12TORGBA);
-        _csc = image_handler.dynamic_cast_ptr<CLCscImageHandler> ();
-        XCAM_FAIL_RETURN (
-            WARNING,
-            _csc .ptr (),
-            XCAM_RETURN_ERROR_CL,
-            "CL3aImageProcessor create csc handler failed");
-        image_handler->set_pool_type (CLImageHandler::DrmBoPoolType);
-        image_handler->set_pool_size (XCAM_CL_3A_IMAGE_MAX_POOL_SIZE);
-        add_handler (image_handler);
-    }
 
     XCAM_FAIL_RETURN (
         WARNING,
@@ -528,16 +486,6 @@ bool
 CL3aImageProcessor::set_gamma (bool enable)
 {
     _enable_gamma = enable;
-
-    STREAM_LOCK;
-
-    return true;
-}
-
-bool
-CL3aImageProcessor::set_retinex (bool enable)
-{
-    _enable_retinex = enable;
 
     STREAM_LOCK;
 

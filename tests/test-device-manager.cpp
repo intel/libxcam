@@ -30,6 +30,7 @@
 #endif
 #if HAVE_LIBCL
 #include "cl_3a_image_processor.h"
+#include "cl_post_image_processor.h"
 #include "cl_csc_image_processor.h"
 #include "cl_hdr_handler.h"
 #include "cl_tnr_handler.h"
@@ -336,9 +337,6 @@ int main (int argc, char *argv[])
     SmartPtr<X3aAnalyzerLoader> loader;
     const char *path_of_3a;
     SmartPtr<ImageProcessor> isp_processor;
-#if HAVE_LIBCL
-    SmartPtr<CLCscImageProcessor> cl_csc_proccessor;
-#endif
     AnalyzerType  analyzer_type = AnalyzerTypeSimple;
     DrmDisplayMode display_mode = DRM_DISPLAY_MODE_PRIMARY;
 #if HAVE_LIBDRM
@@ -347,6 +345,7 @@ int main (int argc, char *argv[])
 
 #if HAVE_LIBCL
     SmartPtr<CL3aImageProcessor> cl_processor;
+    SmartPtr<CLPostImageProcessor> cl_post_processor;
     uint32_t hdr_type = CL_HDR_DISABLE;
     uint32_t tnr_type = CL_TNR_DISABLE;
     uint32_t denoise_type = 0;
@@ -726,12 +725,6 @@ int main (int argc, char *argv[])
     XCAM_ASSERT (isp_processor.ptr ());
     device_manager->add_image_processor (isp_processor);
 #if HAVE_LIBCL
-    if ((display_mode == DRM_DISPLAY_MODE_PRIMARY) && need_display && (!have_cl_processor)) {
-        cl_csc_proccessor = new CLCscImageProcessor();
-        XCAM_ASSERT (cl_csc_proccessor.ptr ());
-        device_manager->add_image_processor (cl_csc_proccessor);
-    }
-
     if (have_cl_processor) {
         cl_processor = new CL3aImageProcessor ();
         cl_processor->set_stats_callback(device_manager);
@@ -741,21 +734,26 @@ int main (int argc, char *argv[])
         cl_processor->set_tonemapping(tonemapping_type);
         cl_processor->set_newtonemapping(newtonemapping_type);
         cl_processor->set_gamma (!wdr_type); // disable gamma for WDR
-        cl_processor->set_retinex (retinex_type);
         cl_processor->set_wavelet (wavelet_type);
         cl_processor->set_capture_stage (capture_stage);
 
         if (wdr_type) {
             cl_processor->set_3a_stats_bits(12);
         }
-        if (need_display) {
-            cl_processor->set_output_format (V4L2_PIX_FMT_XBGR32);
-        }
         cl_processor->set_tnr (tnr_type, tnr_level);
         cl_processor->set_profile (pipeline_mode);
         analyzer->set_parameter_brightness((brightness_level - 128) / 128.0);
         device_manager->add_image_processor (cl_processor);
     }
+
+    cl_post_processor = new CLPostImageProcessor ();
+
+    cl_post_processor->set_retinex (retinex_type);
+
+    if ((display_mode == DRM_DISPLAY_MODE_PRIMARY) && need_display) {
+        cl_post_processor->set_output_format (V4L2_PIX_FMT_XBGR32);
+    }
+    device_manager->add_image_processor (cl_post_processor);
 #endif
 
     SmartPtr<PollThread> poll_thread;
