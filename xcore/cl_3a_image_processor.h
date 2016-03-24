@@ -87,7 +87,6 @@ public:
     virtual bool set_tnr (uint32_t mode, uint8_t level);
     virtual bool set_wavelet (CLWaveletBasis basis, uint32_t channel);
     virtual bool set_tonemapping (CLTonemappingMode wdr_mode);
-    virtual bool set_retinex (bool enable);
 
     PipelineProfile get_profile () const {
         return _pipeline_profile;
