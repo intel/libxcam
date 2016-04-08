@@ -25,8 +25,8 @@ namespace XCam {
 CLNewTonemappingImageKernel::CLNewTonemappingImageKernel (SmartPtr<CLContext> &context,
         const char *name)
     : CLImageKernel (context, name)
-    , _image_width (960)
-    , _image_height (540)
+    , _image_height(540)
+    , _image_width(960)
 {
     for(int i = 0; i < 65536; i++)
     {
