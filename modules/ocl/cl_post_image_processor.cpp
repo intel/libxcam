@@ -24,9 +24,11 @@
 
 #include "cl_tnr_handler.h"
 #include "cl_retinex_handler.h"
-#include "cl_csc_handler.h"
 #include "cl_defog_dcp_handler.h"
 #include "cl_3d_denoise_handler.h"
+#include "cl_image_scaler.h"
+#include "cl_wire_frame_handler.h"
+#include "cl_csc_handler.h"
 
 #define XCAM_CL_POST_IMAGE_DEFAULT_POOL_SIZE 6
 #define XCAM_CL_POST_IMAGE_MAX_POOL_SIZE 12
@@ -37,10 +39,13 @@ CLPostImageProcessor::CLPostImageProcessor ()
     : CLImageProcessor ("CLPostImageProcessor")
     , _output_fourcc (V4L2_PIX_FMT_NV12)
     , _out_sample_type (OutSampleYuv)
+    , _scaler_factor (1.0)
     , _tnr_mode (TnrYuv)
     , _defog_mode (CLPostImageProcessor::DefogDisabled)
     , _3d_denoise_mode (CLPostImageProcessor::Denoise3DDisabled)
     , _3d_denoise_ref_count (3)
+    , _enable_scaler (false)
+    , _enable_wireframe (false)
 {
     XCAM_LOG_DEBUG ("CLPostImageProcessor constructed");
 }
@@ -77,6 +82,21 @@ CLPostImageProcessor::set_output_format (uint32_t fourcc)
     return true;
 }
 
+void
+CLPostImageProcessor::set_stats_callback (const SmartPtr<StatsCallback> &callback)
+{
+    XCAM_ASSERT (callback.ptr ());
+    _stats_callback = callback;
+}
+
+bool
+CLPostImageProcessor::set_scaler_factor (const double factor)
+{
+    _scaler_factor = factor;
+
+    return true;
+}
+
 bool
 CLPostImageProcessor::can_process_result (SmartPtr < X3aResult > & result)
 {
@@ -85,6 +105,7 @@ CLPostImageProcessor::can_process_result (SmartPtr < X3aResult > & result)
 
     switch (result->get_type ()) {
     case XCAM_3A_RESULT_TEMPORAL_NOISE_REDUCTION_YUV:
+    case XCAM_3A_RESULT_FACE_DETECTION:
         return true;
     default:
         return false;
@@ -145,6 +166,15 @@ CLPostImageProcessor::apply_3a_result (SmartPtr<X3aResult> &result)
         }
         break;
     }
+    case XCAM_3A_RESULT_FACE_DETECTION: {
+        SmartPtr<X3aFaceDetectionResult> fd_res = result.dynamic_cast_ptr<X3aFaceDetectionResult> ();
+        XCAM_ASSERT (fd_res.ptr ());
+        if (_wireframe.ptr ()) {
+            _wireframe->set_wire_frame_config (fd_res->get_standard_result_ptr (), get_scaler_factor ());
+        }
+        break;
+    }
+
     default:
         XCAM_LOG_WARNING ("CLPostImageProcessor unknow 3a result: %d", res_type);
         break;
@@ -238,6 +268,33 @@ CLPostImageProcessor::create_handlers ()
         add_handler (image_handler);
     }
 
+    /* image scaler */
+    image_handler = create_cl_image_scaler_handler (context, V4L2_PIX_FMT_NV12);
+    _scaler = image_handler.dynamic_cast_ptr<CLImageScaler> ();
+    XCAM_FAIL_RETURN (
+        WARNING,
+        _scaler.ptr (),
+        XCAM_RETURN_ERROR_CL,
+        "CLPostImageProcessor create scaler handler failed");
+    _scaler->set_scaler_factor (_scaler_factor);
+    _scaler->set_buffer_callback (_stats_callback);
+    image_handler->set_pool_type (CLImageHandler::DrmBoPoolType);
+    image_handler->set_kernels_enable (_enable_scaler);
+    add_handler (image_handler);
+
+    /* wire frame */
+    image_handler = create_cl_wire_frame_image_handler (context);
+    _wireframe = image_handler.dynamic_cast_ptr<CLWireFrameImageHandler> ();
+    XCAM_FAIL_RETURN (
+        WARNING,
+        _wireframe.ptr (),
+        XCAM_RETURN_ERROR_CL,
+        "CLPostImageProcessor create wire frame handler failed");
+    _wireframe->set_kernels_enable (_enable_wireframe);
+    image_handler->set_pool_type (CLImageHandler::DrmBoPoolType);
+    image_handler->set_pool_size (XCAM_CL_POST_IMAGE_DEFAULT_POOL_SIZE);
+    add_handler (image_handler);
+
     /* csc (nv12torgba) */
     image_handler = create_cl_csc_image_handler (context, CL_CSC_TYPE_NV12TORGBA);
     _csc = image_handler.dynamic_cast_ptr<CLCscImageHandler> ();
@@ -280,6 +337,26 @@ CLPostImageProcessor::set_3ddenoise_mode (CL3DDenoiseMode mode, uint8_t ref_fram
 {
     _3d_denoise_mode = mode;
     _3d_denoise_ref_count = ref_frame_count;
+
+    STREAM_LOCK;
+
+    return true;
+}
+
+bool
+CLPostImageProcessor::set_scaler (bool enable)
+{
+    _enable_scaler = enable;
+
+    STREAM_LOCK;
+
+    return true;
+}
+
+bool
+CLPostImageProcessor::set_wireframe (bool enable)
+{
+    _enable_wireframe = enable;
 
     STREAM_LOCK;
 

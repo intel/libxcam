@@ -68,6 +68,7 @@ struct _GstXCamFilter
     DefogModeType                defog_mode;
     Denoise3DModeType            denoise_3d_mode;
     uint8_t                      denoise_3d_ref_count;
+    gboolean                     enable_wireframe;
 
     GstAllocator                 *allocator;
     GstVideoInfo                 gst_video_info;

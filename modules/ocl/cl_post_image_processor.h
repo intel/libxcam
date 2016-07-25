@@ -25,6 +25,7 @@
 #include "xcam_utils.h"
 #include <base/xcam_3a_types.h>
 #include "cl_image_processor.h"
+#include "stats_callback_interface.h"
 
 namespace XCam {
 
@@ -33,6 +34,8 @@ class CLRetinexImageHandler;
 class CLCscImageHandler;
 class CLDefogDcpImageHandler;
 class CL3DDenoiseImageHandler;
+class CLImageScaler;
+class CLWireFrameImageHandler;
 
 class CLPostImageProcessor
     : public CLImageProcessor
@@ -66,10 +69,21 @@ public:
     virtual ~CLPostImageProcessor ();
 
     bool set_output_format (uint32_t fourcc);
+    void set_stats_callback (const SmartPtr<StatsCallback> &callback);
+
+    bool set_scaler_factor (const double factor);
+    double get_scaler_factor () const {
+        return _scaler_factor;
+    }
+    bool is_scaled () {
+        return _enable_scaler;
+    }
 
     virtual bool set_tnr (CLTnrMode mode);
     virtual bool set_defog_mode (CLDefogMode mode);
     virtual bool set_3ddenoise_mode (CL3DDenoiseMode mode, uint8_t ref_frame_count);
+    virtual bool set_scaler (bool enable);
+    virtual bool set_wireframe (bool enable);
 
 protected:
     virtual bool can_process_result (SmartPtr<X3aResult> &result);
@@ -82,19 +96,26 @@ private:
     XCAM_DEAD_COPY (CLPostImageProcessor);
 
 private:
-    uint32_t                               _output_fourcc;
-    OutSampleType                          _out_sample_type;
+    uint32_t                                  _output_fourcc;
+    OutSampleType                             _out_sample_type;
+    SmartPtr<StatsCallback>                   _stats_callback;
 
-    SmartPtr<CLTnrImageHandler>            _tnr;
-    SmartPtr<CLRetinexImageHandler>        _retinex;
-    SmartPtr<CLDefogDcpImageHandler>       _defog_dcp;
-    SmartPtr<CLCscImageHandler>            _csc;
-    SmartPtr<CL3DDenoiseImageHandler>      _3d_denoise;
+    SmartPtr<CLTnrImageHandler>               _tnr;
+    SmartPtr<CLRetinexImageHandler>           _retinex;
+    SmartPtr<CLDefogDcpImageHandler>          _defog_dcp;
+    SmartPtr<CL3DDenoiseImageHandler>         _3d_denoise;
+    SmartPtr<CLImageScaler>                   _scaler;
+    SmartPtr<CLWireFrameImageHandler>         _wireframe;
+    SmartPtr<CLCscImageHandler>               _csc;
 
-    CLTnrMode                              _tnr_mode;
-    CLDefogMode                            _defog_mode;
-    CL3DDenoiseMode                        _3d_denoise_mode;
-    uint8_t                                _3d_denoise_ref_count;
+    double                                    _scaler_factor;
+
+    CLTnrMode                                 _tnr_mode;
+    CLDefogMode                               _defog_mode;
+    CL3DDenoiseMode                           _3d_denoise_mode;
+    uint8_t                                   _3d_denoise_ref_count;
+    bool                                      _enable_scaler;
+    bool                                      _enable_wireframe;
 };
 
 };

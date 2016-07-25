@@ -324,6 +324,8 @@ void print_help (const char *bin_name)
             "\t --enable-retinex  enable retinex\n"
             "\t --wavelet-mode specify wavelet denoise mode, default is off\n"
             "\t                select from [0:disable, 1:Hat Y, 2:Hat UV, 3:Haar Y, 4:Haar UV, 5:Haar YUV, 6:Haar Bayes Shrink]\n"
+            "\t --3d-denoise   specify 3D Denoise mode\n"
+            "\t                select from [disabled, yuv, uv], default is [disabled]\n"
             "\t --enable-wireframe  enable wire frame\n"
             "\t --pipeline    pipe mode\n"
             "\t               select from [basic, advance, extreme], default is [basic]\n"
@@ -846,7 +848,6 @@ int main (int argc, char *argv[])
         cl_processor->set_tonemapping(wdr_mode);
         cl_processor->set_gamma (!wdr_type); // disable gamma for WDR
         cl_processor->set_wavelet (wavelet_mode, wavelet_channel, wavelet_bayes_shrink);
-        cl_processor->set_wireframe (wireframe_type);
         cl_processor->set_capture_stage (capture_stage);
 
         if (wdr_type) {
@@ -856,19 +857,20 @@ int main (int argc, char *argv[])
         cl_processor->set_profile (pipeline_mode);
         analyzer->set_parameter_brightness((brightness_level - 128) / 128.0);
         device_manager->add_image_processor (cl_processor);
-
-        if (smart_analyzer.ptr ()) {
-            cl_processor->set_scaler (true);
-            cl_processor->set_scaler_factor (640.0 / frame_width);
-        }
     }
 
     if (have_cl_post_processor) {
         cl_post_processor = new CLPostImageProcessor ();
 
+        cl_post_processor->set_stats_callback (device_manager);
         cl_post_processor->set_defog_mode ((CLPostImageProcessor::CLDefogMode)defog_type);
+        cl_post_processor->set_3ddenoise_mode ((CLPostImageProcessor::CL3DDenoiseMode) denoise_3d_mode, denoise_3d_ref_count);
 
-        cl_post_processor->set_3ddenoise_mode ((CLPostImageProcessor::CL3DDenoiseMode)denoise_3d_mode, denoise_3d_ref_count);
+        cl_post_processor->set_wireframe (wireframe_type);
+        if (smart_analyzer.ptr () && wireframe_type) {
+            cl_post_processor->set_scaler (true);
+            cl_post_processor->set_scaler_factor (640.0 / frame_width);
+        }
 
         if (need_display) {
             cl_post_processor->set_output_format (V4L2_PIX_FMT_XBGR32);

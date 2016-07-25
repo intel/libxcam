@@ -164,16 +164,18 @@ void pipe_stop_handler(int sig)
 
 void print_help (const char *bin_name)
 {
-    printf ("Usage: %s [--format=NV12] [--width==1080] ...\n"
-            "\t --format        specify output pixel format, default is NV12\n"
-            "\t --width         specify input image width, default is 1920\n"
-            "\t --height        specify input image height, default is 1080\n"
-            "\t --fake-input    specify the path of image as fake source\n"
-            "\t --defog-mode    specify defog mode\n"
-            "\t --3d-denoise    specify 3D Denoise mode\n"
-            "\t                 select from [disabled, retinex, dcp], default is [disabled]\n"
-            "\t -p              enable local display\n"
-            "\t -h              help\n"
+    printf ("Usage: %s [--format=NV12] [--width=1920] ...\n"
+            "\t --format           specify output pixel format, default is NV12\n"
+            "\t --width            specify input image width, default is 1920\n"
+            "\t --height           specify input image height, default is 1080\n"
+            "\t --fake-input       specify the path of image as fake source\n"
+            "\t --defog-mode       specify defog mode\n"
+            "\t                    select from [disabled, retinex, dcp], default is [disabled]\n"
+            "\t --3d-denoise       specify 3D Denoise mode\n"
+            "\t                    select from [disabled, yuv, uv], default is [disabled]\n"
+            "\t --enable-wireframe enable wire frame\n"
+            "\t -p                 enable local display\n"
+            "\t -h                 help\n"
             , bin_name);
 }
 
@@ -198,6 +200,7 @@ int main (int argc, char *argv[])
     uint32_t defog_mode = 0;
     uint32_t denoise_3d_mode = 0;
     uint8_t denoise_3d_ref_count = 3;
+    bool enable_wireframe = false;
 
     int opt;
     const char *short_opts = "ph";
@@ -208,6 +211,7 @@ int main (int argc, char *argv[])
         {"fake-input", required_argument, NULL, 'A'},
         {"defog-mode", required_argument, NULL, 'D'},
         {"3d-denoise", required_argument, NULL, 'N'},
+        {"enable-wireframe", no_argument, NULL, 'I'},
         {NULL, 0, NULL, 0}
     };
 
@@ -266,6 +270,10 @@ int main (int argc, char *argv[])
             }
             break;
         }
+        case 'I': {
+            enable_wireframe = true;
+            break;
+        }
         case 'p':
             need_display = true;
             break;
@@ -318,8 +326,15 @@ int main (int argc, char *argv[])
     }
 
     cl_post_processor = new CLPostImageProcessor ();
+    cl_post_processor->set_stats_callback (pipe_manager);
     cl_post_processor->set_defog_mode ((CLPostImageProcessor::CLDefogMode) defog_mode);
-    cl_post_processor->set_3ddenoise_mode ((CLPostImageProcessor::CL3DDenoiseMode)denoise_3d_mode, denoise_3d_ref_count);
+    cl_post_processor->set_3ddenoise_mode ((CLPostImageProcessor::CL3DDenoiseMode) denoise_3d_mode, denoise_3d_ref_count);
+
+    cl_post_processor->set_wireframe (enable_wireframe);
+    if (smart_analyzer.ptr () && enable_wireframe) {
+        cl_post_processor->set_scaler (true);
+        cl_post_processor->set_scaler_factor (640.0 / image_width);
+    }
 
     if (need_display) {
         cl_post_processor->set_output_format (V4L2_PIX_FMT_XBGR32);

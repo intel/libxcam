@@ -29,11 +29,9 @@
 #include "cl_tnr_handler.h"
 #include "cl_tonemapping_handler.h"
 #include "cl_newtonemapping_handler.h"
-#include "cl_image_scaler.h"
 #include "cl_bayer_basic_handler.h"
 #include "cl_wavelet_denoise_handler.h"
 #include "cl_newwavelet_denoise_handler.h"
-#include "cl_wire_frame_handler.h"
 
 #define XCAM_CL_3A_IMAGE_MAX_POOL_SIZE 6
 
@@ -43,7 +41,6 @@ CL3aImageProcessor::CL3aImageProcessor ()
     : CLImageProcessor ("CL3aImageProcessor")
     , _output_fourcc (V4L2_PIX_FMT_NV12)
     , _3a_stats_bits (8)
-    , _scaler_factor (1.0)
     , _pipeline_profile (BasicPipelineProfile)
     , _capture_stage (TonemappingStage)
     , _wdr_mode (WDRdisabled)
@@ -52,8 +49,6 @@ CL3aImageProcessor::CL3aImageProcessor ()
     , _enable_gamma (true)
     , _enable_macc (true)
     , _enable_dpc (false)
-    , _enable_scaler (false)
-    , _enable_wireframe (false)
     , _wavelet_basis (CL_WAVELET_DISABLED)
     , _wavelet_channel (CL_IMAGE_CHANNEL_UV)
     , _wavelet_bayes_shrink (false)
@@ -112,14 +107,6 @@ CL3aImageProcessor::set_3a_stats_bits (uint32_t bits)
 }
 
 bool
-CL3aImageProcessor::set_scaler_factor (const double factor)
-{
-    _scaler_factor = factor;
-
-    return true;
-}
-
-bool
 CL3aImageProcessor::can_process_result (SmartPtr<X3aResult> &result)
 {
     if (result.ptr() == NULL)
@@ -139,7 +126,6 @@ CL3aImageProcessor::can_process_result (SmartPtr<X3aResult> &result)
     case XCAM_3A_RESULT_TEMPORAL_NOISE_REDUCTION_YUV:
     case XCAM_3A_RESULT_EDGE_ENHANCEMENT:
     case XCAM_3A_RESULT_WAVELET_NOISE_REDUCTION:
-    case XCAM_3A_RESULT_FACE_DETECTION:
         return true;
 
     default:
@@ -305,15 +291,6 @@ CL3aImageProcessor::apply_3a_result (SmartPtr<X3aResult> &result)
         break;
     }
 
-    case XCAM_3A_RESULT_FACE_DETECTION: {
-        SmartPtr<X3aFaceDetectionResult> fd_res = result.dynamic_cast_ptr<X3aFaceDetectionResult> ();
-        XCAM_ASSERT (fd_res.ptr ());
-        if (_wire_frame.ptr ()) {
-            _wire_frame->set_wire_frame_config (fd_res->get_standard_result_ptr (), get_scaler_factor ());
-        }
-        break;
-    }
-
     default:
         XCAM_LOG_WARNING ("CL3aImageProcessor unknow 3a result:%d", res_type);
         break;
@@ -453,33 +430,6 @@ CL3aImageProcessor::create_handlers ()
         break;
     }
 
-    /* image scaler */
-    image_handler = create_cl_image_scaler_handler (context, V4L2_PIX_FMT_NV12);
-    _scaler = image_handler.dynamic_cast_ptr<CLImageScaler> ();
-    XCAM_FAIL_RETURN (
-        WARNING,
-        _scaler.ptr (),
-        XCAM_RETURN_ERROR_CL,
-        "CL3aImageProcessor create scaler handler failed");
-    _scaler->set_scaler_factor (_scaler_factor);
-    _scaler->set_buffer_callback (_stats_callback);
-    image_handler->set_pool_type (CLImageHandler::DrmBoPoolType);
-    image_handler->set_kernels_enable (_enable_scaler);
-    add_handler (image_handler);
-
-    /* wire frame */
-    image_handler = create_cl_wire_frame_image_handler (context);
-    _wire_frame = image_handler.dynamic_cast_ptr<CLWireFrameImageHandler> ();
-    XCAM_FAIL_RETURN (
-        WARNING,
-        _wire_frame.ptr (),
-        XCAM_RETURN_ERROR_CL,
-        "CL3aImageProcessor create wire frame handler failed");
-    _wire_frame->set_kernels_enable (_enable_wireframe);
-    image_handler->set_pool_type (CLImageHandler::DrmBoPoolType);
-    image_handler->set_pool_size (XCAM_CL_3A_IMAGE_MAX_POOL_SIZE);
-    add_handler (image_handler);
-
     XCAM_FAIL_RETURN (
         WARNING,
         post_config (),
@@ -608,26 +558,6 @@ bool
 CL3aImageProcessor::set_tonemapping (CLTonemappingMode wdr_mode)
 {
     _wdr_mode = wdr_mode;
-
-    STREAM_LOCK;
-
-    return true;
-}
-
-bool
-CL3aImageProcessor::set_scaler (bool enable)
-{
-    _enable_scaler = enable;
-
-    STREAM_LOCK;
-
-    return true;
-}
-
-bool
-CL3aImageProcessor::set_wireframe (bool enable)
-{
-    _enable_wireframe = enable;
 
     STREAM_LOCK;
 
