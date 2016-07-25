@@ -30,8 +30,6 @@
 #include "cl_tonemapping_handler.h"
 #include "cl_newtonemapping_handler.h"
 #include "cl_bayer_basic_handler.h"
-#include "cl_wavelet_denoise_handler.h"
-#include "cl_newwavelet_denoise_handler.h"
 
 #define XCAM_CL_3A_IMAGE_MAX_POOL_SIZE 6
 
@@ -49,9 +47,6 @@ CL3aImageProcessor::CL3aImageProcessor ()
     , _enable_gamma (true)
     , _enable_macc (true)
     , _enable_dpc (false)
-    , _wavelet_basis (CL_WAVELET_DISABLED)
-    , _wavelet_channel (CL_IMAGE_CHANNEL_UV)
-    , _wavelet_bayes_shrink (false)
     , _snr_mode (0)
 {
     keep_attached_buf (true);
@@ -125,7 +120,6 @@ CL3aImageProcessor::can_process_result (SmartPtr<X3aResult> &result)
     case XCAM_3A_RESULT_TEMPORAL_NOISE_REDUCTION_RGB:
     case XCAM_3A_RESULT_TEMPORAL_NOISE_REDUCTION_YUV:
     case XCAM_3A_RESULT_EDGE_ENHANCEMENT:
-    case XCAM_3A_RESULT_WAVELET_NOISE_REDUCTION:
         return true;
 
     default:
@@ -279,18 +273,6 @@ CL3aImageProcessor::apply_3a_result (SmartPtr<X3aResult> &result)
         break;
     }
 
-    case XCAM_3A_RESULT_WAVELET_NOISE_REDUCTION: {
-        SmartPtr<X3aWaveletNoiseReduction> wavelet_res = result.dynamic_cast_ptr<X3aWaveletNoiseReduction> ();
-        XCAM_ASSERT (wavelet_res.ptr ());
-        if (_wavelet.ptr()) {
-            _wavelet->set_denoise_config (wavelet_res->get_standard_result ());
-        }
-        if (_newwavelet.ptr()) {
-            _newwavelet->set_denoise_config (wavelet_res->get_standard_result ());
-        }
-        break;
-    }
-
     default:
         XCAM_LOG_WARNING ("CL3aImageProcessor unknow 3a result:%d", res_type);
         break;
@@ -394,42 +376,6 @@ CL3aImageProcessor::create_handlers ()
     add_handler (image_handler);
 #endif
 
-    /* wavelet denoise */
-    switch (_wavelet_basis) {
-    case CL_WAVELET_HAT: {
-        image_handler = create_cl_wavelet_denoise_image_handler (context, _wavelet_channel);
-        _wavelet = image_handler.dynamic_cast_ptr<CLWaveletDenoiseImageHandler> ();
-        XCAM_FAIL_RETURN (
-            WARNING,
-            _wavelet.ptr (),
-            XCAM_RETURN_ERROR_CL,
-            "CL3aImageProcessor create wavelet denoise handler failed");
-        _wavelet->set_kernels_enable (true);
-        image_handler->set_pool_type (CLImageHandler::DrmBoPoolType);
-        image_handler->set_pool_size (XCAM_CL_3A_IMAGE_MAX_POOL_SIZE);
-        add_handler (image_handler);
-        break;
-    }
-    case CL_WAVELET_HAAR: {
-        image_handler = create_cl_newwavelet_denoise_image_handler (context, _wavelet_channel, _wavelet_bayes_shrink);
-        _newwavelet = image_handler.dynamic_cast_ptr<CLNewWaveletDenoiseImageHandler> ();
-        XCAM_FAIL_RETURN (
-            WARNING,
-            _newwavelet.ptr (),
-            XCAM_RETURN_ERROR_CL,
-            "CL3aImageProcessor create new wavelet denoise handler failed");
-        _newwavelet->set_kernels_enable (true);
-        image_handler->set_pool_type (CLImageHandler::DrmBoPoolType);
-        image_handler->set_pool_size (XCAM_CL_3A_IMAGE_MAX_POOL_SIZE);
-        add_handler (image_handler);
-        break;
-    }
-    case CL_WAVELET_DISABLED:
-    default :
-        XCAM_LOG_DEBUG ("unknown or disable wavelet (%d)", _wavelet_basis);
-        break;
-    }
-
     XCAM_FAIL_RETURN (
         WARNING,
         post_config (),
@@ -505,18 +451,6 @@ bool
 CL3aImageProcessor::set_gamma (bool enable)
 {
     _enable_gamma = enable;
-
-    STREAM_LOCK;
-
-    return true;
-}
-
-bool
-CL3aImageProcessor::set_wavelet (CLWaveletBasis basis, uint32_t channel, bool bayes_shrink)
-{
-    _wavelet_basis = basis;
-    _wavelet_channel = (CLImageChannel)channel;
-    _wavelet_bayes_shrink = bayes_shrink;
 
     STREAM_LOCK;
 

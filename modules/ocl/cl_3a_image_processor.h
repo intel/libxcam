@@ -35,8 +35,6 @@ class CLBayerPipeImageHandler;
 class CLYuvPipeImageHandler;
 class CLTonemappingImageHandler;
 class CLNewTonemappingImageHandler;
-class CLWaveletDenoiseImageHandler;
-class CLNewWaveletDenoiseImageHandler;
 
 #define ENABLE_YEENR_HANDLER 0
 
@@ -84,7 +82,6 @@ public:
     virtual bool set_macc (bool enable);
     virtual bool set_dpc (bool enable);
     virtual bool set_tnr (uint32_t mode, uint8_t level);
-    virtual bool set_wavelet (CLWaveletBasis basis, uint32_t channel, bool bayes_shrink);
     virtual bool set_tonemapping (CLTonemappingMode wdr_mode);
 
     PipelineProfile get_profile () const {
@@ -117,8 +114,6 @@ private:
 #if ENABLE_YEENR_HANDLER
     SmartPtr<CLEeImageHandler>          _ee;
 #endif
-    SmartPtr<CLWaveletDenoiseImageHandler>   _wavelet;
-    SmartPtr<CLNewWaveletDenoiseImageHandler>   _newwavelet;
 
     // simple 3a bayer pipeline
     SmartPtr<CLBayerBasicImageHandler>  _bayer_basic_pipe;
@@ -130,9 +125,6 @@ private:
     bool                                _enable_gamma;
     bool                                _enable_macc;
     bool                                _enable_dpc;
-    CLWaveletBasis                      _wavelet_basis;
-    uint32_t                            _wavelet_channel;
-    bool                                _wavelet_bayes_shrink;
     uint32_t                            _snr_mode; // spatial nr mode
 };
 

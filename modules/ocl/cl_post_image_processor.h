@@ -33,6 +33,8 @@ class CLTnrImageHandler;
 class CLRetinexImageHandler;
 class CLCscImageHandler;
 class CLDefogDcpImageHandler;
+class CLWaveletDenoiseImageHandler;
+class CLNewWaveletDenoiseImageHandler;
 class CL3DDenoiseImageHandler;
 class CLImageScaler;
 class CLWireFrameImageHandler;
@@ -81,6 +83,7 @@ public:
 
     virtual bool set_tnr (CLTnrMode mode);
     virtual bool set_defog_mode (CLDefogMode mode);
+    virtual bool set_wavelet (CLWaveletBasis basis, uint32_t channel, bool bayes_shrink);
     virtual bool set_3ddenoise_mode (CL3DDenoiseMode mode, uint8_t ref_frame_count);
     virtual bool set_scaler (bool enable);
     virtual bool set_wireframe (bool enable);
@@ -103,6 +106,8 @@ private:
     SmartPtr<CLTnrImageHandler>               _tnr;
     SmartPtr<CLRetinexImageHandler>           _retinex;
     SmartPtr<CLDefogDcpImageHandler>          _defog_dcp;
+    SmartPtr<CLWaveletDenoiseImageHandler>    _wavelet;
+    SmartPtr<CLNewWaveletDenoiseImageHandler> _newwavelet;
     SmartPtr<CL3DDenoiseImageHandler>         _3d_denoise;
     SmartPtr<CLImageScaler>                   _scaler;
     SmartPtr<CLWireFrameImageHandler>         _wireframe;
@@ -112,6 +117,9 @@ private:
 
     CLTnrMode                                 _tnr_mode;
     CLDefogMode                               _defog_mode;
+    CLWaveletBasis                            _wavelet_basis;
+    uint32_t                                  _wavelet_channel;
+    bool                                      _wavelet_bayes_shrink;
     CL3DDenoiseMode                           _3d_denoise_mode;
     uint8_t                                   _3d_denoise_ref_count;
     bool                                      _enable_scaler;

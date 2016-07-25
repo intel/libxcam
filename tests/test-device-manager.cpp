@@ -378,11 +378,11 @@ int main (int argc, char *argv[])
 #if HAVE_LIBCL
     bool wdr_type = false;
     uint32_t defog_type = 0;
-    uint32_t denoise_3d_mode = 0;
-    uint8_t denoise_3d_ref_count = 3;
     CLWaveletBasis wavelet_mode = CL_WAVELET_DISABLED;
     uint32_t wavelet_channel = CL_IMAGE_CHANNEL_UV;
     bool wavelet_bayes_shrink = false;
+    uint32_t denoise_3d_mode = 0;
+    uint8_t denoise_3d_ref_count = 3;
     bool wireframe_type = false;
 #endif
 
@@ -847,7 +847,6 @@ int main (int argc, char *argv[])
         cl_processor->set_denoise (denoise_type);
         cl_processor->set_tonemapping(wdr_mode);
         cl_processor->set_gamma (!wdr_type); // disable gamma for WDR
-        cl_processor->set_wavelet (wavelet_mode, wavelet_channel, wavelet_bayes_shrink);
         cl_processor->set_capture_stage (capture_stage);
 
         if (wdr_type) {
@@ -864,6 +863,7 @@ int main (int argc, char *argv[])
 
         cl_post_processor->set_stats_callback (device_manager);
         cl_post_processor->set_defog_mode ((CLPostImageProcessor::CLDefogMode)defog_type);
+        cl_post_processor->set_wavelet (wavelet_mode, wavelet_channel, wavelet_bayes_shrink);
         cl_post_processor->set_3ddenoise_mode ((CLPostImageProcessor::CL3DDenoiseMode) denoise_3d_mode, denoise_3d_ref_count);
 
         cl_post_processor->set_wireframe (wireframe_type);

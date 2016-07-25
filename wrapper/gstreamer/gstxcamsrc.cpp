@@ -887,24 +887,6 @@ gst_xcam_src_start (GstBaseSrc *src)
             }
         }
 
-        if (NONE_WAVELET != xcamsrc->wavelet_mode) {
-            if (HAT_WAVELET_Y == xcamsrc->wavelet_mode) {
-                cl_processor->set_wavelet (CL_WAVELET_HAT, CL_IMAGE_CHANNEL_Y, false);
-            } else if (HAT_WAVELET_UV == xcamsrc->wavelet_mode) {
-                cl_processor->set_wavelet (CL_WAVELET_HAT, CL_IMAGE_CHANNEL_UV, false);
-            } else if (HARR_WAVELET_Y == xcamsrc->wavelet_mode) {
-                cl_processor->set_wavelet (CL_WAVELET_HAAR, CL_IMAGE_CHANNEL_Y, false);
-            } else if (HARR_WAVELET_UV == xcamsrc->wavelet_mode) {
-                cl_processor->set_wavelet (CL_WAVELET_HAAR, CL_IMAGE_CHANNEL_UV, false);
-            } else if (HARR_WAVELET_YUV == xcamsrc->wavelet_mode) {
-                cl_processor->set_wavelet (CL_WAVELET_HAAR, CL_IMAGE_CHANNEL_UV | CL_IMAGE_CHANNEL_Y, false);
-            } else if (HARR_WAVELET_BAYES == xcamsrc->wavelet_mode) {
-                cl_processor->set_wavelet (CL_WAVELET_HAAR, CL_IMAGE_CHANNEL_UV | CL_IMAGE_CHANNEL_Y, true);
-            } else {
-                cl_processor->set_wavelet (CL_WAVELET_DISABLED, CL_IMAGE_CHANNEL_UV, false);
-            }
-        }
-
         cl_processor->set_profile ((CL3aImageProcessor::PipelineProfile)xcamsrc->cl_pipe_profile);
         device_manager->add_image_processor (cl_processor);
         device_manager->set_cl_image_processor (cl_processor);
@@ -923,6 +905,25 @@ gst_xcam_src_start (GstBaseSrc *src)
     {
         cl_post_processor->set_defog_mode (CLPostImageProcessor::DefogRetinex);
     }
+
+    if (NONE_WAVELET != xcamsrc->wavelet_mode) {
+        if (HAT_WAVELET_Y == xcamsrc->wavelet_mode) {
+            cl_post_processor->set_wavelet (CL_WAVELET_HAT, CL_IMAGE_CHANNEL_Y, false);
+        } else if (HAT_WAVELET_UV == xcamsrc->wavelet_mode) {
+            cl_post_processor->set_wavelet (CL_WAVELET_HAT, CL_IMAGE_CHANNEL_UV, false);
+        } else if (HARR_WAVELET_Y == xcamsrc->wavelet_mode) {
+            cl_post_processor->set_wavelet (CL_WAVELET_HAAR, CL_IMAGE_CHANNEL_Y, false);
+        } else if (HARR_WAVELET_UV == xcamsrc->wavelet_mode) {
+            cl_post_processor->set_wavelet (CL_WAVELET_HAAR, CL_IMAGE_CHANNEL_UV, false);
+        } else if (HARR_WAVELET_YUV == xcamsrc->wavelet_mode) {
+            cl_post_processor->set_wavelet (CL_WAVELET_HAAR, CL_IMAGE_CHANNEL_UV | CL_IMAGE_CHANNEL_Y, false);
+        } else if (HARR_WAVELET_BAYES == xcamsrc->wavelet_mode) {
+            cl_post_processor->set_wavelet (CL_WAVELET_HAAR, CL_IMAGE_CHANNEL_UV | CL_IMAGE_CHANNEL_Y, true);
+        } else {
+            cl_post_processor->set_wavelet (CL_WAVELET_DISABLED, CL_IMAGE_CHANNEL_UV, false);
+        }
+    }
+
     cl_post_processor->set_wireframe (xcamsrc->enable_wireframe);
 
     device_manager->add_image_processor (cl_post_processor);

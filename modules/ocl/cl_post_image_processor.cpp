@@ -25,6 +25,8 @@
 #include "cl_tnr_handler.h"
 #include "cl_retinex_handler.h"
 #include "cl_defog_dcp_handler.h"
+#include "cl_wavelet_denoise_handler.h"
+#include "cl_newwavelet_denoise_handler.h"
 #include "cl_3d_denoise_handler.h"
 #include "cl_image_scaler.h"
 #include "cl_wire_frame_handler.h"
@@ -42,6 +44,9 @@ CLPostImageProcessor::CLPostImageProcessor ()
     , _scaler_factor (1.0)
     , _tnr_mode (TnrYuv)
     , _defog_mode (CLPostImageProcessor::DefogDisabled)
+    , _wavelet_basis (CL_WAVELET_DISABLED)
+    , _wavelet_channel (CL_IMAGE_CHANNEL_UV)
+    , _wavelet_bayes_shrink (false)
     , _3d_denoise_mode (CLPostImageProcessor::Denoise3DDisabled)
     , _3d_denoise_ref_count (3)
     , _enable_scaler (false)
@@ -105,6 +110,7 @@ CLPostImageProcessor::can_process_result (SmartPtr < X3aResult > & result)
 
     switch (result->get_type ()) {
     case XCAM_3A_RESULT_TEMPORAL_NOISE_REDUCTION_YUV:
+    case XCAM_3A_RESULT_WAVELET_NOISE_REDUCTION:
     case XCAM_3A_RESULT_FACE_DETECTION:
         return true;
     default:
@@ -163,6 +169,17 @@ CLPostImageProcessor::apply_3a_result (SmartPtr<X3aResult> &result)
         }
         if (_3d_denoise.ptr ()) {
             _3d_denoise->set_denoise_config (tnr_res->get_standard_result ());
+        }
+        break;
+    }
+    case XCAM_3A_RESULT_WAVELET_NOISE_REDUCTION: {
+        SmartPtr<X3aWaveletNoiseReduction> wavelet_res = result.dynamic_cast_ptr<X3aWaveletNoiseReduction> ();
+        XCAM_ASSERT (wavelet_res.ptr ());
+        if (_wavelet.ptr()) {
+            _wavelet->set_denoise_config (wavelet_res->get_standard_result ());
+        }
+        if (_newwavelet.ptr()) {
+            _newwavelet->set_denoise_config (wavelet_res->get_standard_result ());
         }
         break;
     }
@@ -242,6 +259,42 @@ CLPostImageProcessor::create_handlers ()
             XCAM_LOG_WARNING ("CLPostImageProcessor unknown tnr mode (%d)", _tnr_mode);
             break;
         }
+    }
+
+    /* wavelet denoise */
+    switch (_wavelet_basis) {
+    case CL_WAVELET_HAT: {
+        image_handler = create_cl_wavelet_denoise_image_handler (context, _wavelet_channel);
+        _wavelet = image_handler.dynamic_cast_ptr<CLWaveletDenoiseImageHandler> ();
+        XCAM_FAIL_RETURN (
+            WARNING,
+            _wavelet.ptr (),
+            XCAM_RETURN_ERROR_CL,
+            "CLPostImageProcessor create wavelet denoise handler failed");
+        _wavelet->set_kernels_enable (true);
+        image_handler->set_pool_type (CLImageHandler::DrmBoPoolType);
+        image_handler->set_pool_size (XCAM_CL_POST_IMAGE_DEFAULT_POOL_SIZE);
+        add_handler (image_handler);
+        break;
+    }
+    case CL_WAVELET_HAAR: {
+        image_handler = create_cl_newwavelet_denoise_image_handler (context, _wavelet_channel, _wavelet_bayes_shrink);
+        _newwavelet = image_handler.dynamic_cast_ptr<CLNewWaveletDenoiseImageHandler> ();
+        XCAM_FAIL_RETURN (
+            WARNING,
+            _newwavelet.ptr (),
+            XCAM_RETURN_ERROR_CL,
+            "CLPostImageProcessor create new wavelet denoise handler failed");
+        _newwavelet->set_kernels_enable (true);
+        image_handler->set_pool_type (CLImageHandler::DrmBoPoolType);
+        image_handler->set_pool_size (XCAM_CL_POST_IMAGE_DEFAULT_POOL_SIZE);
+        add_handler (image_handler);
+        break;
+    }
+    case CL_WAVELET_DISABLED:
+    default :
+        XCAM_LOG_DEBUG ("unknown or disable wavelet (%d)", _wavelet_basis);
+        break;
     }
 
     /* 3D noise reduction */
@@ -326,6 +379,18 @@ bool
 CLPostImageProcessor::set_defog_mode (CLDefogMode mode)
 {
     _defog_mode = mode;
+
+    STREAM_LOCK;
+
+    return true;
+}
+
+bool
+CLPostImageProcessor::set_wavelet (CLWaveletBasis basis, uint32_t channel, bool bayes_shrink)
+{
+    _wavelet_basis = basis;
+    _wavelet_channel = (CLImageChannel) channel;
+    _wavelet_bayes_shrink = bayes_shrink;
 
     STREAM_LOCK;
 
