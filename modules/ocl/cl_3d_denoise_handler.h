@@ -65,6 +65,7 @@ private:
     SmartPtr<CL3DDenoiseImageHandler> _handler;
 
     CLImagePtrList _image_in_list;
+    SmartPtr<CLImage> _image_out_prev;
 };
 
 class CL3DDenoiseImageHandler
@@ -92,7 +93,7 @@ private:
 };
 
 SmartPtr<CLImageHandler>
-create_cl_3d_denoise_image_handler (SmartPtr<CLContext> &context, uint32_t channel);
+create_cl_3d_denoise_image_handler (SmartPtr<CLContext> &context, uint32_t channel, uint8_t ref_count);
 
 };
 

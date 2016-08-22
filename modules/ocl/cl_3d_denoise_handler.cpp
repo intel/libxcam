@@ -24,6 +24,11 @@ namespace XCam {
 
 #define CL_3D_DENOISE_MAX_REFERENCE_FRAME_COUNT  3
 #define CL_3D_DENOISE_REFERENCE_FRAME_COUNT      3
+#define CL_3D_DENOISE_WG_WIDTH   4
+#define CL_3D_DENOISE_WG_HEIGHT  16
+
+#define CL_3D_DENOISE_ENABLE_SUBGROUP 1
+#define CL_3D_DENOISE_IIR_FILTERING   1
 
 CL3DDenoiseImageKernel::CL3DDenoiseImageKernel (SmartPtr<CLContext> &context,
         const char *name,
@@ -58,15 +63,25 @@ CL3DDenoiseImageKernel::prepare_arguments (
     }
 
     CLImageDesc cl_desc_in, cl_desc_out;
-    cl_desc_in.format.image_channel_data_type = CL_UNORM_INT8;
     cl_desc_in.format.image_channel_order = CL_RGBA;
+#if CL_3D_DENOISE_ENABLE_SUBGROUP
+    cl_desc_in.format.image_channel_data_type = CL_UNSIGNED_INT16;
+    cl_desc_in.width = XCAM_ALIGN_UP (video_info_in.width, 8) / 8;
+#else
+    cl_desc_in.format.image_channel_data_type = CL_UNORM_INT8;
     cl_desc_in.width = XCAM_ALIGN_UP (video_info_in.width, 4) / 4;
+#endif
     cl_desc_in.height = video_info_in.height >> info_index;
     cl_desc_in.row_pitch = video_info_in.strides[info_index];
 
-    cl_desc_out.format.image_channel_data_type = CL_UNORM_INT8;
     cl_desc_out.format.image_channel_order = CL_RGBA;
+#if CL_3D_DENOISE_ENABLE_SUBGROUP
+    cl_desc_out.format.image_channel_data_type = CL_UNSIGNED_INT16;
+    cl_desc_out.width = XCAM_ALIGN_UP (video_info_out.width, 8) / 8;
+#else
+    cl_desc_out.format.image_channel_data_type = CL_UNORM_INT8;
     cl_desc_out.width = XCAM_ALIGN_UP (video_info_out.width, 4) / 4;
+#endif
     cl_desc_out.height = video_info_out.height >> info_index;
     cl_desc_out.row_pitch = video_info_out.strides[info_index];
 
@@ -74,8 +89,6 @@ CL3DDenoiseImageKernel::prepare_arguments (
     _gain = -6.0 / _handler->get_denoise_config ().gain;
     _thr_y = _handler->get_denoise_config ().threshold[0];
     _thr_uv = _handler->get_denoise_config ().threshold[1];
-
-    //XCAM_LOG_DEBUG ("3D denoise kernel: channel(%d), _ref_count(%d), _gain(%f), _thr_y(%f), _thr_uv(%f) !", _channel, _ref_count, _gain, _thr_y, _thr_uv);
 
     _image_in = new CLVaImage (context, input, cl_desc_in, video_info_in.offsets[info_index]);
     if (_image_in_list.size () < _ref_count) {
@@ -88,6 +101,9 @@ CL3DDenoiseImageKernel::prepare_arguments (
     }
     _image_out = new CLVaImage (context, output, cl_desc_out, video_info_out.offsets[info_index]);
 
+    if (!_image_out_prev.ptr ()) {
+        _image_out_prev = _image_in;
+    }
     XCAM_ASSERT (_image_in->is_valid () && _image_out->is_valid ());
     XCAM_FAIL_RETURN (
         WARNING,
@@ -95,22 +111,19 @@ CL3DDenoiseImageKernel::prepare_arguments (
         XCAM_RETURN_ERROR_MEM,
         "cl image kernel(%s) in/out memory not available", get_kernel_name ());
 
-    uint32_t block_width = 8;  //  4 * (6 / 8)
-    uint32_t block_height = 4;  // 4 * 2
-    uint32_t subgroup_width = 8;
-    uint32_t subgroup_height = 1;
-
     //set args;
     work_size.dim = XCAM_DEFAULT_IMAGE_DIM;
-    work_size.local[0] = subgroup_width;
-    work_size.local[1] = subgroup_height;
-    if (_channel == CL_IMAGE_CHANNEL_Y) {
-        work_size.global[0] = XCAM_ALIGN_UP (video_info_in.width / block_width, work_size.local[0]);
-        work_size.global[1] = XCAM_ALIGN_UP (video_info_in.height / block_height, work_size.local[1]);
-    } else if (_channel == CL_IMAGE_CHANNEL_UV) {
-        work_size.global[0] = XCAM_ALIGN_UP (video_info_in.width / block_width, work_size.local[0]);
-        work_size.global[1] = XCAM_ALIGN_UP (video_info_in.height / (2 * block_height), work_size.local[1]);
-    }
+#if CL_3D_DENOISE_ENABLE_SUBGROUP
+    work_size.local[0] = CL_3D_DENOISE_WG_WIDTH;
+    work_size.local[1] = CL_3D_DENOISE_WG_HEIGHT;
+    work_size.global[0] = XCAM_ALIGN_UP (cl_desc_in.width, work_size.local[0]);
+    work_size.global[1] = (cl_desc_in.height +  work_size.local[1] - 1) / work_size.local[1] * work_size.local[1];
+#else
+    work_size.local[0] = 8;
+    work_size.local[1] = 1;
+    work_size.global[0] = XCAM_ALIGN_UP (cl_desc_in.width, work_size.local[0]);
+    work_size.global[1] = XCAM_ALIGN_UP(cl_desc_in.height / 8, 8 * work_size.local[1]);
+#endif
 
     args[0].arg_adress = &_gain;
     args[0].arg_size = sizeof (_gain);
@@ -122,26 +135,28 @@ CL3DDenoiseImageKernel::prepare_arguments (
         args[1].arg_adress = &_thr_uv;
         args[1].arg_size = sizeof (_thr_uv);
     }
-    args[2].arg_adress = &_image_out->get_mem_id ();
+    args[2].arg_adress = &_image_out_prev->get_mem_id ();
     args[2].arg_size = sizeof (cl_mem);
+    args[3].arg_adress = &_image_out->get_mem_id ();
+    args[3].arg_size = sizeof (cl_mem);
 
     uint8_t image_list_count = _image_in_list.size ();
     uint8_t image_index = image_list_count;
     for (std::list<SmartPtr<CLImage>>::iterator it = _image_in_list.begin (); it != _image_in_list.end (); it++) {
-        args[2 + image_index].arg_adress = &(*it)->get_mem_id ();
-        args[2 + image_index].arg_size = sizeof (cl_mem);
+        args[3 + image_index].arg_adress = &(*it)->get_mem_id ();
+        args[3 + image_index].arg_size = sizeof (cl_mem);
         image_index--;
     }
 
     if (image_list_count < CL_3D_DENOISE_MAX_REFERENCE_FRAME_COUNT) {
         int append = CL_3D_DENOISE_MAX_REFERENCE_FRAME_COUNT - image_list_count;
         for (int i = 1; i <= append; i++) {
-            args[2 + image_list_count + i].arg_adress = &_image_in->get_mem_id ();
-            args[2 + image_list_count + i].arg_size = sizeof (cl_mem);
+            args[3 + image_list_count + i].arg_adress = &_image_in->get_mem_id ();
+            args[3 + image_list_count + i].arg_size = sizeof (cl_mem);
         }
     }
 
-    arg_count = 3 + CL_3D_DENOISE_MAX_REFERENCE_FRAME_COUNT;
+    arg_count = 4 + CL_3D_DENOISE_MAX_REFERENCE_FRAME_COUNT;
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -149,6 +164,7 @@ CL3DDenoiseImageKernel::prepare_arguments (
 XCamReturn
 CL3DDenoiseImageKernel::post_execute (SmartPtr<DrmBoBuffer> &output)
 {
+    _image_out_prev = _image_out;
     return CLImageKernel::post_execute (output);
 }
 
@@ -178,7 +194,7 @@ CL3DDenoiseImageHandler::set_denoise_config (const XCam3aResultTemporalNoiseRedu
 }
 
 SmartPtr<CLImageHandler>
-create_cl_3d_denoise_image_handler (SmartPtr<CLContext> &context, uint32_t channel)
+create_cl_3d_denoise_image_handler (SmartPtr<CLContext> &context, uint32_t channel, uint8_t ref_count)
 {
     SmartPtr<CL3DDenoiseImageHandler> denoise_handler;
     SmartPtr<CLImageKernel> denoise_kernel;
@@ -188,27 +204,43 @@ create_cl_3d_denoise_image_handler (SmartPtr<CLContext> &context, uint32_t chann
     xcam_mem_clear (build_options);
 
     snprintf (build_options, sizeof (build_options),
-              " -DDENOISE_Y=%d "
-              " -DDENOISE_UV=%d "
-              " -DREFERENCE_FRAME_COUNT=%d",
-              (channel & CL_IMAGE_CHANNEL_Y ? 1 : 0),
-              (channel & CL_IMAGE_CHANNEL_UV ? 1 : 0),
-              CL_3D_DENOISE_REFERENCE_FRAME_COUNT);
+              " -DREFERENCE_FRAME_COUNT=%d"
+              " -DWORKGROUP_WIDTH=%d"
+              " -DWORKGROUP_HEIGHT=%d"
+              " -DENABLE_IIR_FILERING=%d",
+              ref_count,
+              CL_3D_DENOISE_WG_WIDTH,
+              CL_3D_DENOISE_WG_HEIGHT,
+              CL_3D_DENOISE_IIR_FILTERING);
 
     denoise_handler = new CL3DDenoiseImageHandler ("cl_3d_denoise_handler");
     XCAM_ASSERT (denoise_handler.ptr ());
+    denoise_handler->set_ref_framecount (ref_count);
 
+#if CL_3D_DENOISE_ENABLE_SUBGROUP
     XCAM_CL_KERNEL_FUNC_SOURCE_BEGIN(kernel_3d_denoise)
 #include "kernel_3d_denoise.clx"
     XCAM_CL_KERNEL_FUNC_END;
+#else
+    XCAM_CL_KERNEL_FUNC_SOURCE_BEGIN(kernel_3d_denoise_slm)
+#include "kernel_3d_denoise_slm.clx"
+    XCAM_CL_KERNEL_FUNC_END;
+#endif
 
     if (channel & CL_IMAGE_CHANNEL_Y) {
+#if CL_3D_DENOISE_ENABLE_SUBGROUP
         denoise_kernel = new CL3DDenoiseImageKernel (context, "kernel_3d_denoise", CL_IMAGE_CHANNEL_Y, denoise_handler);
         ret = denoise_kernel->load_from_source (
                   kernel_3d_denoise_body, strlen (kernel_3d_denoise_body),
                   NULL, NULL,
                   build_options);
-
+#else
+        denoise_kernel = new CL3DDenoiseImageKernel (context, "kernel_3d_denoise_slm", CL_IMAGE_CHANNEL_Y, denoise_handler);
+        ret = denoise_kernel->load_from_source (
+                  kernel_3d_denoise_slm_body, strlen (kernel_3d_denoise_slm_body),
+                  NULL, NULL,
+                  build_options);
+#endif
         XCAM_FAIL_RETURN (
             WARNING,
             ret == XCAM_RETURN_NO_ERROR,
@@ -219,12 +251,19 @@ create_cl_3d_denoise_image_handler (SmartPtr<CLContext> &context, uint32_t chann
     }
 
     if (channel & CL_IMAGE_CHANNEL_UV) {
+#if CL_3D_DENOISE_ENABLE_SUBGROUP
         denoise_kernel = new CL3DDenoiseImageKernel (context, "kernel_3d_denoise", CL_IMAGE_CHANNEL_UV, denoise_handler);
         ret = denoise_kernel->load_from_source (
                   kernel_3d_denoise_body, strlen (kernel_3d_denoise_body),
                   NULL, NULL,
                   build_options);
-
+#else
+        denoise_kernel = new CL3DDenoiseImageKernel (context, "kernel_3d_denoise_slm", CL_IMAGE_CHANNEL_UV, denoise_handler);
+        ret = denoise_kernel->load_from_source (
+                  kernel_3d_denoise_slm_body, strlen (kernel_3d_denoise_slm_body),
+                  NULL, NULL,
+                  build_options);
+#endif
         XCAM_FAIL_RETURN (
             WARNING,
             ret == XCAM_RETURN_NO_ERROR,
@@ -236,5 +275,4 @@ create_cl_3d_denoise_image_handler (SmartPtr<CLContext> &context, uint32_t chann
 
     return denoise_handler;
 }
-
 };
