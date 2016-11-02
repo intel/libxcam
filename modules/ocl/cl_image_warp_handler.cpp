@@ -31,7 +31,6 @@ namespace XCam {
 
 enum {
     KernelImageWarp   = 0,
-    KernelImageTrim,
 };
 
 const XCamKernelInfo kernel_image_warp_info [] = {
@@ -81,9 +80,9 @@ CLImageWarpKernel::prepare_arguments (
     cl_desc_in.row_pitch = video_info_in.strides[info_index];
 
 #if CL_IMAGE_WARP_WRITE_UINT
-    cl_desc_out.format.image_channel_data_type = CL_UNSIGNED_INT16;
+    cl_desc_out.format.image_channel_data_type = info_index == 0 ? CL_UNSIGNED_INT16 : CL_UNSIGNED_INT32;
     cl_desc_out.format.image_channel_order = CL_RGBA;
-    cl_desc_out.width = XCAM_ALIGN_DOWN (video_info_out.width, 4) / 8;
+    cl_desc_out.width = XCAM_ALIGN_DOWN (video_info_out.width >> info_index, 4) / 8;
     cl_desc_out.height = video_info_out.height >> info_index;
 #else
     cl_desc_out.format.image_channel_order = info_index == 0 ? CL_R : CL_RG;
@@ -103,39 +102,28 @@ CLImageWarpKernel::prepare_arguments (
     }
 
     /*
-       UV plane set same horizontal coordinate as Y plane &
-       set half vertical coordinate of Y plane, need to adjust the projection matrix
-       H(uv) = [1.0, 0, 0; 0, 0.5, 0; 0, 0, 1] * H(y) * [1, 0, 0; 0, 2, 0; 0, 0, 1]
-
-       UV plane set half horizontal coordinate of Y plane &
-       set half vertical coordinate of Y plane, need to adjust the projection matrix
+       For NV12 image (YUV420), UV plane has half horizontal & vertical coordinate size of Y plane,
+       need to adjust the projection matrix as:
        H(uv) = [0.5, 0, 0; 0, 0.5, 0; 0, 0, 1] * H(y) * [2, 0, 0; 0, 2, 0; 0, 0, 1]
     */
     if (_channel == CL_IMAGE_CHANNEL_UV) {
-#if CL_IMAGE_WARP_WRITE_UINT
-        _warp_config.proj_mat[1] = 2.0 * _warp_config.proj_mat[1];
-        _warp_config.proj_mat[3] = 0.5 * _warp_config.proj_mat[3];
-        _warp_config.proj_mat[5] = 0.5 * _warp_config.proj_mat[5];
-        _warp_config.proj_mat[7] = 2.0 * _warp_config.proj_mat[7];
-#else
         _warp_config.proj_mat[2] = 0.5 * _warp_config.proj_mat[2];
         _warp_config.proj_mat[5] = 0.5 * _warp_config.proj_mat[5];
         _warp_config.proj_mat[6] = 2.0 * _warp_config.proj_mat[6];
         _warp_config.proj_mat[7] = 2.0 * _warp_config.proj_mat[7];
-#endif
     }
 
     if (_image_in_list.size () >= CL_BUFFER_POOL_SIZE) {
-        XCAM_LOG_DEBUG ("@DEBUG image list pop front");
+        XCAM_LOG_DEBUG ("image list pop front");
         _image_in_list.pop_front ();
         _image_in_list.push_back (_image_in);
     } else {
         _image_in_list.push_back (_image_in);
     }
 
-    XCAM_LOG_DEBUG ("@DEBUG image channel(%lu), image list size(%u)", _channel, _image_in_list.size());
-    XCAM_LOG_DEBUG ("@DEBUG warp config image size(%dx%d)", _warp_config.width, _warp_config.height);
-    XCAM_LOG_DEBUG ("@DEBUG proj_mat[%d]=(%f, %f, %f, %f, %f, %f, %f, %f, %f)", _warp_config.frame_id,
+    XCAM_LOG_DEBUG ("image channel(%lu), image list size(%u)", _channel, _image_in_list.size());
+    XCAM_LOG_DEBUG ("warp config image size(%dx%d)", _warp_config.width, _warp_config.height);
+    XCAM_LOG_DEBUG ("proj_mat[%d]=(%f, %f, %f, %f, %f, %f, %f, %f, %f)", _warp_config.frame_id,
                     _warp_config.proj_mat[0], _warp_config.proj_mat[1], _warp_config.proj_mat[2],
                     _warp_config.proj_mat[3], _warp_config.proj_mat[4], _warp_config.proj_mat[5],
                     _warp_config.proj_mat[6], _warp_config.proj_mat[7], _warp_config.proj_mat[8]);
@@ -175,9 +163,9 @@ CLImageWarpKernel::post_execute (SmartPtr<DrmBoBuffer> &output)
 {
     if (_warp_config.valid > 0) {
         _warp_frame_id ++;
-        XCAM_LOG_DEBUG ("@DEBUG POP Image channel(%d), input frame id(%d)", _channel, _input_frame_id);
-        XCAM_LOG_DEBUG ("@DEBUG Warp config id(%d), Warp image id(%d)", _warp_config.frame_id, _warp_frame_id);
-        XCAM_LOG_DEBUG ("@DEBUG image list size(%lu)", _image_in_list.size());
+        XCAM_LOG_DEBUG ("POP Image channel(%d), input frame id(%d)", _channel, _input_frame_id);
+        XCAM_LOG_DEBUG ("Warp config id(%d), Warp image id(%d)", _warp_config.frame_id, _warp_frame_id);
+        XCAM_LOG_DEBUG ("image list size(%lu)", _image_in_list.size());
         _image_in_list.pop_front ();
         //XCAM_ASSERT (abs(_warp_config.frame_id - _warp_frame_id) <= 2);
     }
@@ -190,7 +178,7 @@ CLImageWarpHandler::CLImageWarpHandler ()
 {
     _warp_config.frame_id = -1;
     _warp_config.valid = -1;
-    _warp_config.trim_ratio = 0.1f;
+    _warp_config.trim_ratio = 0.05f;
     reset_projection_matrix ();
 }
 
@@ -209,21 +197,16 @@ CLImageWarpHandler::reset_projection_matrix ()
 }
 
 bool
-CLImageWarpHandler::set_warp_config (const XCamDVSResult* config)
+CLImageWarpHandler::set_warp_config (const XCamDVSResult& config)
 {
-    if (!config) {
-        XCAM_LOG_ERROR ("set image warp config error, invalid config parameters !");
-        return false;
-    }
-
-    _warp_config.frame_id = config->frame_id;
-    _warp_config.valid = config->valid;
-    _warp_config.width = config->frame_width;
-    _warp_config.height = config->frame_height;
+    _warp_config.frame_id = config.frame_id;
+    _warp_config.valid = config.valid;
+    _warp_config.width = config.frame_width;
+    _warp_config.height = config.frame_height;
     for( int i = 0; i < 9; i++ ) {
-        _warp_config.proj_mat[i] = config->proj_mat[i];
+        _warp_config.proj_mat[i] = config.proj_mat[i];
     }
-    XCAM_LOG_DEBUG ("@DEBUG set_warp_config[%d]=(%f, %f, %f, %f, %f, %f, %f, %f, %f)", _warp_config.frame_id,
+    XCAM_LOG_DEBUG ("set_warp_config[%d]=(%f, %f, %f, %f, %f, %f, %f, %f, %f)", _warp_config.frame_id,
                     _warp_config.proj_mat[0], _warp_config.proj_mat[1], _warp_config.proj_mat[2],
                     _warp_config.proj_mat[3], _warp_config.proj_mat[4], _warp_config.proj_mat[5],
                     _warp_config.proj_mat[6], _warp_config.proj_mat[7], _warp_config.proj_mat[8]);
@@ -243,7 +226,7 @@ create_kernel_image_warp (SmartPtr<CLContext> &context,
     snprintf (build_options, sizeof (build_options),
               " -DWARP_Y=%d "
               " -DWARP_UV=%d "
-              " -DWRITE_UINT=%d",
+              " -DIMAGE_WRITE_UINT=%d",
               (channel == CL_IMAGE_CHANNEL_Y ? 1 : 0),
               (channel == CL_IMAGE_CHANNEL_UV ? 1 : 0),
               (CL_IMAGE_WARP_WRITE_UINT == 1 ? 1 : 0));

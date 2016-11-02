@@ -80,7 +80,7 @@ class CLImageWarpHandler
 public:
     explicit CLImageWarpHandler ();
 
-    bool set_warp_config (const XCamDVSResult* config);
+    bool set_warp_config (const XCamDVSResult& config);
     const CLWarpConfig& get_warp_config () const {
         return _warp_config;
     };
