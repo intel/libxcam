@@ -26,11 +26,11 @@ namespace XCam {
 #define CL_IMAGE_WARP_WG_WIDTH   8
 #define CL_IMAGE_WARP_WG_HEIGHT  4
 
-#define CL_BUFFER_POOL_SIZE     32
+#define CL_BUFFER_POOL_SIZE      20
+#define CL_IMAGE_WARP_WRITE_UINT 1
 
 enum {
     KernelImageWarp   = 0,
-    KernelImageTrim,
 };
 
 const XCamKernelInfo kernel_image_warp_info [] = {
@@ -38,12 +38,7 @@ const XCamKernelInfo kernel_image_warp_info [] = {
         "kernel_image_warp",
 #include "kernel_image_warp.clx"
         , 0,
-    },
-    {
-        "kernel_image_trim",
-#include "kernel_image_warp.clx"
-        , 0,
-    },
+    }
 };
 
 CLImageWarpKernel::CLImageWarpKernel (SmartPtr<CLContext> &context,
@@ -78,43 +73,78 @@ CLImageWarpKernel::prepare_arguments (
     }
 
     CLImageDesc cl_desc_in, cl_desc_out;
-    cl_desc_in.format.image_channel_order = CL_RGBA;
+    cl_desc_in.format.image_channel_order = info_index == 0 ? CL_R : CL_RG;
     cl_desc_in.format.image_channel_data_type = CL_UNORM_INT8;
-    cl_desc_in.width = XCAM_ALIGN_UP (video_info_in.width, 4) / 4;
+    cl_desc_in.width = video_info_in.width >> info_index;
     cl_desc_in.height = video_info_in.height >> info_index;
     cl_desc_in.row_pitch = video_info_in.strides[info_index];
 
+#if CL_IMAGE_WARP_WRITE_UINT
+    cl_desc_out.format.image_channel_data_type = info_index == 0 ? CL_UNSIGNED_INT16 : CL_UNSIGNED_INT32;
     cl_desc_out.format.image_channel_order = CL_RGBA;
-    cl_desc_out.format.image_channel_data_type = CL_UNORM_INT8;
-    cl_desc_out.width = XCAM_ALIGN_UP (video_info_out.width, 4) / 4;
+    cl_desc_out.width = XCAM_ALIGN_DOWN (video_info_out.width >> info_index, 4) / 8;
     cl_desc_out.height = video_info_out.height >> info_index;
-    cl_desc_out.row_pitch = video_info_out.strides[info_index];
+#else
+    cl_desc_out.format.image_channel_order = info_index == 0 ? CL_R : CL_RG;
+    cl_desc_out.format.image_channel_data_type = CL_UNORM_INT8;
+    cl_desc_out.width = video_info_out.width >> info_index;
+    cl_desc_out.height = video_info_out.height >> info_index;
+#endif
 
+    cl_desc_out.row_pitch = video_info_out.strides[info_index];
     _image_in = new CLVaImage (context, input, cl_desc_in, video_info_in.offsets[info_index]);
     _input_frame_id ++;
 
     _warp_config = _handler->get_warp_config ();
 
+    if ((_warp_config.trim_ratio > 0.5f) || (_warp_config.trim_ratio < 0.0f)) {
+        _warp_config.trim_ratio = 0.0f;
+    }
+
     /*
-         H(uv) = [1, 0, 0; 0, 0.5, 0; 0, 0, 1] * H(y) * [1, 0, 0; 0, 2, 0; 0, 0, 1]
+       For NV12 image (YUV420), UV plane has half horizontal & vertical coordinate size of Y plane,
+       need to adjust the projection matrix as:
+       H(uv) = [0.5, 0, 0; 0, 0.5, 0; 0, 0, 1] * H(y) * [2, 0, 0; 0, 2, 0; 0, 0, 1]
     */
     if (_channel == CL_IMAGE_CHANNEL_UV) {
-        _warp_config.proj_mat[1] = 2.0 * _warp_config.proj_mat[1];
-        _warp_config.proj_mat[3] = 0.5 * _warp_config.proj_mat[3];
+        _warp_config.proj_mat[2] = 0.5 * _warp_config.proj_mat[2];
         _warp_config.proj_mat[5] = 0.5 * _warp_config.proj_mat[5];
+        _warp_config.proj_mat[6] = 2.0 * _warp_config.proj_mat[6];
         _warp_config.proj_mat[7] = 2.0 * _warp_config.proj_mat[7];
     }
 
+    /*
+      Trim image: shift toward origin then scale up
+      Trim Matrix (TMat)
+      TMat = [ scale_x, 0.0f,    shift_x;
+               0.0f,    scale_y, shift_y;
+               1.0f,    1.0f,    1.0f;   ]
+
+      Warp Perspective Matrix = TMat * HMat
+    */
+    float shift_x = _warp_config.trim_ratio * cl_desc_out.width * 8.0f;
+    float shift_y = _warp_config.trim_ratio * cl_desc_out.height;
+    float scale_x = 1.0f - 2.0f * _warp_config.trim_ratio;
+    float scale_y = 1.0f - 2.0f * _warp_config.trim_ratio;
+
+    _warp_config.proj_mat[0] = scale_x * _warp_config.proj_mat[0] + shift_x * _warp_config.proj_mat[6];
+    _warp_config.proj_mat[1] = scale_x * _warp_config.proj_mat[1] + shift_x * _warp_config.proj_mat[7];
+    _warp_config.proj_mat[2] = scale_x * _warp_config.proj_mat[2] + shift_x * _warp_config.proj_mat[8];
+    _warp_config.proj_mat[3] = scale_y * _warp_config.proj_mat[3] + shift_y * _warp_config.proj_mat[6];
+    _warp_config.proj_mat[4] = scale_y * _warp_config.proj_mat[4] + shift_y * _warp_config.proj_mat[7];
+    _warp_config.proj_mat[5] = scale_y * _warp_config.proj_mat[5] + shift_y * _warp_config.proj_mat[8];
+
     if (_image_in_list.size () >= CL_BUFFER_POOL_SIZE) {
-        XCAM_LOG_DEBUG ("@DEBUG image list pop front");
+        XCAM_LOG_DEBUG ("image list pop front");
         _image_in_list.pop_front ();
         _image_in_list.push_back (_image_in);
     } else {
         _image_in_list.push_back (_image_in);
     }
 
-    XCAM_LOG_DEBUG ("@DEBUG image channel(%d), image list size(%d)", _channel, _image_in_list.size());
-    XCAM_LOG_DEBUG ("@DEBUG proj_mat[%d]=(%f, %f, %f, %f, %f, %f, %f, %f, %f)", _warp_config.frame_id,
+    XCAM_LOG_DEBUG ("image channel(%lu), image list size(%u)", _channel, _image_in_list.size());
+    XCAM_LOG_DEBUG ("warp config image size(%dx%d)", _warp_config.width, _warp_config.height);
+    XCAM_LOG_DEBUG ("proj_mat[%d]=(%f, %f, %f, %f, %f, %f, %f, %f, %f)", _warp_config.frame_id,
                     _warp_config.proj_mat[0], _warp_config.proj_mat[1], _warp_config.proj_mat[2],
                     _warp_config.proj_mat[3], _warp_config.proj_mat[4], _warp_config.proj_mat[5],
                     _warp_config.proj_mat[6], _warp_config.proj_mat[7], _warp_config.proj_mat[8]);
@@ -131,8 +161,8 @@ CLImageWarpKernel::prepare_arguments (
     work_size.dim = XCAM_DEFAULT_IMAGE_DIM;
     work_size.local[0] = CL_IMAGE_WARP_WG_WIDTH;
     work_size.local[1] = CL_IMAGE_WARP_WG_HEIGHT;
-    work_size.global[0] = XCAM_ALIGN_UP (cl_desc_in.width, work_size.local[0]);
-    work_size.global[1] = XCAM_ALIGN_UP(cl_desc_in.height, work_size.local[1]);
+    work_size.global[0] = XCAM_ALIGN_UP (cl_desc_out.width, work_size.local[0]);
+    work_size.global[1] = XCAM_ALIGN_UP(cl_desc_out.height, work_size.local[1]);
 
     std::list<SmartPtr<CLImage>>::iterator it = _image_in_list.begin ();
     args[0].arg_adress = &(*it)->get_mem_id ();
@@ -154,91 +184,14 @@ CLImageWarpKernel::post_execute (SmartPtr<DrmBoBuffer> &output)
 {
     if (_warp_config.valid > 0) {
         _warp_frame_id ++;
-        XCAM_LOG_DEBUG ("@DEBUG POP Image channel(%d), input frame id(%d)", _channel, _input_frame_id);
-        XCAM_LOG_DEBUG ("@DEBUG Warp config id(%d), Warp image id(%d)", _warp_config.frame_id, _warp_frame_id);
-        XCAM_LOG_DEBUG ("@DEBUG image list size(%d)", _image_in_list.size());
+        XCAM_LOG_DEBUG ("POP Image input frame id(%d), channel(%d)", _input_frame_id, _channel);
+        XCAM_LOG_DEBUG ("Warp config id(%d), Warp image id(%d)", _warp_config.frame_id, _warp_frame_id);
+        XCAM_LOG_DEBUG ("image list size(%lu)", _image_in_list.size());
         _image_in_list.pop_front ();
-        XCAM_ASSERT (abs(_warp_config.frame_id - _warp_frame_id) <= 2);
+        //XCAM_ASSERT (abs(_warp_config.frame_id - _warp_frame_id) <= 2);
     }
 
     return CLImageKernel::post_execute (output);
-}
-
-CLImageTrimKernel::CLImageTrimKernel (SmartPtr<CLContext> &context,
-                                      const char *name,
-                                      uint32_t channel,
-                                      float trim_ratio,
-                                      SmartPtr<CLImageWarpHandler> &handler)
-    : CLImageKernel (context, name)
-    , _channel (channel)
-    , _trim_ratio (trim_ratio)
-    , _handler (handler)
-{
-}
-
-XCamReturn
-CLImageTrimKernel::prepare_arguments (
-    SmartPtr<DrmBoBuffer> &input, SmartPtr<DrmBoBuffer> &output,
-    CLArgument args[], uint32_t &arg_count,
-    CLWorkSize &work_size)
-{
-    SmartPtr<CLContext> context = get_context ();
-
-    const VideoBufferInfo & video_info_in = input->get_video_info ();
-    const VideoBufferInfo & video_info_out = output->get_video_info ();
-
-    uint32_t info_index = 0;
-    if (_channel == CL_IMAGE_CHANNEL_Y) {
-        info_index = 0;
-    } else if (_channel == CL_IMAGE_CHANNEL_UV) {
-        info_index = 1;
-    }
-
-    CLImageDesc cl_desc_in, cl_desc_out;
-    cl_desc_in.format.image_channel_order = CL_RGBA;
-    cl_desc_in.format.image_channel_data_type = CL_UNORM_INT8;
-    cl_desc_in.width = XCAM_ALIGN_UP (video_info_in.width, 4) / 4;
-    cl_desc_in.height = video_info_in.height >> info_index;
-    cl_desc_in.row_pitch = video_info_in.strides[info_index];
-
-    cl_desc_out.format.image_channel_order = CL_RGBA;
-    cl_desc_out.format.image_channel_data_type = CL_UNORM_INT8;
-    cl_desc_out.width = XCAM_ALIGN_UP (video_info_out.width, 4) / 4;
-    cl_desc_out.height = video_info_out.height >> info_index;
-    cl_desc_out.row_pitch = video_info_out.strides[info_index];
-
-    _image_in = new CLVaImage (context, input, cl_desc_in, video_info_in.offsets[info_index]);
-    _image_out = new CLVaImage (context, output, cl_desc_out, video_info_out.offsets[info_index]);
-
-    _trim_ratio = _handler->get_warp_config ().trim_ratio;
-    if (_trim_ratio < 0 || _trim_ratio >= 0.5) {
-        _trim_ratio = 0;
-    }
-
-    XCAM_ASSERT (_image_in->is_valid () && _image_out->is_valid ());
-    XCAM_FAIL_RETURN (
-        WARNING,
-        _image_in->is_valid () && _image_out->is_valid (),
-        XCAM_RETURN_ERROR_MEM,
-        "cl image kernel(%s) in/out memory not available", get_kernel_name ());
-
-    //set args;
-    work_size.dim = XCAM_DEFAULT_IMAGE_DIM;
-    work_size.local[0] = CL_IMAGE_WARP_WG_WIDTH;
-    work_size.local[1] = CL_IMAGE_WARP_WG_HEIGHT;
-    work_size.global[0] = XCAM_ALIGN_UP (cl_desc_in.width, work_size.local[0]);
-    work_size.global[1] = XCAM_ALIGN_UP(cl_desc_in.height, work_size.local[1]);
-
-    args[0].arg_adress = &_image_in->get_mem_id ();
-    args[0].arg_size = sizeof (cl_mem);
-    args[1].arg_adress = &_image_out->get_mem_id ();
-    args[1].arg_size = sizeof (cl_mem);
-    args[2].arg_adress = &_trim_ratio;
-    args[2].arg_size = sizeof (_trim_ratio);
-
-    arg_count = 3;
-
-    return XCAM_RETURN_NO_ERROR;
 }
 
 CLImageWarpHandler::CLImageWarpHandler ()
@@ -265,20 +218,19 @@ CLImageWarpHandler::reset_projection_matrix ()
 }
 
 bool
-CLImageWarpHandler::set_warp_config (const XCamDVSResult* config)
+CLImageWarpHandler::set_warp_config (const XCamDVSResult& config)
 {
-    if (!config) {
-        XCAM_LOG_ERROR ("set image warp config error, invalid config parameters !");
-        return false;
-    }
-
-    _warp_config.frame_id = config->frame_id;
-    _warp_config.valid = config->valid;
-    _warp_config.width = config->frame_width;
-    _warp_config.height = config->frame_height;
+    _warp_config.frame_id = config.frame_id;
+    _warp_config.valid = config.valid;
+    _warp_config.width = config.frame_width;
+    _warp_config.height = config.frame_height;
     for( int i = 0; i < 9; i++ ) {
-        _warp_config.proj_mat[i] = config->proj_mat[i];
+        _warp_config.proj_mat[i] = config.proj_mat[i];
     }
+    XCAM_LOG_DEBUG ("set_warp_config[%d]=(%f, %f, %f, %f, %f, %f, %f, %f, %f)", _warp_config.frame_id,
+                    _warp_config.proj_mat[0], _warp_config.proj_mat[1], _warp_config.proj_mat[2],
+                    _warp_config.proj_mat[3], _warp_config.proj_mat[4], _warp_config.proj_mat[5],
+                    _warp_config.proj_mat[6], _warp_config.proj_mat[7], _warp_config.proj_mat[8]);
     return true;
 }
 
@@ -294,9 +246,11 @@ create_kernel_image_warp (SmartPtr<CLContext> &context,
 
     snprintf (build_options, sizeof (build_options),
               " -DWARP_Y=%d "
-              " -DWARP_UV=%d ",
+              " -DWARP_UV=%d "
+              " -DIMAGE_WRITE_UINT=%d",
               (channel == CL_IMAGE_CHANNEL_Y ? 1 : 0),
-              (channel == CL_IMAGE_CHANNEL_UV ? 1 : 0));
+              (channel == CL_IMAGE_CHANNEL_UV ? 1 : 0),
+              (CL_IMAGE_WARP_WRITE_UINT == 1 ? 1 : 0));
 
     warp_kernel = new CLImageWarpKernel (context, "kernel_image_warp", channel, handler);
     XCAM_ASSERT (warp_kernel.ptr ());
@@ -306,33 +260,6 @@ create_kernel_image_warp (SmartPtr<CLContext> &context,
     XCAM_ASSERT (warp_kernel->is_valid ());
 
     return warp_kernel;
-}
-
-SmartPtr<CLImageTrimKernel>
-create_kernel_image_trim (SmartPtr<CLContext> &context,
-                          uint32_t channel,
-                          float trim_ratio,
-                          SmartPtr<CLImageWarpHandler> handler)
-{
-    SmartPtr<CLImageTrimKernel> trim_kernel;
-
-    char build_options[1024];
-    xcam_mem_clear (build_options);
-
-    snprintf (build_options, sizeof (build_options),
-              " -DWARP_Y=%d "
-              " -DWARP_UV=%d ",
-              (channel == CL_IMAGE_CHANNEL_Y ? 1 : 0),
-              (channel == CL_IMAGE_CHANNEL_UV ? 1 : 0));
-
-    trim_kernel = new CLImageTrimKernel (context, "kernel_image_trim", channel, trim_ratio, handler);
-    XCAM_ASSERT (trim_kernel.ptr ());
-    XCAM_FAIL_RETURN (
-        ERROR, trim_kernel->build_kernel (kernel_image_warp_info[KernelImageTrim], build_options) == XCAM_RETURN_NO_ERROR,
-        NULL, "build image trim kernel failed");
-    XCAM_ASSERT (trim_kernel->is_valid ());
-
-    return trim_kernel;
 }
 
 SmartPtr<CLImageHandler>
@@ -352,14 +279,6 @@ create_cl_image_warp_handler (SmartPtr<CLContext> &context)
     warp_kernel = create_kernel_image_warp (context, CL_IMAGE_CHANNEL_UV, warp_handler);
     XCAM_ASSERT (warp_kernel.ptr ());
     warp_handler->add_kernel (warp_kernel);
-
-    trim_kernel = create_kernel_image_trim (context, CL_IMAGE_CHANNEL_Y, 0.1, warp_handler);
-    XCAM_ASSERT (trim_kernel.ptr ());
-    warp_handler->add_kernel (trim_kernel);
-
-    trim_kernel = create_kernel_image_trim (context, CL_IMAGE_CHANNEL_UV, 0.1, warp_handler);
-    XCAM_ASSERT (trim_kernel.ptr ());
-    warp_handler->add_kernel (trim_kernel);
 
     return warp_handler;
 }
