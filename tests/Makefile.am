@@ -16,6 +16,11 @@ noinst_PROGRAMS += \
 	test-image-blend     \
 	test-image-stitching \
 	$(NULL)
+if HAVE_OPENCV
+noinst_PROGRAMS += \
+	test-image-stabilization \
+	$(NULL)
+endif
 endif
 
 XCORE_DIR = $(top_builddir)/xcore
@@ -98,5 +103,16 @@ test_image_stitching_CXXFLAGS = \
 test_image_stitching_LDADD = \
 	$(XCORE_LA) $(OCL_LA)  \
 	$(NULL)
+
+if HAVE_OPENCV
+test_image_stabilization_SOURCES = test-image-stabilization.cpp
+test_image_stabilization_CXXFLAGS = \
+	$(tests_cxxflags) -I$(XCORE_DIR) -I$(OCL_DIR) $(OPENCV_CFLAGS) \
+	-I$(top_builddir)/plugins/smart/dvs/libdvs \
+	$(NULL)
+test_image_stabilization_LDADD = \
+	$(XCORE_LA) $(OCL_LA) $(OPENCV_LIBS) $(top_builddir)/plugins/smart/dvs/libdvs/libxcam_dvs.la \
+	$(NULL)
+endif
 
 endif
