@@ -1650,23 +1650,13 @@ CLPyramidBlender::dump_buffers ()
 
 }
 
-CLPyramidScaleKernel::CLPyramidScaleKernel (
-    SmartPtr<CLContext> &context, SmartPtr<CLPyramidBlender> &blender, bool is_uv)
+CLPyramidScaleKernel::CLPyramidScaleKernel (SmartPtr<CLContext> &context, bool is_uv)
     : CLImageKernel (context)
-    , _blender (blender)
     , _is_uv (is_uv)
-    , _out_offset_x (0)
+    , _output_offset_x (0)
     , _output_width (0)
     , _output_height (0)
 {
-}
-
-int
-CLPyramidScaleKernel::get_output_offset_x ()
-{
-    const Rect &window = _blender->get_merge_window ();
-    XCAM_ASSERT (window.pos_x % XCAM_BLENDER_ALIGNED_WIDTH == 0);
-    return window.pos_x;
 }
 
 XCamReturn
@@ -1679,48 +1669,22 @@ CLPyramidScaleKernel::prepare_arguments (
     XCAM_UNUSED (output);
     SmartPtr<CLContext> context = get_context ();
 
-    SmartPtr<CLImage> image_in = get_input_scale ();
-    SmartPtr<CLImage> image_out = get_output_scale ();
-    const CLImageDesc &desc_in = image_in->get_image_desc ();
-
-    const Rect &window = _blender->get_merge_window ();
-    _output_width = window.width / 8;
-    _output_height = desc_in.height;
-    XCAM_ASSERT (_output_width != 0);
-
-    CLImageDesc cl_desc;
-    cl_desc.format.image_channel_data_type = CL_UNORM_INT8;
-    if (_is_uv) {
-        cl_desc.format.image_channel_order = CL_RG;
-        cl_desc.width = desc_in.width * 4;
-    } else {
-        cl_desc.format.image_channel_order = CL_R;
-        cl_desc.width = desc_in.width * 8;
-    }
-    cl_desc.height = desc_in.height;
-    cl_desc.row_pitch = desc_in.row_pitch;
-    _input_scale.release ();
-    change_image_format (context, image_in, _input_scale, cl_desc);
-    XCAM_FAIL_RETURN (
-        ERROR,
-        _input_scale.ptr () && _input_scale->is_valid (),
-        XCAM_RETURN_ERROR_CL,
-        "CLPyramidScaleKernel scale image failed");
-
-    _out_offset_x = get_output_offset_x () / 8;
-    XCAM_ASSERT (_out_offset_x * 8 == get_output_offset_x ());
+    _image_in = get_input_image (input);
+    _image_out = get_output_image (output);
+    XCAM_ASSERT (_image_in.ptr () && _image_out.ptr ());
+    get_output_info (output, _output_width, _output_height, _output_offset_x);
 
     arg_count = 0;
-    args[arg_count].arg_adress = &_input_scale->get_mem_id ();
+    args[arg_count].arg_adress = &_image_in->get_mem_id ();
     args[arg_count].arg_size = sizeof (cl_mem);
     ++arg_count;
 
-    args[arg_count].arg_adress = &image_out->get_mem_id ();
+    args[arg_count].arg_adress = &_image_out->get_mem_id ();
     args[arg_count].arg_size = sizeof (cl_mem);
     ++arg_count;
 
-    args[arg_count].arg_adress = &_out_offset_x;
-    args[arg_count].arg_size = sizeof (_out_offset_x);
+    args[arg_count].arg_adress = &_output_offset_x;
+    args[arg_count].arg_size = sizeof (_output_offset_x);
     ++arg_count;
 
     args[arg_count].arg_adress = &_output_width;
@@ -1740,11 +1704,66 @@ CLPyramidScaleKernel::prepare_arguments (
     return XCAM_RETURN_NO_ERROR;
 }
 
-XCamReturn
-CLPyramidScaleKernel::post_execute (SmartPtr<DrmBoBuffer> &output)
+CLPyramidLocalScaleKernel::CLPyramidLocalScaleKernel (
+    SmartPtr<CLContext> &context, SmartPtr<CLPyramidBlender> &blender, bool is_uv)
+    : CLPyramidScaleKernel (context, is_uv)
+    , _blender (blender)
 {
-    _input_scale.release ();
-    return CLImageKernel::post_execute (output);
+}
+
+SmartPtr<CLImage>
+CLPyramidLocalScaleKernel::get_input_image (SmartPtr<DrmBoBuffer> &input)
+{
+    XCAM_UNUSED (input);
+    SmartPtr<CLContext> context = get_context ();
+
+    SmartPtr<CLImage> rec_image = _blender->get_reconstruct_image (0, _is_uv);
+    const CLImageDesc &rec_desc = rec_image->get_image_desc ();
+
+    CLImageDesc new_desc;
+    new_desc.format.image_channel_data_type = CL_UNORM_INT8;
+    if (_is_uv) {
+        new_desc.format.image_channel_order = CL_RG;
+        new_desc.width = rec_desc.width * 4;
+    } else {
+        new_desc.format.image_channel_order = CL_R;
+        new_desc.width = rec_desc.width * 8;
+    }
+    new_desc.height = rec_desc.height;
+    new_desc.row_pitch = rec_desc.row_pitch;
+    SmartPtr<CLImage> new_image;
+    change_image_format (context, rec_image, new_image, new_desc);
+    XCAM_FAIL_RETURN (
+        ERROR,
+        new_image.ptr () && new_image->is_valid (),
+        NULL,
+        "CLPyramidLocalScaleKernel change image format failed");
+
+    return new_image;
+}
+
+SmartPtr<CLImage>
+CLPyramidLocalScaleKernel::get_output_image (SmartPtr<DrmBoBuffer> &output)
+{
+    XCAM_UNUSED (output);
+    return _blender->get_scale_image (_is_uv);
+}
+
+bool
+CLPyramidLocalScaleKernel::get_output_info (
+    SmartPtr<DrmBoBuffer> &output,
+    uint32_t &out_width, uint32_t &out_height, int &out_offset_x)
+{
+    XCAM_UNUSED (output);
+    const Rect &window = _blender->get_merge_window ();
+    const CLImageDesc &desc_in = _image_in->get_image_desc ();
+
+    out_width = window.width / 8;
+    out_height = desc_in.height;
+    out_offset_x = window.pos_x / 8;
+
+    XCAM_FAIL_RETURN (ERROR, out_width != 0, false, "get output info failed");
+    return true;
 }
 
 CLPyramidCopyKernel::CLPyramidCopyKernel (
@@ -1930,24 +1949,22 @@ create_pyramid_blend_kernel (
 }
 
 static SmartPtr<CLImageKernel>
-create_pyramid_scale_kernel (
+create_pyramid_local_scale_kernel (
     SmartPtr<CLContext> &context,
     SmartPtr<CLPyramidBlender> &blender,
     bool is_uv)
 {
     char transform_option[1024];
-    snprintf (
-        transform_option, sizeof(transform_option),
-        "-DPYRAMID_UV=%d -DCL_PYRAMID_ENABLE_DUMP=%d", (is_uv ? 1 : 0), CL_PYRAMID_ENABLE_DUMP);
+    snprintf (transform_option, sizeof(transform_option), "-DPYRAMID_UV=%d", is_uv ? 1 : 0);
 
     SmartPtr<CLImageKernel> kernel;
-    kernel = new CLPyramidScaleKernel (context, blender, is_uv);
+    kernel = new CLPyramidLocalScaleKernel (context, blender, is_uv);
     XCAM_ASSERT (kernel.ptr ());
     XCAM_FAIL_RETURN (
         ERROR,
         kernel->build_kernel (kernels_info[KernelPyramidScale], transform_option) == XCAM_RETURN_NO_ERROR,
         NULL,
-        "load pyramid scale kernel(%s) failed", (is_uv ? "UV" : "Y"));
+        "load pyramid local scaling kernel(%s) failed", is_uv ? "UV" : "Y");
     return kernel;
 }
 
@@ -2091,8 +2108,8 @@ create_pyramid_blender (
         }
 
         if (scale_mode == CLBlenderScaleLocal) {
-            kernel = create_pyramid_scale_kernel (context, blender, uv_status[plane]);
-            XCAM_FAIL_RETURN (ERROR, kernel.ptr (), NULL, "create pyramid scale kernel failed");
+            kernel = create_pyramid_local_scale_kernel (context, blender, uv_status[plane]);
+            XCAM_FAIL_RETURN (ERROR, kernel.ptr (), NULL, "create pyramid local scaling kernel failed");
             blender->add_kernel (kernel);
         }
 

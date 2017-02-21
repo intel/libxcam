@@ -24,8 +24,28 @@
 #include "xcam_utils.h"
 #include "cl_multi_image_handler.h"
 #include "cl_blender.h"
+#include "cl_pyramid_blender.h"
+
+#define XCAM_PYRAMID_GLOBAL_SCALE_EXT_WIDTH 64
 
 namespace XCam {
+
+class CLPyramidGlobalScaleKernel
+    : public CLPyramidScaleKernel
+{
+public:
+    explicit CLPyramidGlobalScaleKernel (SmartPtr<CLContext> &context, bool is_uv);
+
+protected:
+    virtual SmartPtr<CLImage> get_input_image (SmartPtr<DrmBoBuffer> &input);
+    virtual SmartPtr<CLImage> get_output_image (SmartPtr<DrmBoBuffer> &output);
+
+    virtual bool get_output_info (
+        SmartPtr<DrmBoBuffer> &output, uint32_t &out_width, uint32_t &out_height, int &out_offset_x);
+
+private:
+    XCAM_DEAD_COPY (CLPyramidGlobalScaleKernel);
+};
 
 class CLImage360Stitch
     : public CLMultiImageHandler
@@ -59,6 +79,8 @@ protected:
         VideoBufferInfo &output);
     virtual XCamReturn prepare_parameters (SmartPtr<DrmBoBuffer> &input, SmartPtr<DrmBoBuffer> &output);
 
+    SmartPtr<DrmBoBuffer> create_scale_input_buffer (SmartPtr<DrmBoBuffer> &output);
+    XCamReturn reset_buffer_info (SmartPtr<DrmBoBuffer> &input);
     XCamReturn prepare_global_scale_blender_parameters (
         SmartPtr<DrmBoBuffer> &input0, SmartPtr<DrmBoBuffer> &input1, SmartPtr<DrmBoBuffer> &output);
 
@@ -76,6 +98,9 @@ private:
     Rect                   _overlaps[ImageIdxCount][2];   // 2=>Overlap0 and overlap1
     CLBlenderScaleMode     _scale_mode;
 };
+
+SmartPtr<CLImageKernel>
+create_pyramid_global_scale_kernel (SmartPtr<CLContext> &context, bool is_uv = false);
 
 SmartPtr<CLImageHandler>
 create_image_360_stitch (
