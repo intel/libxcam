@@ -10,7 +10,7 @@ AC_PREREQ([2.60])
 AC_CONFIG_MACRO_DIR([m4])
 AC_INIT([libxcam], [xcam_version], [feng.yuan@intel.com], [libxcam])
 AC_CONFIG_HEADERS([config.h])
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([foreign])
 
 #xcam version
 XCAM_MAJOR_VERSION=xcam_major_version
@@ -56,8 +56,8 @@ AC_ARG_ENABLE([gst],
 
 AC_ARG_ENABLE(libcl,
     AS_HELP_STRING([--enable-libcl],
-                   [enable libcl image processor, @<:@default=no@:>@]),
-    [], [enable_libcl="no"])
+                   [enable libcl image processor, @<:@default=yes@:>@]),
+    [], [enable_libcl="yes"])
 
 AC_ARG_ENABLE(opencv,
     AS_HELP_STRING([--enable-opencv],
