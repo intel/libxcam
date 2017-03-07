@@ -69,6 +69,11 @@ AC_ARG_ENABLE(opencv,
                    [enable opencv library, @<:@default=no@:>@]),
     [], [enable_opencv="no"])
 
+AC_ARG_ENABLE(opencv,
+    AS_HELP_STRING([--enable-opencv],
+                   [enable opencv library, @<:@default=no@:>@]),
+    [], [enable_opencv="no"])
+
 # documentation
 AC_ARG_ENABLE(docs,
     [AC_HELP_STRING([--enable-docs],
