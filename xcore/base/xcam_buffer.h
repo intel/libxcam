@@ -21,7 +21,7 @@
 #ifndef C_XCAM_BUFFER_H
 #define C_XCAM_BUFFER_H
 
-#include <base/xcam_common.h>
+#include <xcam/base/xcam_common.h>
 
 XCAM_BEGIN_DECLARE
 #include <linux/videodev2.h>
