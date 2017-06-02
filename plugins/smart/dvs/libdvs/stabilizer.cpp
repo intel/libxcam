@@ -18,6 +18,7 @@
  * Author: Zong Wei <wei.zong@intel.com>
  */
 
+#include <opencv2/videostab/ring_buffer.hpp>
 #include "stabilizer.h"
 
 Mat
