@@ -67,6 +67,7 @@ xcam_ocl_sources = \
     cl_wire_frame_handler.cpp          \
     cl_3d_denoise_handler.cpp          \
     cl_image_warp_handler.cpp          \
+    cl_video_stabilizer.cpp            \
     priority_buffer_queue.cpp          \
     $(NULL)
 
@@ -135,6 +136,7 @@ nobase_libxcam_oclinclude_HEADERS = \
     cl_wavelet_denoise_handler.h    \
     cl_newwavelet_denoise_handler.h \
     cl_wire_frame_handler.h         \
+    cl_video_stabilizer.h           \
     $(NULL)
 
 if HAVE_OPENCV
