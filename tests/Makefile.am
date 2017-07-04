@@ -97,6 +97,14 @@ test_video_stabilization_LDADD = \
 	$(XCORE_LA) $(OCL_LA)  \
 	$(NULL)
 
+test_video_stabilization_SOURCES = test-video-stabilization.cpp
+test_video_stabilization_CXXFLAGS = \
+	$(tests_cxxflags) -I$(XCORE_DIR) -I$(OCL_DIR) \
+	$(NULL)
+test_video_stabilization_LDADD = \
+	$(XCORE_LA) $(OCL_LA)  \
+	$(NULL)
+
 if HAVE_OPENCV
 test_image_stitching_CXXFLAGS += $(OPENCV_CFLAGS)
 test_image_stitching_LDADD += $(OPENCV_LIBS)
