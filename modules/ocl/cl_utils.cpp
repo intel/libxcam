@@ -24,28 +24,11 @@
 #include "intel/cl_intel_context.h"
 #include "intel/cl_va_memory.h"
 #endif
+#if HAVE_OPENCV
+#include "ocv/cv_context.h"
+#endif
 
 namespace XCam {
-
-struct NV12Pixel {
-    float x_pos;
-    float y_pos;
-
-    float y;
-    float u;
-    float v;
-
-    NV12Pixel ()
-        : x_pos (0.0f), y_pos (0.0f)
-        , y (0.0f), u (0.0f), v (0.0f)
-    {}
-};
-
-static inline void
-clamp (float &value, float min, float max)
-{
-    value = (value < min) ? min : ((value > max) ? max : value);
-}
 
 bool
 dump_image (SmartPtr<CLImage> image, const char *file_name)
@@ -77,6 +60,24 @@ dump_image (SmartPtr<CLImage> image, const char *file_name)
     fclose (fp);
     XCAM_LOG_INFO ("write image:%s\n", file_name);
     return true;
+}
+
+bool init_cv_ocl ()
+{
+#if HAVE_OPENCV
+    SmartPtr<CLDevice> device = CLDevice::instance ();
+    XCAM_ASSERT (device.ptr ());
+
+    cl_platform_id platform_id = device->get_platform_id ();
+    char *platform_name = device->get_platform_name ();
+    cl_device_id device_id = device->get_device_id ();
+    cl_context context_id = device->get_context ()->get_context_id ();
+
+    return CVContext::init_cv_ocl (platform_name, platform_id, context_id, device_id);
+#else
+    XCAM_LOG_WARNING ("non-OpenCV mode, failed to init OpenCV ocl");
+    return false;
+#endif
 }
 
 SmartPtr<CLBuffer>

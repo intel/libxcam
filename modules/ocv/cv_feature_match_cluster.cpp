@@ -21,7 +21,6 @@
 #include "cv_feature_match_cluster.h"
 #include "xcam_obj_debug.h"
 #include "image_file_handle.h"
-#include "cl_utils.h"
 
 #define XCAM_CV_FM_DEBUG 0
 #define XCAM_CV_OF_DRAW_SCALE 2
@@ -30,7 +29,6 @@ namespace XCam {
 CVFeatureMatchCluster::CVFeatureMatchCluster ()
     : CVFeatureMatch ()
 {
-    XCAM_ASSERT (_cv_context.ptr ());
 }
 
 bool
@@ -313,7 +311,7 @@ CVFeatureMatchCluster::optical_flow_feature_match (
             || !get_crop_image (right_buf, right_crop_rect, right_umat))
         return;
 
-    if (_use_ocl) {
+    if (is_ocl_path ()) {
         left_img = cv::_InputArray (left_umat);
         right_img = cv::_InputArray (right_umat);
     } else {

@@ -24,13 +24,9 @@
 
 #include <xcam_std.h>
 #include <video_buffer.h>
-#include <ocl/cv_base_class.h>
 #include <interface/feature_match.h>
 #include <interface/data_types.h>
-
-#include <ocl/cl_context.h>
-#include <ocl/cl_device.h>
-#include <ocl/cl_memory.h>
+#include "ocv/cv_base_class.h"
 
 namespace XCam {
 
@@ -45,11 +41,14 @@ public:
         const SmartPtr<VideoBuffer> &left_buf, const SmartPtr<VideoBuffer> &right_buf,
         Rect &left_img_crop, Rect &right_img_crop, int dst_width = 0);
 
-    void set_ocl (bool use_ocl) {
+    virtual void set_ocl (bool use_ocl) {
         CVBaseClass::set_ocl (use_ocl);
     }
-    bool is_ocl_path () {
+    virtual bool is_ocl_path () {
         return CVBaseClass::is_ocl_path ();
+    }
+    virtual bool is_ocl_inited () {
+        return CVBaseClass::is_ocl_inited ();
     }
 
 protected:

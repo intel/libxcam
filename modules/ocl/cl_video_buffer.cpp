@@ -104,6 +104,15 @@ CLVideoBuffer::get_cl_buffer ()
     return cl_data->get_cl_buffer ();
 }
 
+void *
+CLVideoBuffer::get_mem_id ()
+{
+    SmartPtr<CLBuffer> cl_buf = get_cl_buffer ();
+    XCAM_ASSERT (cl_buf.ptr ());
+
+    return cl_buf->get_mem_id ();
+}
+
 SmartPtr<X3aStats>
 CLVideoBuffer::find_3a_stats ()
 {

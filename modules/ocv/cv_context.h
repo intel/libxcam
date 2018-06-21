@@ -25,7 +25,6 @@
 #include <xcam_std.h>
 #include <xcam_obj_debug.h>
 #include <xcam_mutex.h>
-#include <ocl/cl_context.h>
 
 #include <opencv/cv.hpp>
 #include <opencv/highgui.h>
@@ -33,29 +32,33 @@
 
 namespace XCam {
 
+class CVBaseClass;
+
 class CVContext
 {
+    friend class CVBaseClass;
+
 public:
     static SmartPtr<CVContext> instance ();
+    static bool init_cv_ocl (const char *platform_name, void *platform_id, void *context, void *device_id);
 
-    SmartPtr<CLContext> get_cl_context () {
-        return _context;
-    }
     ~CVContext();
-    bool enable_ocl (bool flag);
-    bool is_ocl_enabled () const;
 
 private:
-    CVContext ();
-    void init_opencv_ocl ();
+    explicit CVContext ();
 
-    static Mutex                _init_mutex;
-    static SmartPtr<CVContext>  _instance;
-
-    SmartPtr<CLContext>         _context;
+    void set_ocl (bool use_ocl);
+    bool is_ocl_path ();
+    bool is_ocl_inited ();
 
     XCAM_DEAD_COPY (CVContext);
 
+private:
+    bool                          _use_ocl;
+    static bool                   _ocl_inited;
+
+    static Mutex                  _init_mutex;
+    static SmartPtr<CVContext>    _instance;
 };
 
 }

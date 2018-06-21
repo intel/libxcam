@@ -22,7 +22,6 @@
 #include "cv_feature_match.h"
 #include "xcam_obj_debug.h"
 #include "image_file_handle.h"
-#include "cl_utils.h"
 
 #define XCAM_CV_FM_DEBUG 0
 #define XCAM_CV_OF_DRAW_SCALE 2
@@ -32,21 +31,23 @@ CVFeatureMatch::CVFeatureMatch ()
     : CVBaseClass ()
     , FeatureMatch ()
 {
-    XCAM_ASSERT (_cv_context.ptr ());
 }
 
 bool
 CVFeatureMatch::get_crop_image (
-    const SmartPtr<VideoBuffer> &buffer, const Rect &crop_rect, cv::UMat &img)
+    const SmartPtr<VideoBuffer> &buf, const Rect &crop_rect, cv::UMat &img)
 {
-    SmartPtr<CLBuffer> cl_buffer = convert_to_clbuffer (_cv_context->get_cl_context (), buffer);
-    VideoBufferInfo info = buffer->get_video_info ();
-    cl_mem cl_mem_id = cl_buffer->get_mem_id ();
+    XCAM_FAIL_RETURN (
+        ERROR, is_ocl_inited (), false,
+        "FeatureMatch(idx:%d): get crop image failed, need init ocl first", _fm_idx);
+
+    XCAM_ASSERT (buf.ptr () && buf->get_mem_id ());
+    VideoBufferInfo info = buf->get_video_info ();
 
     cv::UMat umat;
-    cv::ocl::convertFromBuffer (cl_mem_id, info.strides[0], info.height, info.width, CV_8U, umat);
+    cv::ocl::convertFromBuffer (buf->get_mem_id (), info.strides[0], info.height, info.width, CV_8U, umat);
     if (umat.empty ()) {
-        XCAM_LOG_ERROR ("FeatureMatch(idx:%d): convert bo buffer to UMat failed", _fm_idx);
+        XCAM_LOG_ERROR ("FeatureMatch(idx:%d): convert buffer to UMat failed", _fm_idx);
         return false;
     }
 
@@ -249,7 +250,7 @@ CVFeatureMatch::optical_flow_feature_match (
             || !get_crop_image (right_buf, right_crop_rect, right_umat))
         return;
 
-    if (_use_ocl) {
+    if (is_ocl_path ()) {
         left_img = cv::_InputArray (left_umat);
         right_img = cv::_InputArray (right_umat);
     } else {

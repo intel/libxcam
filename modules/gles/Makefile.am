@@ -1,51 +1,57 @@
 lib_LTLIBRARIES = libxcam_gles.la
 
-XCAM_GLES_CXXFLAGS =                 \
-    $(LIBGL_CFLAGS)                  \
-    -I$(top_srcdir)/xcore            \
-    -I$(top_srcdir)/modules          \
-    -I$(top_builddir)/shaders/glslx  \
+XCAM_GLES_CXXFLAGS =                \
+    $(XCAM_CXXFLAGS)                \
+    $(LIBGL_CFLAGS)                 \
+    -I$(top_srcdir)/xcore           \
+    -I$(top_srcdir)/modules         \
+    -I$(top_builddir)/shaders/glslx \
     $(NULL)
 
-XCAM_GLES_LIBS =                     \
-    $(LIBGL_LIBS)                    \
-    -lEGL                            \
-    $(NULL)
-
-xcam_gles_sources =                  \
-    gles_std.cpp                     \
-    gl_buffer.cpp                    \
-    gl_program.cpp                   \
-    gl_shader.cpp                    \
-    gl_video_buffer.cpp              \
-    gl_compute_program.cpp           \
-    gl_command.cpp                   \
-    gl_utils.cpp                     \
-    gl_image_shader.cpp              \
-    gl_image_handler.cpp             \
-    gl_copy_handler.cpp              \
-    gl_geomap_handler.cpp            \
-    egl/egl_utils.cpp                \
-    egl/egl_base.cpp                 \
-    $(NULL)
-
-libxcam_gles_la_SOURCES =    \
-    $(xcam_gles_sources)     \
-    $(NULL)
-
-libxcam_gles_la_CXXFLAGS =   \
-    $(XCAM_GLES_CXXFLAGS)    \
-    $(XCAM_CXXFLAGS)         \
-    $(NULL)
-
-libxcam_gles_la_LIBADD =                  \
+XCAM_GLES_LIBS =                          \
     $(top_builddir)/xcore/libxcam_core.la \
-    $(XCAM_GLES_LIBS)                     \
+    $(LIBGL_LIBS) -lEGL                   \
     $(NULL)
 
-libxcam_gles_la_LDFLAGS =   \
-    $(XCAM_LT_LDFLAGS)      \
-    $(PTHREAD_LDFLAGS)      \
+if HAVE_OPENCV
+XCAM_GLES_LIBS +=                            \
+    -L$(top_builddir)/modules/ocv -lxcam_ocv \
+    $(OPENCV_LIBS)                           \
+    $(NULL)
+endif
+
+xcam_gles_sources =        \
+    gles_std.cpp           \
+    gl_buffer.cpp          \
+    gl_program.cpp         \
+    gl_shader.cpp          \
+    gl_video_buffer.cpp    \
+    gl_compute_program.cpp \
+    gl_command.cpp         \
+    gl_utils.cpp           \
+    gl_image_shader.cpp    \
+    gl_image_handler.cpp   \
+    gl_copy_handler.cpp    \
+    gl_geomap_handler.cpp  \
+    egl/egl_utils.cpp      \
+    egl/egl_base.cpp       \
+    $(NULL)
+
+libxcam_gles_la_SOURCES = \
+    $(xcam_gles_sources)  \
+    $(NULL)
+
+libxcam_gles_la_CXXFLAGS = \
+    $(XCAM_GLES_CXXFLAGS)  \
+    $(NULL)
+
+libxcam_gles_la_LIBADD = \
+    $(XCAM_GLES_LIBS)    \
+    $(NULL)
+
+libxcam_gles_la_LDFLAGS = \
+    $(XCAM_LT_LDFLAGS)    \
+    $(PTHREAD_LDFLAGS)    \
     $(NULL)
 
 libxcam_glesincludedir = $(includedir)/xcam/gles
@@ -65,9 +71,6 @@ nobase_libxcam_glesinclude_HEADERS = \
     gl_geomap_handler.h              \
     egl/egl_utils.h                  \
     egl/egl_base.h                   \
-    $(NULL)
-
-noinst_HEADERS =                     \
     $(NULL)
 
 libxcam_gles_la_LIBTOOLFLAGS = --tag=disable-static

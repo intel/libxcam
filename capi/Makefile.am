@@ -23,7 +23,7 @@ endif
 xcam_ocl_sources =                 \
     xcam_handle.cpp                \
     context_priv.cpp               \
-   $(NULL)
+    $(NULL)
 
 libxcam_capi_la_SOURCES =          \
     $(xcam_ocl_sources)            \
@@ -37,6 +37,7 @@ libxcam_capi_la_LIBADD =           \
     $(top_builddir)/modules/ocl/libxcam_ocl.la \
     $(top_builddir)/xcore/libxcam_core.la      \
     $(XCAMCAPI_LIBS)                           \
+    -L$(top_builddir)/modules/ocv -lxcam_ocv \
     $(NULL)
 
 libxcam_capi_la_LDFLAGS =          \

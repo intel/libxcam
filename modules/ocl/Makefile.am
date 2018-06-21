@@ -12,20 +12,23 @@ XCAMOCL_CXXFLAGS += \
     $(NULL)
 
 XCAMOCL_LIBS += \
-    $(LIBCL_LIBS)  \
+    $(top_builddir)/xcore/libxcam_core.la \
+    $(LIBCL_LIBS)                         \
     $(NULL)
+
+if HAVE_OPENCV
+XCAMOCL_LIBS +=                              \
+    -L$(top_builddir)/modules/ocv -lxcam_ocv \
+    $(OPENCV_LIBS)                           \
+    $(NULL)
+endif
 
 if HAVE_LIBDRM
 XCAMOCL_CXXFLAGS += $(LIBDRM_CFLAGS)
 XCAMOCL_LIBS += \
-    -ldrm_intel     \
-    $(LIBDRM_LIBS)  \
+    -ldrm_intel    \
+    $(LIBDRM_LIBS) \
     $(NULL)
-endif
-
-if HAVE_OPENCV
-XCAMOCL_CXXFLAGS += $(OPENCV_CFLAGS)
-XCAMOCL_LIBS += $(OPENCV_LIBS)
 endif
 
 xcam_ocl_sources = \
@@ -71,18 +74,6 @@ xcam_ocl_sources = \
     priority_buffer_queue.cpp          \
     $(NULL)
 
-if HAVE_OPENCV
-xcam_ocl_sources += cv_context.cpp
-xcam_ocl_sources += cv_base_class.cpp
-xcam_ocl_sources += cv_image_process_helper.cpp
-xcam_ocl_sources += cv_image_sharp.cpp
-xcam_ocl_sources += cv_edgetaper.cpp
-xcam_ocl_sources += cv_wiener_filter.cpp
-xcam_ocl_sources += cv_feature_match.cpp
-xcam_ocl_sources += cv_feature_match_cluster.cpp
-xcam_ocl_sources += cv_image_deblurring.cpp
-endif
-
 if HAVE_LIBDRM
 xcam_ocl_sources += intel/cl_intel_context.cpp
 xcam_ocl_sources += intel/cl_va_memory.cpp
@@ -90,16 +81,15 @@ xcam_ocl_sources += cl_image_bo_buffer.cpp
 endif
 
 libxcam_ocl_la_SOURCES = \
-    $(xcam_ocl_sources)    \
+    $(xcam_ocl_sources) \
     $(NULL)
 
 libxcam_ocl_la_CXXFLAGS = \
-    $(XCAMOCL_CXXFLAGS)   \
+    $(XCAMOCL_CXXFLAGS) \
     $(NULL)
 
 libxcam_ocl_la_LIBADD = \
-    $(top_builddir)/xcore/libxcam_core.la \
-    $(XCAMOCL_LIBS)                       \
+    $(XCAMOCL_LIBS) \
     $(NULL)
 
 libxcam_ocl_la_LDFLAGS = \
@@ -151,27 +141,14 @@ nobase_libxcam_oclinclude_HEADERS = \
     cl_video_buffer.h               \
     $(NULL)
 
-if HAVE_OPENCV
-nobase_libxcam_oclinclude_HEADERS += cv_context.h
-nobase_libxcam_oclinclude_HEADERS += cv_base_class.h
-nobase_libxcam_oclinclude_HEADERS += cv_image_process_helper.h
-nobase_libxcam_oclinclude_HEADERS += cv_image_sharp.h
-nobase_libxcam_oclinclude_HEADERS += cv_edgetaper.h
-nobase_libxcam_oclinclude_HEADERS += cv_wiener_filter.h
-nobase_libxcam_oclinclude_HEADERS += cv_feature_match.h
-nobase_libxcam_oclinclude_HEADERS += cv_feature_match_cluster.h
-nobase_libxcam_oclinclude_HEADERS += cv_image_deblurring.h
-endif
-
 if HAVE_LIBDRM
 nobase_libxcam_oclinclude_HEADERS += intel/cl_intel_context.h
 nobase_libxcam_oclinclude_HEADERS += intel/cl_va_memory.h
 nobase_libxcam_oclinclude_HEADERS += cl_image_bo_buffer.h
 endif
 
-noinst_HEADERS =                    \
-    cl_pyramid_blender.h            \
+noinst_HEADERS = \
+    cl_pyramid_blender.h \
     $(NULL)
-
 
 libxcam_ocl_la_LIBTOOLFLAGS = --tag=disable-static
