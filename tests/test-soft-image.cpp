@@ -32,7 +32,7 @@
 #include <cstring>
 
 #if (!defined(ANDROID) && (HAVE_OPENCV))
-#include <ocl/cv_base_class.h>
+#include "ocv/cv_base_class.h"
 #endif
 
 #define XCAM_TEST_SOFT_IMAGE_DEBUG 0

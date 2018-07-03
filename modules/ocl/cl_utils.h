@@ -21,13 +21,14 @@
 #ifndef XCAM_CL_UTILS_H
 #define XCAM_CL_UTILS_H
 
-#include "xcam_utils.h"
-#include "interface/data_types.h"
-#include "ocl/cl_context.h"
-#include "ocl/cl_memory.h"
-#include "ocl/cl_video_buffer.h"
+#include <xcam_utils.h>
+#include <interface/data_types.h>
+#include <ocl/cl_device.h>
+#include <ocl/cl_context.h>
+#include <ocl/cl_memory.h>
+#include <ocl/cl_video_buffer.h>
 #if HAVE_LIBDRM
-#include "drm_bo_buffer.h"
+#include <drm_bo_buffer.h>
 #endif
 
 #define XCAM_CL_IMAGE_ALIGNMENT_X 4
@@ -46,6 +47,8 @@ enum CLImageChannel {
 };
 
 bool dump_image (SmartPtr<CLImage> image, const char *file_name);
+
+bool init_cv_ocl ();
 
 SmartPtr<CLBuffer> convert_to_clbuffer (
     const SmartPtr<CLContext> &context,

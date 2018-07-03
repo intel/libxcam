@@ -75,8 +75,15 @@ public:
         return _y_offset;
     }
 
-    virtual void set_ocl (bool use_ocl) = 0;
-    virtual bool is_ocl_path () = 0;
+    virtual void set_ocl (bool use_ocl) {
+        XCAM_UNUSED (use_ocl);
+    }
+    virtual bool is_ocl_path () {
+        return false;
+    }
+    virtual bool is_ocl_inited () {
+        return false;
+    }
 
 protected:
     bool get_mean_offset (std::vector<float> &offsets, float sum, int &count, float &mean_offset);

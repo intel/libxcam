@@ -20,6 +20,7 @@
  */
 
 #include "cv_wiener_filter.h"
+#include "cv_image_process_helper.h"
 
 namespace XCam {
 

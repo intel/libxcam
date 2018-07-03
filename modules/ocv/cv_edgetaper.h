@@ -1,5 +1,5 @@
 /*
- * cv_wiener_filter.h - wierner filter for non-blind deblurring
+ * cv_edgetaper.h - used in deblurring to remove ringing artifacts
  *
  *  Copyright (c) 2016-2017 Intel Corporation
  *
@@ -19,31 +19,31 @@
  * Author: Wind Yuan <feng.yuan@intel.com>
  */
 
-#ifndef XCAM_CV_WIENER_FILTER_H
-#define XCAM_CV_WIENER_FILTER_H
+#ifndef XCAM_CV_EDGETAPER_H
+#define XCAM_CV_EDGETAPER_H
 
 #include <xcam_std.h>
-#include <video_buffer.h>
-#include <ocl/cv_base_class.h>
-#include <ocl/cv_image_process_helper.h>
+#include "ocv/cv_base_class.h"
+
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/ocl.hpp>
 
 namespace XCam {
 
-class CVWienerFilter : public CVBaseClass
+
+class CVEdgetaper : public CVBaseClass
 {
 
 public:
-    explicit CVWienerFilter ();
-
-    void wiener_filter (const cv::Mat &blurred_image, const cv::Mat &known, cv::Mat &unknown, float noise_power);
+    explicit CVEdgetaper ();
+    void edgetaper (const cv::Mat &image, const cv::Mat &psf, cv::Mat &output);
 
 private:
+    void create_weights (const cv::Mat &image, const cv::Mat &psf, cv::Mat &coefficients);
 
-    XCAM_DEAD_COPY (CVWienerFilter);
-
-    SmartPtr<CVImageProcessHelper>  _helpers;
+    XCAM_DEAD_COPY (CVEdgetaper);
 };
 
 }
 
-#endif // XCAM_CV_WIENER_FILTER_H
+#endif // XCAM_CV_EDGETAPER_H

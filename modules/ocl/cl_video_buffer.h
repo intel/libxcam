@@ -73,6 +73,8 @@ public:
     virtual ~CLVideoBuffer () {}
 
     SmartPtr<CLBuffer> get_cl_buffer ();
+    virtual void *get_mem_id ();
+
     SmartPtr<X3aStats> find_3a_stats ();
 
 protected:

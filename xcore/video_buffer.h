@@ -70,6 +70,9 @@ public:
     virtual uint8_t *map () = 0;
     virtual bool unmap () = 0;
     virtual int get_fd () = 0;
+    virtual void *get_mem_id () {
+        return NULL;
+    }
 
     const VideoBufferInfo & get_video_info () const {
         return _videoinfo;

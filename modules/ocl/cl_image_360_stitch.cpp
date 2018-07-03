@@ -21,8 +21,8 @@
 #include "cl_utils.h"
 #include "cl_image_360_stitch.h"
 #if HAVE_OPENCV
-#include "cv_feature_match.h"
-#include "cv_feature_match_cluster.h"
+#include "ocv/cv_feature_match.h"
+#include "ocv/cv_feature_match_cluster.h"
 #endif
 
 #define XCAM_BLENDER_GLOBAL_SCALE_EXT_WIDTH 64
@@ -379,6 +379,11 @@ void
 CLImage360Stitch::set_feature_match_ocl (bool fm_ocl)
 {
 #if HAVE_OPENCV
+    if (!init_cv_ocl () && fm_ocl) {
+        XCAM_LOG_WARNING ("init opencv ocl failed, switch to non-ocl mode");
+        fm_ocl = false;
+    }
+
     for (int i = 0; i < _fisheye_num; i++) {
         _feature_match[i]->set_ocl (fm_ocl);
     }

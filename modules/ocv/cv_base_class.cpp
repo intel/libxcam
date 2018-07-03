@@ -27,23 +27,38 @@ CVBaseClass::CVBaseClass ()
 {
     _cv_context = CVContext::instance ();
     XCAM_ASSERT (_cv_context.ptr ());
-    _use_ocl = _cv_context->is_ocl_enabled ();
+}
+
+CVBaseClass::~CVBaseClass ()
+{
 }
 
 bool
 CVBaseClass::set_ocl (bool use_ocl)
 {
-    if (use_ocl && !_cv_context->is_ocl_enabled ()) {
-        return false;
-    }
-    _use_ocl = use_ocl;
+    XCAM_ASSERT (_cv_context.ptr ());
+    _cv_context->set_ocl (use_ocl);
+
     return true;
 }
 
 bool
-CVBaseClass::convert_to_mat (SmartPtr<VideoBuffer> buffer, cv::Mat &image)
+CVBaseClass::is_ocl_path ()
 {
+    XCAM_ASSERT (_cv_context.ptr ());
+    return _cv_context->is_ocl_path ();
+}
 
+bool
+CVBaseClass::is_ocl_inited ()
+{
+    XCAM_ASSERT (_cv_context.ptr ());
+    return _cv_context->is_ocl_inited ();
+}
+
+bool
+CVBaseClass::convert_to_mat (const SmartPtr<VideoBuffer> &buffer, cv::Mat &image)
+{
     VideoBufferInfo info = buffer->get_video_info ();
     XCAM_FAIL_RETURN (WARNING, info.format == V4L2_PIX_FMT_NV12, false, "convert_to_mat only support NV12 format");
 
@@ -58,7 +73,7 @@ CVBaseClass::convert_to_mat (SmartPtr<VideoBuffer> buffer, cv::Mat &image)
 }
 
 bool
-convert_to_mat (SmartPtr<VideoBuffer> buffer, cv::Mat &image)
+convert_to_mat (const SmartPtr<VideoBuffer> &buffer, cv::Mat &image)
 {
     CVBaseClass cv_obj;
     return cv_obj.convert_to_mat (buffer, image);

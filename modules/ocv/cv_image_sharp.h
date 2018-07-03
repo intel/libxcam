@@ -1,5 +1,5 @@
 /*
- * cv_edgetaper.h - used in deblurring to remove ringing artifacts
+ * cv_sharp.h - sharp image
  *
  *  Copyright (c) 2016-2017 Intel Corporation
  *
@@ -19,31 +19,27 @@
  * Author: Wind Yuan <feng.yuan@intel.com>
  */
 
-#ifndef XCAM_CV_EDGETAPER_H
-#define XCAM_CV_EDGETAPER_H
+#ifndef XCAM_CV_IMAGE_SHARP_H
+#define XCAM_CV_IMAGE_SHARP_H
 
 #include <xcam_std.h>
-#include <ocl/cv_base_class.h>
-
-#include <opencv2/opencv.hpp>
-#include <opencv2/core/ocl.hpp>
+#include <video_buffer.h>
+#include "ocv/cv_base_class.h"
 
 namespace XCam {
 
-
-class CVEdgetaper : public CVBaseClass
+class CVImageSharp : public CVBaseClass
 {
 
 public:
-    explicit CVEdgetaper ();
-    void edgetaper (const cv::Mat &image, const cv::Mat &psf, cv::Mat &output);
+    explicit CVImageSharp ();
 
-private:
-    void create_weights (const cv::Mat &image, const cv::Mat &psf, cv::Mat &coefficients);
+    float measure_sharp (const cv::Mat &image);
+    cv::Mat sharp_image_gray (const cv::Mat &image, float sigmar);
 
-    XCAM_DEAD_COPY (CVEdgetaper);
+    XCAM_DEAD_COPY (CVImageSharp);
 };
 
 }
 
-#endif // XCAM_CV_EDGETAPER_H
+#endif // XCAM_CV_IMAGE_SHARP_H

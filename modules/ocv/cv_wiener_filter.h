@@ -1,5 +1,5 @@
 /*
- * cv_sharp.h - sharp image
+ * cv_wiener_filter.h - wierner filter for non-blind deblurring
  *
  *  Copyright (c) 2016-2017 Intel Corporation
  *
@@ -19,27 +19,32 @@
  * Author: Wind Yuan <feng.yuan@intel.com>
  */
 
-#ifndef XCAM_CV_IMAGE_SHARP_H
-#define XCAM_CV_IMAGE_SHARP_H
+#ifndef XCAM_CV_WIENER_FILTER_H
+#define XCAM_CV_WIENER_FILTER_H
 
 #include <xcam_std.h>
 #include <video_buffer.h>
-#include <ocl/cv_base_class.h>
+#include "ocv/cv_base_class.h"
 
 namespace XCam {
 
-class CVImageSharp : public CVBaseClass
+class CVImageProcessHelper;
+
+class CVWienerFilter : public CVBaseClass
 {
 
 public:
-    explicit CVImageSharp ();
+    explicit CVWienerFilter ();
 
-    float measure_sharp (const cv::Mat &image);
-    cv::Mat sharp_image_gray (const cv::Mat &image, float sigmar);
+    void wiener_filter (const cv::Mat &blurred_image, const cv::Mat &known, cv::Mat &unknown, float noise_power);
 
-    XCAM_DEAD_COPY (CVImageSharp);
+private:
+
+    XCAM_DEAD_COPY (CVWienerFilter);
+
+    SmartPtr<CVImageProcessHelper>  _helpers;
 };
 
 }
 
-#endif // XCAM_CV_IMAGE_SHARP_H
+#endif // XCAM_CV_WIENER_FILTER_H
