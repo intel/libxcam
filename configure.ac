@@ -96,6 +96,12 @@ AC_ARG_ENABLE([render],
     AS_HELP_STRING([--enable-render],
                    [enable texture render with OpenSceneGraph library, @<:@default=no@:>@]),
     [], [enable_render="no"])
+
+AC_ARG_ENABLE([dnn],
+    AS_HELP_STRING([--enable-dnn],
+                   [enable dnn with OpenVino library, @<:@default=no@:>@]),
+    [], [enable_dnn="no"])
+
 # documentation
 AC_ARG_ENABLE(docs,
     [AC_HELP_STRING([--enable-docs],
@@ -169,6 +175,19 @@ if test "$enable_render" = "yes"; then
         AC_MSG_WARN(OpenSceneGraph required version: >= $XCAM_REQUIRE_OSG_MIN)
         ENABLE_RENDER=0
     fi
+fi
+
+ENABLE_DNN=0
+if test "$enable_dnn" = "yes"; then
+    if test -z $OPENVINO_IE_CXXFLAGS; then
+        AC_MSG_WARN(Please export OPENVINO_IE_CXXFLAGS environment variables)
+        AC_MSG_ERROR(OpenVino inc path has not been set ... disable DNN module!)
+    fi
+    if test -z $OPENVINO_IE_LIBS; then
+        AC_MSG_WARN(Please export OPENVINO_IE_LIBS environment variables)
+        AC_MSG_ERROR(OpenVino library path has not been set ... disable DNN module!)
+    fi
+    ENABLE_DNN=1
 fi
 
 if test "$enable_libcl" = "yes" && test "$HAVE_LIBCL" -eq 0; then
@@ -400,6 +419,10 @@ AC_DEFINE_UNQUOTED([ENABLE_RENDER], $ENABLE_RENDER,
     [enable texture render])
 AM_CONDITIONAL([ENABLE_RENDER], [test "$ENABLE_RENDER" -eq 1])
 
+AC_DEFINE_UNQUOTED([ENABLE_DNN], $ENABLE_DNN,
+    [enable dnn])
+AM_CONDITIONAL([ENABLE_DNN], [test "$ENABLE_DNN" -eq 1])
+
 AC_DEFINE_UNQUOTED([HAVE_OPENCV], $HAVE_OPENCV,
     [have opencv])
 AM_CONDITIONAL([HAVE_OPENCV], [test "$HAVE_OPENCV" -eq 1])
@@ -438,6 +461,7 @@ AC_CONFIG_FILES([Makefile
                  modules/gles/Makefile
                  modules/vulkan/Makefile
                  modules/render/Makefile
+                 modules/dnn/Makefile
                  wrapper/Makefile
                  wrapper/gstreamer/Makefile
                  wrapper/gstreamer/interface/Makefile
@@ -465,6 +489,7 @@ if test "$HAVE_GLES" -eq 1; then have_gles="yes"; else  have_gles="no"; fi
 if test "$HAVE_VULKAN" -eq 1; then have_vulkan="yes"; else  have_vulkan="no"; fi
 if test "$HAVE_OPENCV" -eq 1; then have_opencv="yes"; else have_opencv="no"; fi
 if test "$ENABLE_RENDER" -eq 1; then enable_render="yes"; else enable_render="no"; fi
+if test "$ENABLE_DNN" -eq 1; then enable_dnn="yes"; else enable_dnn="no"; fi
 if test "$ENABLE_DVS" -eq 1; then enable_dvs="yes"; else enable_dvs="no"; fi
 if test "$ENABLE_CAPI" -eq 1; then enable_capi="yes"; else enable_capi="no"; fi
 
@@ -483,6 +508,7 @@ echo "
      enable GLES                : $have_gles
      enable Vulkan              : $have_vulkan
      enable OSG render          : $enable_render
+     enable DNN                 : $enable_dnn
      enable 3a lib              : $enable_3alib
      enable smart analysis lib  : $enable_smartlib
      enable dvs                 : $enable_dvs
