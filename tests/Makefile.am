@@ -33,6 +33,12 @@ noinst_PROGRAMS += \
     $(NULL)
 endif
 
+if ENABLE_DNN
+noinst_PROGRAMS += \
+    test-dnn-inference \
+    $(NULL)
+endif
+
 if HAVE_OPENCV
 noinst_PROGRAMS += \
     test-image-deblurring \
@@ -228,3 +234,19 @@ test_render_surround_view_LDADD = \
     $(TEST_RENDER_LA) \
     $(NULL)
 endif
+
+if ENABLE_DNN
+TEST_DNN_INFERENCE_LA = $(top_builddir)/modules/dnn/libxcam_dnn.la
+
+test_dnn_inference_SOURCES = test-dnn-inference.cpp
+test_dnn_inference_CXXFLAGS = \
+    $(TEST_BASE_CXXFLAGS) \
+    $(OPENVINO_IE_CXXFLAGS) \
+    $(NULL)
+
+test_dnn_inference_LDADD = \
+    $(TEST_BASE_LA)   \
+    $(TEST_DNN_INFERENCE_LA) \
+    $(NULL)
+endif
+
