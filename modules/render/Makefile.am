@@ -8,8 +8,13 @@ XCAM_RENDER_CXXFLAGS = \
     $(NULL)
 
 XCAM_RENDER_LIBS = \
-    $(losgGA) -losgDB -losgUtil           \
-    -losgFX -losgText -losgViewer -losg   \
+    -losgGA        \
+    -losgDB        \
+    -losgUtil      \
+    -losgFX        \
+    -losgText      \
+    -losgViewer    \
+    -losg          \
     $(top_builddir)/xcore/libxcam_core.la \
     $(NULL)
 
