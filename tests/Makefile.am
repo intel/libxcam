@@ -226,12 +226,5 @@ test_render_surround_view_LDADD = \
     $(TEST_GLES_LA)   \
     $(TEST_VK_LA)     \
     $(TEST_RENDER_LA) \
-    -losgGA           \
-    -losgDB           \
-    -losgUtil         \
-    -losgFX           \
-    -losgText         \
-    -losgViewer       \
-    -losg             \
     $(NULL)
 endif
