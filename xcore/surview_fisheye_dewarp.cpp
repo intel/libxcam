@@ -60,18 +60,19 @@ SurViewFisheyeDewarp::get_extrinsic_param()
 }
 
 void
-SurViewFisheyeDewarp::fisheye_dewarp(MapTable &map_table, uint32_t table_w, uint32_t table_h, uint32_t image_w, uint32_t image_h, const BowlDataConfig &bowl_config)
+SurViewFisheyeDewarp::fisheye_dewarp(MapTable &map_table, uint32_t table_w, uint32_t table_h,
+    uint32_t image_w, uint32_t image_h, const BowlDataConfig &bowl_config)
 {
     PointFloat3 world_coord;
     PointFloat3 cam_coord;
     PointFloat3 cam_world_coord;
     PointFloat2 image_coord;
 
-    XCAM_LOG_DEBUG ("fisheye-dewarp:\n table(%dx%d), out_size(%dx%d)"
-                    "bowl(start:%.1f, end:%.1f, ground:%.2f, wall:%.2f, a:%.2f, b:%.2f, c:%.2f, center_z:%.2f )",
+    XCAM_LOG_DEBUG ("fisheye-dewarp:\n table(%dx%d) out_size(%dx%d) "
+                    "bowl(start:%.1f, end:%.1f, ground:%.2f, wall:%.2f, a:%.2f, b:%.2f, c:%.2f, center_z:%.2f)",
                     table_w, table_h, image_w, image_h,
                     bowl_config.angle_start, bowl_config.angle_end,
-                    bowl_config.wall_height, bowl_config.ground_length,
+                    bowl_config.ground_length, bowl_config.wall_height,
                     bowl_config.a, bowl_config.b, bowl_config.c, bowl_config.center_z);
 
     float scale_factor_w = (float)image_w / table_w;
