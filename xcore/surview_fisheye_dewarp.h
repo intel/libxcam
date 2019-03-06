@@ -36,7 +36,8 @@ public:
     explicit SurViewFisheyeDewarp ();
     virtual ~SurViewFisheyeDewarp ();
 
-    void fisheye_dewarp(MapTable &map_table, uint32_t table_w, uint32_t table_h, uint32_t image_w, uint32_t image_h, const BowlDataConfig &bowl_config);
+    void fisheye_dewarp(MapTable &map_table, uint32_t table_w, uint32_t table_h,
+        uint32_t image_w, uint32_t image_h, const BowlDataConfig &bowl_config);
 
     void set_intrinsic_param(const IntrinsicParameter &intrinsic_param);
     void set_extrinsic_param(const ExtrinsicParameter &extrinsic_param);
