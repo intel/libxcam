@@ -250,7 +250,7 @@ CVFeatureMatch::detect_and_match (cv::Mat img_left, cv::Mat img_right)
     if (_need_adjust)
         adjust_crop_area ();
 
-#if XCAM_CV_CAPI_FM_DEBUG
+#if XCAM_CV_FM_DEBUG
     XCAM_LOG_INFO ("FeatureMatch(idx:%d): x_offset:%0.2f", _fm_idx, _x_offset);
     if (_need_adjust) {
         XCAM_LOG_INFO (
