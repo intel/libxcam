@@ -52,6 +52,22 @@ enum SVOutIdx {
     IdxCount
 };
 
+static const char *instrinsic_names[] = {
+    "intrinsic_camera_front.txt",
+    "intrinsic_camera_right.txt",
+    "intrinsic_camera_rear.txt",
+    "intrinsic_camera_left.txt"
+};
+
+static const char *exstrinsic_names[] = {
+    "extrinsic_camera_front.txt",
+    "extrinsic_camera_right.txt",
+    "extrinsic_camera_rear.txt",
+    "extrinsic_camera_left.txt"
+};
+
+static const float viewpoints_range[] = {64.0f, 160.0f, 64.0f, 160.0f};
+
 class SVStream
     : public Stream
 {
@@ -163,15 +179,7 @@ create_stitcher (const SmartPtr<SVStream> &stitch, SVModule module)
 static int
 parse_camera_info (const char *path, uint32_t idx, CameraInfo &info, uint32_t camera_count)
 {
-    static const char *instrinsic_names[] = {
-        "intrinsic_camera_front.txt", "intrinsic_camera_right.txt",
-        "intrinsic_camera_rear.txt", "intrinsic_camera_left.txt"
-    };
-    static const char *exstrinsic_names[] = {
-        "extrinsic_camera_front.txt", "extrinsic_camera_right.txt",
-        "extrinsic_camera_rear.txt", "extrinsic_camera_left.txt"
-    };
-    static const float viewpoints_range[] = {64.0f, 160.0f, 64.0f, 160.0f};
+    XCAM_ASSERT (path);
 
     char intrinsic_path[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
     char extrinsic_path[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
@@ -181,11 +189,11 @@ parse_camera_info (const char *path, uint32_t idx, CameraInfo &info, uint32_t ca
     CalibrationParser parser;
     CHECK (
         parser.parse_intrinsic_file (intrinsic_path, info.calibration.intrinsic),
-        "parse intrinsic params (%s)failed.", intrinsic_path);
+        "parse intrinsic params(%s) failed.", intrinsic_path);
 
     CHECK (
         parser.parse_extrinsic_file (extrinsic_path, info.calibration.extrinsic),
-        "parse extrinsic params (%s)failed.", extrinsic_path);
+        "parse extrinsic params(%s) failed.", extrinsic_path);
     info.calibration.extrinsic.trans_x += TEST_CAMERA_POSITION_OFFSET_X;
 
     info.angle_range = viewpoints_range[idx];
