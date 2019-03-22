@@ -450,13 +450,14 @@ StitcherImpl::init_feature_matchers ()
         matcher->set_config (config);
         matcher->set_fm_index (idx);
 
+        const BowlDataConfig bowl = _stitcher->get_bowl_config ();
         const Stitcher::ImageOverlapInfo &info = _stitcher->get_overlap (idx);
         Rect left_ovlap = info.left;
         Rect right_ovlap = info.right;
-        left_ovlap.pos_y = left_ovlap.height / 5;
-        left_ovlap.height = left_ovlap.height / 2;
-        right_ovlap.pos_y = right_ovlap.height / 5;
-        right_ovlap.height = right_ovlap.height / 2;
+        left_ovlap.pos_y = 0;
+        left_ovlap.height = int32_t (bowl.wall_height / (bowl.wall_height + bowl.ground_length) * left_ovlap.height);
+        right_ovlap.pos_y = 0;
+        right_ovlap.height = left_ovlap.height;
         matcher->set_crop_rect (left_ovlap, right_ovlap);
     }
 #else
