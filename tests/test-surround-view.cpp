@@ -741,8 +741,8 @@ int main (int argc, char *argv[])
     }
 
     BowlDataConfig bowl;
-    bowl.wall_height = 3000.0f;
-    bowl.ground_length = 2000.0f;
+    bowl.wall_height = 1800.0f;
+    bowl.ground_length = 3000.0f;
     bowl.angle_start = 0.0f;
     bowl.angle_end = 360.0f;
     stitcher->set_bowl_config (bowl);
