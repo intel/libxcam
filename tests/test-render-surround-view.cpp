@@ -488,15 +488,19 @@ int main (int argc, char *argv[])
             PUSH_STREAM (SVStream, ins, optarg);
             break;
         case 'w':
+            XCAM_ASSERT (optarg);
             input_width = (uint32_t)atoi(optarg);
             break;
         case 'h':
+            XCAM_ASSERT (optarg);
             input_height = (uint32_t)atoi(optarg);
             break;
         case 'W':
+            XCAM_ASSERT (optarg);
             output_width = (uint32_t)atoi(optarg);
             break;
         case 'H':
+            XCAM_ASSERT (optarg);
             output_height = (uint32_t)atoi(optarg);
             break;
         case 'S':
