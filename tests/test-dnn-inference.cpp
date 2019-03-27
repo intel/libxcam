@@ -292,6 +292,7 @@ int main (int argc, char *argv[])
             break;
 
         case 'l':
+            XCAM_ASSERT (optarg);
             loop = atoi (optarg);
             break;
         case 'h':
