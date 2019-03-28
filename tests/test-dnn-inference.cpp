@@ -232,23 +232,19 @@ static void usage (const char* arg0)
             "\t--model-file        model file name\n"
             "\t--input             input image \n"
             "\t--save              save output image \n"
-            "\t--loop              optional, how many loops need to run, default: 1\n"
             "\t--help              usage\n",
             arg0);
 }
 
 int main (int argc, char *argv[])
 {
-    int loop = 1;
-
     const struct option long_opts[] = {
         {"plugin", required_argument, NULL, 'p'},
-        {"target-dev", required_argument, NULL, 't'},
+        {"target-dev", required_argument, NULL, 'd'},
         {"ext-path", required_argument, NULL, 'x'},
         {"model-file", required_argument, NULL, 'm'},
         {"input", required_argument, NULL, 'i'},
         {"save", required_argument, NULL, 's'},
-        {"loop", required_argument, NULL, 'l'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0},
     };
@@ -270,9 +266,22 @@ int main (int argc, char *argv[])
             XCAM_ASSERT (optarg);
             infer_config.plugin_path = optarg;
             break;
-        case 't':
+        case 'd':
             XCAM_ASSERT (optarg);
             infer_config.target_id = (DnnInferTargetDeviceType)(atoi (optarg));
+            if (!strcasecmp (optarg, "CPU")) {
+                infer_config.target_id = DnnInferDeviceCPU;
+            } else if (!strcasecmp (optarg, "GPU")) {
+                infer_config.target_id = DnnInferDeviceGPU;
+            } else if (!strcasecmp (optarg, "FPGA")) {
+                infer_config.target_id = DnnInferDeviceFPGA;
+            } else if (!strcasecmp (optarg, "Myriad")) {
+                infer_config.target_id = DnnInferDeviceMyriad;
+            } else {
+                XCAM_LOG_ERROR ("target device unknown type: %s", optarg);
+                usage (argv[0]);
+                return -1;
+            }
             break;
         case 'x':
             XCAM_ASSERT (optarg);
@@ -289,11 +298,6 @@ int main (int argc, char *argv[])
         case 's':
             XCAM_ASSERT (optarg);
             save_output = (strcasecmp (optarg, "false") == 0 ? false : true);
-            break;
-
-        case 'l':
-            XCAM_ASSERT (optarg);
-            loop = atoi (optarg);
             break;
         case 'h':
             usage (argv[0]);
@@ -325,7 +329,6 @@ int main (int argc, char *argv[])
     printf ("extention path:\t\t%s\n", (ext_path != NULL) ? ext_path : "NULL");
     printf ("input image:\t\t%s\n", (input_image != NULL) ? input_image : "NULL");
     printf ("model file name:\t\t%s\n", (infer_config.model_filename != NULL) ? infer_config.model_filename : "NULL");
-    printf ("loop count:\t\t%d\n", loop);
 
     // --------------------------- 1. Set input image file names -----------------------------------------------------------
     XCAM_LOG_DEBUG ("1. Set input image file names");
