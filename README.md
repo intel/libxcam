@@ -1,6 +1,6 @@
 ## libXCam
 
-Copyright (C) 2014-2018 Intel Corporation
+Copyright (C) 2014-2019 Intel Corporation
 
 libxcam core source code under the terms of Apache License, Version 2.0
 
@@ -12,43 +12,45 @@ library makes GPU/CPU/ISP working together to improve image quality.
 OpenCL is used to improve performance in different platforms.
 
 #### Features:
-  * Image processing features.
-    - Advanced features.
-      - Automotive surround view(360) stitching (OpenCL/CPU/GLES).
+  * Image processing features
+    - Advanced features
+      - Automotive surround view(360) stitching (OpenCL/CPU/GLES)
          - Support bowl view 3D model stitching by 4 video input.
          - Enable geometry remap for WFoV camera calibration(intrinsic and extrinsic data).
          - Quality and performance improved (OpenCL/CPU/GLES).
          - CPU version upstreamed into AOSP for automotive surround view.
          - Enable Vulkan to improve performance.
-      - 360 video stitching (Equirectangular mode via OpenCL).
+      - 360 video stitching (Equirectangular mode via OpenCL)
         - Support 2-fisheye (>180 degree) video stream stitching.
         - Performance and quality improved.
-      - Digital Video Stabilization:
+      - DNN inference framework
+        - Support pedestrian and vehicle detection.
+      - Digital Video Stabilization
         - OpenCV feature-matched based video stabilization.
         - gyroscope 3-DoF (orientation) based video stabilization.
-      - Blender: multi-band blender (OpenCL/CPU/GLES).
-      - Noise reduction (OpenCL).
+      - Blender: multi-band blender (OpenCL/CPU/GLES)
+      - Noise reduction (OpenCL)
         - adaptive NR based on wavelet-haar and Bayersian shrinkage.
         - 3D-NR with inter-block and intra-block reference.
         - wavelet-hat NR (obsolete).
-      - Wide dynamic range (WDR) (OpenCL).
+      - Wide dynamic range (WDR) (OpenCL)
         - histogram adjustment tone-mapping.
         - gaussian-based tone-mapping (obsolete).
-      - Fog removal: retinex and dark channel prior algorithm (OpenCL).
+      - Fog removal: retinex and dark channel prior algorithm (OpenCL)
         - dark channel prior algorithm based defog.
         - multi-scale retinex based defog (obsolete).
-    - Basic pipeline from bayer to YUV/RGB format (OpenCL / AtomISP).
+    - Basic pipeline from bayer to YUV/RGB format (OpenCL / AtomISP)
       - Gamma correction, MACC, color space, demosaicing, simple bilateral
         noise reduction, edge enhancement and temporal noise reduction.
-    - 3A features.
+    - 3A features
       - Auto whitebalance, auto exposure, auto focus, black level correction,
         color correction, 3a-statistics calculation.
-  * Support 3rd party 3A lib which can be loaded dynamically.
+  * Support 3rd party 3A lib which can be loaded dynamically
        - hybrid 3a plugin.
-  * Support 3a analysis tuning framework for different features.
-  * Support smart analysis framework.
+  * Support 3a analysis tuning framework for different features
+  * Support smart analysis framework
        - Face detection interface/plugin.
-  * Enable gstreamer plugin.
+  * Enable gstreamer plugin
        - xcamsrc, capture from usb/isp camera, process 3a/basic/advanced features.
        - xcamfilter, improve image quality by advanced features and smart analysis.
 
@@ -63,6 +65,7 @@ OpenCL is used to improve performance in different platforms.
   * If --enable-render, need compile OpenSceneGraph library with configure option "-DOSG_WINDOWING_SYSTEM=X11" <https://github.com/openscenegraph/OpenSceneGraph.git>
   * If --enable-gles, need to install mesa-3d library
   * If --enable-vulkan, need to install mesa-3d library
+  * If --enable-dnn, need to install OpenVino SDK
 
 #### Building and installing:
   * Environment variable settings<BR>
@@ -94,11 +97,12 @@ OpenCL is used to improve performance in different platforms.
         --enable-gles           enable gles, [default=no]
         --enable-vulkan         enable vulkan, [default=no]
         --enable-render         enable 3D texture render, [default=no]
+        --enable-dnn            enable dnn inference, [default=no]
 
     For example:
 
         $ ./autogen.sh --prefix=/usr --enable-gst --enable-libcl --enable-opencv \
-          --enable-smartlib --enable-profiling --enable-gles --enable-render
+          --enable-smartlib --enable-profiling --enable-gles --enable-render --enable-dnn
 
   * $ make
   * $ sudo make install
