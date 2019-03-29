@@ -197,30 +197,30 @@ public:
     explicit DnnInferenceEngine (DnnInferConfig& config);
     virtual ~DnnInferenceEngine ();
 
-    void create_model (DnnInferConfig& config);
-    void load_model (DnnInferConfig& config);
+    XCamReturn create_model (DnnInferConfig& config);
+    XCamReturn load_model (DnnInferConfig& config);
 
-    void get_info (DnnInferenceEngineInfo& info, DnnInferInfoType type);
+    XCamReturn get_info (DnnInferenceEngineInfo& info, DnnInferInfoType type);
 
-    void set_batch_size (const size_t size);
+    XCamReturn set_batch_size (const size_t size);
     size_t get_batch_size ();
 
     bool ready_to_start ()  const {
         return _model_created && _model_loaded;
     };
 
-    void start (bool sync = true);
+    XCamReturn start (bool sync = true);
 
     size_t get_input_size ();
     size_t get_output_size ();
 
-    void set_input_presion (uint32_t idx, DnnInferPrecisionType precision);
+    XCamReturn set_input_presion (uint32_t idx, DnnInferPrecisionType precision);
     DnnInferPrecisionType get_input_presion (uint32_t idx);
-    void set_output_presion (uint32_t idx, DnnInferPrecisionType precision);
+    XCamReturn set_output_presion (uint32_t idx, DnnInferPrecisionType precision);
     DnnInferPrecisionType get_output_presion (uint32_t idx);
 
-    void set_input_layout (uint32_t idx, DnnInferLayoutType layout);
-    void set_output_layout (uint32_t idx, DnnInferLayoutType layout);
+    XCamReturn set_input_layout (uint32_t idx, DnnInferLayoutType layout);
+    XCamReturn set_output_layout (uint32_t idx, DnnInferLayoutType layout);
 
     uint32_t get_input_image_height () const {
         return _input_image_height;
@@ -229,13 +229,13 @@ public:
         return _input_image_width;
     };
 
-    void set_model_input_info (DnnInferInputOutputInfo& info);
-    void get_model_input_info (DnnInferInputOutputInfo& info);
+    XCamReturn set_model_input_info (DnnInferInputOutputInfo& info);
+    XCamReturn get_model_input_info (DnnInferInputOutputInfo& info);
 
-    void set_model_output_info (DnnInferInputOutputInfo& info);
-    void get_model_output_info (DnnInferInputOutputInfo& info);
+    XCamReturn set_model_output_info (DnnInferInputOutputInfo& info);
+    XCamReturn get_model_output_info (DnnInferInputOutputInfo& info);
 
-    void set_inference_data (std::vector<std::string> images);
+    XCamReturn set_inference_data (std::vector<std::string> images);
     void* get_inference_results (uint32_t idx, uint32_t& size);
 
     std::shared_ptr<uint8_t> read_inference_image (std::string image);
@@ -258,17 +258,15 @@ protected:
     void print_performance_counts (const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& performance_map);
 
 private:
-    void set_input_blob (uint32_t idx, DnnInferData& data);
-    template <typename T> void copy_image_to_blob (const DnnInferData& data, InferenceEngine::Blob::Ptr& blob, int batch_index);
-    template <typename T> void copy_data_to_blob (const DnnInferData& data, InferenceEngine::Blob::Ptr& blob, int batch_index);
+    XCamReturn set_input_blob (uint32_t idx, DnnInferData& data);
+    template <typename T> XCamReturn copy_image_to_blob (const DnnInferData& data, InferenceEngine::Blob::Ptr& blob, int batch_index);
+    template <typename T> XCamReturn copy_data_to_blob (const DnnInferData& data, InferenceEngine::Blob::Ptr& blob, int batch_index);
 
 protected:
 
     bool _model_created;
     bool _model_loaded;
-    std::string _model_file;
 
-    InferenceEngine::TargetDevice _target_device;
     InferenceEngine::InferencePlugin _plugin;
 
     InferenceEngine::InputsDataMap _inputs_info;
@@ -279,7 +277,6 @@ protected:
 
     InferenceEngine::CNNNetReader _network_reader;
     InferenceEngine::CNNNetwork _network;
-    InferenceEngine::ExecutableNetwork _execute_network;
     InferenceEngine::InferRequest _infer_request;
 
     std::vector<InferenceEngine::CNNLayerPtr> _layers;
