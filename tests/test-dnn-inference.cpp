@@ -349,26 +349,36 @@ int main (int argc, char *argv[])
     SmartPtr<DnnInferenceEngine> infer_engine = new DnnInferenceEngine (infer_config);
 
     DnnInferenceEngineInfo infer_info;
-    infer_engine->get_info (infer_info, DnnInferInfoEngine);
+    CHECK (
+        infer_engine->get_info (infer_info, DnnInferInfoEngine),
+        "get inference engine info failed!");
     XCAM_LOG_DEBUG ("Inference Engine version: %d.%d",  infer_info.major, infer_info.minor);
 
-    infer_engine->get_info (infer_info, DnnInferInfoPlugin);
+    CHECK (
+        infer_engine->get_info (infer_info, DnnInferInfoPlugin),
+        "get inference engine info failed!");
     XCAM_LOG_DEBUG ("Inference Engine plugin discription: %s",  infer_info.desc);
     XCAM_LOG_DEBUG ("Inference Engine plugin version: %d.%d",  infer_info.major, infer_info.minor);
 
-    infer_engine->get_info (infer_info, DnnInferInfoNetwork);
+    CHECK (
+        infer_engine->get_info (infer_info, DnnInferInfoNetwork),
+        "get inference engine info failed!");
     XCAM_LOG_DEBUG ("Inference Engine network name: %s",  infer_info.name);
     XCAM_LOG_DEBUG ("Inference Engine network discription: %s",  infer_info.desc);
     XCAM_LOG_DEBUG ("Inference Engine network version: %d.%d",  infer_info.major, infer_info.minor);
 
     // --------------------------- 3. Get model input infos --------------------------------------------------
     XCAM_LOG_DEBUG ("3. Get/Set model input infos");
-    infer_engine->get_model_input_info (infer_config.input_infos);
+    CHECK (
+        infer_engine->get_model_input_info (infer_config.input_infos),
+        "get model input info failed!");
 
     XCAM_LOG_DEBUG ("Input info :");
     for (uint32_t i = 0; i < infer_config.input_infos.numbers; i++) {
         infer_config.input_infos.data_type[i] = DnnInferDataTypeImage;
-        infer_engine->set_input_presion (i, DnnInferPrecisionU8);
+        CHECK (
+            infer_engine->set_input_presion (i, DnnInferPrecisionU8),
+            "set input presion failed!");
         XCAM_LOG_DEBUG ("Idx %d : [%d X %d X %d] , [%d %d %d], batch size = %d", i,
                         infer_config.input_infos.width[i], infer_config.input_infos.height[i], infer_config.input_infos.channels[i],
                         infer_config.input_infos.precision[i], infer_config.input_infos.layout[i], infer_config.input_infos.data_type[i],
@@ -377,11 +387,15 @@ int main (int argc, char *argv[])
 
     // --------------------------- 4. Get model output infos -------------------------------------------------
     XCAM_LOG_DEBUG ("4. Get/Set model output infos");
-    infer_engine->get_model_output_info (infer_config.output_infos);
+    CHECK (
+        infer_engine->get_model_output_info (infer_config.output_infos),
+        "get model output info failed!");
+    XCAM_LOG_DEBUG ("Output info (numbers %d) :", infer_config.output_infos.numbers);
 
-    XCAM_LOG_DEBUG ("Output info :");
     for (uint32_t i = 0; i < infer_config.output_infos.numbers; i++) {
-        infer_engine->set_output_presion (i, DnnInferPrecisionFP32);
+        CHECK (
+            infer_engine->set_output_presion (i, DnnInferPrecisionFP32),
+            "set output presion failed!");
         XCAM_LOG_DEBUG ("Idx %d : [%d X %d X %d] , [%d %d %d], batch size = %d", i,
                         infer_config.output_infos.width[i], infer_config.output_infos.height[i], infer_config.output_infos.channels[i],
                         infer_config.output_infos.precision[i], infer_config.output_infos.layout[i], infer_config.output_infos.data_type[i],
@@ -390,16 +404,22 @@ int main (int argc, char *argv[])
 
     // --------------------------- 5. load inference model -------------------------------------------------
     XCAM_LOG_DEBUG ("5. load inference model");
-    infer_engine->load_model (infer_config);
+    CHECK (
+        infer_engine->load_model (infer_config),
+        "load model failed!");
 
     // --------------------------- 6. Set inference data --------------------------------------------------------
     XCAM_LOG_DEBUG ("6. Set inference data");
-    infer_engine->set_inference_data (images);
+    CHECK (
+        infer_engine->set_inference_data (images),
+        "set inference data failed!");
 
     // --------------------------- 7. Do inference ---------------------------------------------------------
     XCAM_LOG_DEBUG ("7. Start inference iterations");
     if (infer_engine->ready_to_start ()) {
-        infer_engine->start ();
+        CHECK (
+            infer_engine->start (),
+            "inference failed!");
     }
 
     FPS_CALCULATION (inference_engine, XCAM_OBJ_DUR_FRAME_NUM);

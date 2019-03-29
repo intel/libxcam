@@ -29,7 +29,6 @@ namespace XCam {
 DnnInferenceEngine::DnnInferenceEngine (DnnInferConfig& config)
     : _model_created (false)
     , _model_loaded (false)
-    , _target_device (InferenceEngine::TargetDevice::eCPU)
     , _input_image_width (0)
     , _input_image_height (0)
 {
@@ -44,41 +43,38 @@ DnnInferenceEngine::~DnnInferenceEngine ()
 
 }
 
-void
+XCamReturn
 DnnInferenceEngine::create_model (DnnInferConfig& config)
 {
     XCAM_LOG_DEBUG ("DnnInferenceEngine::create_model");
     if (_model_created) {
         XCAM_LOG_INFO ("model already created!");
-        return;
+        return XCAM_RETURN_NO_ERROR;
     }
 
     // 1. Read the Intermediate Representation
     XCAM_LOG_DEBUG ("pre-trained model file name: %s", config.model_filename);
     if (NULL == config.model_filename) {
         XCAM_LOG_ERROR ("Model file name is empty!");
-        return;
+        return XCAM_RETURN_ERROR_PARAM;
     }
-    _model_file = config.model_filename;
 
-    _network_reader.ReadNetwork (get_filename_prefix (_model_file) + ".xml");
-    _network_reader.ReadWeights (get_filename_prefix (_model_file) + ".bin");
+    _network_reader.ReadNetwork (get_filename_prefix (config.model_filename) + ".xml");
+    _network_reader.ReadWeights (get_filename_prefix (config.model_filename) + ".bin");
 
     // 2. Prepare inputs and outputs format
     _network = _network_reader.getNetwork ();
     _inputs_info = _network.getInputsInfo ();
     _outputs_info = _network.getOutputsInfo ();
 
-    _target_device = get_device_from_id (config.target_id);
-
     // 3. Select Plugin - Select the plugin on which to load your network.
     // 3.1. Create the plugin with the InferenceEngine::PluginDispatcher load helper class.
     if (NULL == config.plugin_path) {
         InferenceEngine::PluginDispatcher dispatcher ({""});
-        _plugin = dispatcher.getPluginByDevice (getDeviceName (_target_device));
+        _plugin = dispatcher.getPluginByDevice (getDeviceName (get_device_from_id (config.target_id)));
     } else {
         InferenceEngine::PluginDispatcher dispatcher ({config.plugin_path});
-        _plugin = dispatcher.getPluginByDevice (getDeviceName (_target_device));
+        _plugin = dispatcher.getPluginByDevice (getDeviceName (get_device_from_id (config.target_id)));
     }
 
     // 3.2. Pass per device loading configurations specific to this device,
@@ -112,36 +108,40 @@ DnnInferenceEngine::create_model (DnnInferConfig& config)
     }
 
     _model_created = true;
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
-void
+XCamReturn
 DnnInferenceEngine::load_model (DnnInferConfig& config)
 {
     XCAM_LOG_DEBUG ("DnnInferenceEngine::load_model");
     if (! _model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
-        return;
+        return XCAM_RETURN_ERROR_ORDER;
     }
     if (_model_loaded) {
         XCAM_LOG_INFO ("model already loaded!");
-        return;
+        return XCAM_RETURN_NO_ERROR;
     }
 
-    _execute_network = _plugin.LoadNetwork (_network, {});
+    InferenceEngine::ExecutableNetwork execute_network = _plugin.LoadNetwork (_network, {});
 
-    _infer_request = _execute_network.CreateInferRequest ();
+    _infer_request = execute_network.CreateInferRequest ();
 
     _model_loaded = true;
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
-void
+XCamReturn
 DnnInferenceEngine::get_info (DnnInferenceEngineInfo& info, DnnInferInfoType type)
 {
     XCAM_LOG_DEBUG ("DnnInferenceEngine::get_info type %d", type);
 
     if (! _model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
-        return;
+        return XCAM_RETURN_ERROR_ORDER;
     }
 
     info.type = type;
@@ -162,17 +162,19 @@ DnnInferenceEngine::get_info (DnnInferenceEngineInfo& info, DnnInferInfoType typ
     } else {
         XCAM_LOG_WARNING ("DnnInferenceEngine::get_info type %d not supported!", type);
     }
+    return XCAM_RETURN_NO_ERROR;
 }
 
-void
+XCamReturn
 DnnInferenceEngine::set_batch_size (const size_t size)
 {
     if (! _model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
-        return;
+        return XCAM_RETURN_ERROR_ORDER;
     }
 
     _network.setBatchSize (size);
+    return XCAM_RETURN_NO_ERROR;
 }
 
 size_t
@@ -186,14 +188,14 @@ DnnInferenceEngine::get_batch_size ()
     return _network.getBatchSize ();
 }
 
-void
+XCamReturn
 DnnInferenceEngine::start (bool sync)
 {
     XCAM_LOG_DEBUG ("Start inference sync(%d)", sync);
 
     if (! _model_loaded) {
         XCAM_LOG_ERROR ("Please load the model firstly!");
-        return;
+        return XCAM_RETURN_ERROR_ORDER;
     }
 
     if (sync) {
@@ -202,6 +204,8 @@ DnnInferenceEngine::start (bool sync)
         _infer_request.StartAsync ();
         _infer_request.Wait (IInferRequest::WaitMode::RESULT_READY);
     }
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
 size_t
@@ -228,19 +232,19 @@ DnnInferenceEngine::get_output_size ()
     return outputs_info.size ();
 }
 
-void
+XCamReturn
 DnnInferenceEngine::set_input_presion (uint32_t idx, DnnInferPrecisionType precision)
 {
     if (! _model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
-        return;
+        return XCAM_RETURN_ERROR_ORDER;
     }
 
     uint32_t id = 0;
 
     if (idx > _inputs_info.size ()) {
         XCAM_LOG_ERROR ("Input is out of range");
-        return;
+        return XCAM_RETURN_ERROR_PARAM;
     }
 
     for (auto & item : _inputs_info) {
@@ -251,6 +255,8 @@ DnnInferenceEngine::set_input_presion (uint32_t idx, DnnInferPrecisionType preci
         }
         id++;
     }
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
 DnnInferPrecisionType
@@ -278,19 +284,19 @@ DnnInferenceEngine::get_input_presion (uint32_t idx)
     return DnnInferPrecisionUnspecified;
 }
 
-void
+XCamReturn
 DnnInferenceEngine::set_output_presion (uint32_t idx, DnnInferPrecisionType precision)
 {
     if (! _model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
-        return;
+        return XCAM_RETURN_ERROR_ORDER;
     }
 
     uint32_t id = 0;
 
     if (idx > _outputs_info.size ()) {
         XCAM_LOG_ERROR ("Output is out of range");
-        return;
+        return XCAM_RETURN_ERROR_PARAM;
     }
 
     for (auto & item : _outputs_info) {
@@ -301,6 +307,8 @@ DnnInferenceEngine::set_output_presion (uint32_t idx, DnnInferPrecisionType prec
         }
         id++;
     }
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
 DnnInferPrecisionType
@@ -328,18 +336,18 @@ DnnInferenceEngine::get_output_presion (uint32_t idx)
     return DnnInferPrecisionUnspecified;
 }
 
-void
+XCamReturn
 DnnInferenceEngine::set_input_layout (uint32_t idx, DnnInferLayoutType layout)
 {
     if (! _model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
-        return;
+        return XCAM_RETURN_ERROR_ORDER;
     }
     uint32_t id = 0;
 
     if (idx > _inputs_info.size ()) {
         XCAM_LOG_ERROR ("Input is out of range");
-        return;
+        return XCAM_RETURN_ERROR_PARAM;
     }
     /** Iterating over all input blobs **/
     for (auto & item : _inputs_info) {
@@ -351,21 +359,23 @@ DnnInferenceEngine::set_input_layout (uint32_t idx, DnnInferLayoutType layout)
         }
         id++;
     }
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
-void
+XCamReturn
 DnnInferenceEngine::set_output_layout (uint32_t idx, DnnInferLayoutType layout)
 {
     if (! _model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
-        return;
+        return XCAM_RETURN_ERROR_ORDER;
     }
 
     uint32_t id = 0;
 
     if (idx > _outputs_info.size ()) {
         XCAM_LOG_ERROR ("Output is out of range");
-        return;
+        return XCAM_RETURN_ERROR_PARAM;
     }
     /** Iterating over all output blobs **/
     for (auto & item : _outputs_info) {
@@ -377,14 +387,15 @@ DnnInferenceEngine::set_output_layout (uint32_t idx, DnnInferLayoutType layout)
         id++;
     }
 
+    return XCAM_RETURN_NO_ERROR;
 }
 
-void
+XCamReturn
 DnnInferenceEngine::get_model_input_info (DnnInferInputOutputInfo& info)
 {
     if (!_model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
-        return;
+        return XCAM_RETURN_ERROR_ORDER;
     }
 
     int id = 0;
@@ -405,21 +416,23 @@ DnnInferenceEngine::get_model_input_info (DnnInferInputOutputInfo& info)
     }
     info.batch_size = get_batch_size ();
     info.numbers = _inputs_info.size ();
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
-void
+XCamReturn
 DnnInferenceEngine::set_model_input_info (DnnInferInputOutputInfo& info)
 {
     XCAM_LOG_DEBUG ("DnnInferenceEngine::set_model_input_info");
 
     if (!_model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
-        return;
+        return XCAM_RETURN_ERROR_ORDER;
     }
 
     if (info.numbers != _inputs_info.size ()) {
         XCAM_LOG_ERROR ("Input size is not matched with model info numbers %d !", info.numbers);
-        return;
+        return XCAM_RETURN_ERROR_PARAM;
     }
     int id = 0;
 
@@ -430,14 +443,16 @@ DnnInferenceEngine::set_model_input_info (DnnInferInputOutputInfo& info)
         item.second->setLayout (layout);
         id++;
     }
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
-void
+XCamReturn
 DnnInferenceEngine::get_model_output_info (DnnInferInputOutputInfo& info)
 {
     if (!_model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
-        return;
+        return XCAM_RETURN_ERROR_ORDER;
     }
 
     int id = 0;
@@ -464,20 +479,22 @@ DnnInferenceEngine::get_model_output_info (DnnInferInputOutputInfo& info)
         info.numbers = _outputs_info.size ();
     } else {
         XCAM_LOG_ERROR ("Get output info error!");
+        return XCAM_RETURN_ERROR_UNKNOWN;
     }
+    return XCAM_RETURN_NO_ERROR;
 }
 
-void
+XCamReturn
 DnnInferenceEngine::set_model_output_info (DnnInferInputOutputInfo& info)
 {
     if (!_model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
-        return;
+        return XCAM_RETURN_ERROR_ORDER;
     }
 
     if (info.numbers != _outputs_info.size()) {
         XCAM_LOG_ERROR ("Output size is not matched with model!");
-        return;
+        return XCAM_RETURN_ERROR_PARAM;
     }
 
     int id = 0;
@@ -488,9 +505,11 @@ DnnInferenceEngine::set_model_output_info (DnnInferInputOutputInfo& info)
         item.second->setLayout (layout);
         id++;
     }
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
-void
+XCamReturn
 DnnInferenceEngine::set_input_blob (uint32_t idx, DnnInferData& data)
 {
     unsigned int id = 0;
@@ -498,7 +517,7 @@ DnnInferenceEngine::set_input_blob (uint32_t idx, DnnInferData& data)
 
     if (idx > _inputs_info.size()) {
         XCAM_LOG_ERROR ("Input is out of range");
-        return;
+        return XCAM_RETURN_ERROR_PARAM;
     }
 
     for (auto & item : _inputs_info) {
@@ -511,12 +530,12 @@ DnnInferenceEngine::set_input_blob (uint32_t idx, DnnInferData& data)
 
     if (item_name.empty ()) {
         XCAM_LOG_ERROR ("item name is empty!");
-        return;
+        return XCAM_RETURN_ERROR_PARAM;
     }
 
     if (data.batch_idx > get_batch_size ()) {
         XCAM_LOG_ERROR ("Too many input, it is bigger than batch size!");
-        return;
+        return XCAM_RETURN_ERROR_PARAM;
     }
 
     Blob::Ptr blob = _infer_request.GetBlob (item_name);
@@ -533,14 +552,16 @@ DnnInferenceEngine::set_input_blob (uint32_t idx, DnnInferData& data)
             copy_data_to_blob<uint8_t>(data, blob, data.batch_idx);
         }
     }
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
-void
+XCamReturn
 DnnInferenceEngine::set_inference_data (std::vector<std::string> images)
 {
     if (!_model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
-        return;
+        return XCAM_RETURN_ERROR_ORDER;
     }
 
     uint32_t idx = 0;
@@ -587,6 +608,8 @@ DnnInferenceEngine::set_inference_data (std::vector<std::string> images)
             continue;
         }
     }
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
 std::shared_ptr<uint8_t>
@@ -717,7 +740,6 @@ DnnInferenceEngine::convert_layout_type (DnnInferLayoutType layout)
     default:
         return InferenceEngine::Layout::ANY;
     }
-
 }
 
 DnnInferLayoutType
@@ -822,7 +844,7 @@ DnnInferenceEngine::get_filename_prefix (const std::string &file_path)
     return file_path.substr (0, pos);
 }
 
-template <typename T> void
+template <typename T> XCamReturn
 DnnInferenceEngine::copy_image_to_blob (const DnnInferData& data, Blob::Ptr& blob, int batch_index)
 {
     SizeVector blob_size = blob.get()->dims ();
@@ -836,7 +858,7 @@ DnnInferenceEngine::copy_image_to_blob (const DnnInferData& data, Blob::Ptr& blo
     if (width != data.width || height != data.height) {
         XCAM_LOG_ERROR ("Input Image size (%dx%d) is not matched with model required size (%dx%d)!",
                         data.width, data.height, width, height);
-        return;
+        return XCAM_RETURN_ERROR_PARAM;
     }
 
     int batch_offset = batch_index * height * width * channels;
@@ -866,9 +888,11 @@ DnnInferenceEngine::copy_image_to_blob (const DnnInferData& data, Blob::Ptr& blo
             }
         }
     }
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
-template <typename T> void
+template <typename T> XCamReturn
 DnnInferenceEngine::copy_data_to_blob (const DnnInferData& data, Blob::Ptr& blob, int batch_index)
 {
     SizeVector blob_size = blob.get ()->dims ();
@@ -878,6 +902,8 @@ DnnInferenceEngine::copy_data_to_blob (const DnnInferData& data, Blob::Ptr& blob
     int batch_offset = batch_index * data.size;
 
     memcpy (blob_data + batch_offset, buffer, data.size);
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
 void
