@@ -25,10 +25,7 @@
 
 #include <vector>
 #include <string>
-#include <fstream>
-#include <iomanip>
 #include <inference_engine.hpp>
-#include <ext_list.hpp>
 
 #include <xcam_std.h>
 
@@ -229,14 +226,14 @@ public:
         return _input_image_width;
     };
 
-    XCamReturn set_model_input_info (DnnInferInputOutputInfo& info);
-    XCamReturn get_model_input_info (DnnInferInputOutputInfo& info);
+    virtual XCamReturn set_model_input_info (DnnInferInputOutputInfo& info) = 0;
+    virtual XCamReturn get_model_input_info (DnnInferInputOutputInfo& info) = 0;
 
-    XCamReturn set_model_output_info (DnnInferInputOutputInfo& info);
-    XCamReturn get_model_output_info (DnnInferInputOutputInfo& info);
+    virtual XCamReturn set_model_output_info (DnnInferInputOutputInfo& info) = 0;
+    virtual XCamReturn get_model_output_info (DnnInferInputOutputInfo& info) = 0;
 
-    XCamReturn set_inference_data (std::vector<std::string> images);
-    void* get_inference_results (uint32_t idx, uint32_t& size);
+    virtual XCamReturn set_inference_data (std::vector<std::string> images) = 0;
+    virtual void* get_inference_results (uint32_t idx, uint32_t& size) = 0;
 
     std::shared_ptr<uint8_t> read_inference_image (std::string image);
     void print_log (uint32_t flag);
@@ -257,8 +254,9 @@ protected:
 
     void print_performance_counts (const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& performance_map);
 
-private:
     XCamReturn set_input_blob (uint32_t idx, DnnInferData& data);
+
+private:
     template <typename T> XCamReturn copy_image_to_blob (const DnnInferData& data, InferenceEngine::Blob::Ptr& blob, int batch_index);
     template <typename T> XCamReturn copy_data_to_blob (const DnnInferData& data, InferenceEngine::Blob::Ptr& blob, int batch_index);
 
@@ -267,18 +265,13 @@ protected:
     bool _model_created;
     bool _model_loaded;
 
-    InferenceEngine::InferencePlugin _plugin;
-
-    InferenceEngine::InputsDataMap _inputs_info;
-    InferenceEngine::OutputsDataMap _outputs_info;
-
     uint32_t _input_image_width;
     uint32_t _input_image_height;
 
+    InferenceEngine::InferencePlugin _plugin;
     InferenceEngine::CNNNetReader _network_reader;
     InferenceEngine::CNNNetwork _network;
     InferenceEngine::InferRequest _infer_request;
-
     std::vector<InferenceEngine::CNNLayerPtr> _layers;
 };
 

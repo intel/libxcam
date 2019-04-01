@@ -241,7 +241,8 @@ TEST_DNN_INFERENCE_LA = $(top_builddir)/modules/dnn/libxcam_dnn.la
 test_dnn_inference_SOURCES = test-dnn-inference.cpp
 test_dnn_inference_CXXFLAGS = \
     $(TEST_BASE_CXXFLAGS) \
-    $(OPENVINO_IE_CXXFLAGS) \
+    -I$(OPENVINO_IE_INC_PATH)/include \
+    -I$(OPENVINO_IE_INC_PATH)/src/extension \
     $(NULL)
 
 test_dnn_inference_LDADD = \

@@ -29,6 +29,7 @@
 #include "test_common.h"
 
 #include <dnn/dnn_inference_engine.h>
+#include <dnn/dnn_object_detection.h>
 
 using namespace XCam;
 using namespace InferenceEngine;
@@ -346,7 +347,7 @@ int main (int argc, char *argv[])
     XCAM_LOG_DEBUG ("2. Create inference engine");
     infer_config.perf_counter = 0;
 
-    SmartPtr<DnnInferenceEngine> infer_engine = new DnnInferenceEngine (infer_config);
+    SmartPtr<DnnInferenceEngine> infer_engine = new DnnObjectDetection (infer_config);
 
     DnnInferenceEngineInfo infer_info;
     CHECK (
