@@ -179,12 +179,12 @@ fi
 
 ENABLE_DNN=0
 if test "$enable_dnn" = "yes"; then
-    if test -z $OPENVINO_IE_CXXFLAGS; then
-        AC_MSG_WARN(Please export OPENVINO_IE_CXXFLAGS environment variables)
+    if test -z $OPENVINO_IE_INC_PATH; then
+        AC_MSG_WARN(Please export OPENVINO_IE_INC_PATH environment variables)
         AC_MSG_ERROR(OpenVino inc path has not been set ... disable DNN module!)
     fi
-    if test -z $OPENVINO_IE_LIBS; then
-        AC_MSG_WARN(Please export OPENVINO_IE_LIBS environment variables)
+    if test -z $OPENVINO_IE_LIBS_PATH; then
+        AC_MSG_WARN(Please export OPENVINO_IE_LIBS_PATH environment variables)
         AC_MSG_ERROR(OpenVino library path has not been set ... disable DNN module!)
     fi
     ENABLE_DNN=1
