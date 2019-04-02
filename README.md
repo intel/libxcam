@@ -58,13 +58,13 @@ OpenCL is used to improve performance in different platforms.
   * install gcc/g++, automake, autoconf, libtool, gawk, pkg-config
   * Linux kernel > 3.10
   * install ocl-icd-dev, ocl-icd-opencl-dev
-  * If --enable-libcl, need compile ocl driver <https://www.freedesktop.org/wiki/Software/Beignet/>
-  * If --enable-opencv, suggest opencv versions [3.0.0 - 3.4.3]<http://opencv.org> (or: <https://github.com/opencv/opencv/wiki>)
   * If --enable-gst, need install libgstreamer1.0-dev, libgstreamer-plugins-base1.0-dev
-  * If --enable-aiq, need get ia_imaging lib which we don't support.
-  * If --enable-render, need compile OpenSceneGraph library with configure option "-DOSG_WINDOWING_SYSTEM=X11" <https://github.com/openscenegraph/OpenSceneGraph.git>
-  * If --enable-gles, need to install mesa-3d library
-  * If --enable-vulkan, need to install mesa-3d library
+  * If --enable-aiq, need get ia_imaging lib which we don't support
+  * If --enable-libcl, need compile [OpenCL](https://www.freedesktop.org/wiki/Software/Beignet) driver
+  * If --enable-opencv, suggest [OpenCV](http://opencv.org) versions [3.0.0 - 3.4.3] (or: [OpenCV Wiki](https://github.com/opencv/opencv/wiki))
+  * If --enable-render, need compile [OpenSceneGraph](https://github.com/openscenegraph/OpenSceneGraph) library with configure option "-DOSG_WINDOWING_SYSTEM=X11"
+  * If --enable-gles, need to install [Mesa3D](https://www.mesa3d.org) library
+  * If --enable-vulkan, need to install [Mesa3D](https://www.mesa3d.org) library
   * If --enable-dnn, need to install OpenVino SDK
 
 #### Building and installing:
@@ -108,21 +108,19 @@ OpenCL is used to improve performance in different platforms.
   * $ sudo make install
 
 #### Testing:
-  * For detailed test cases, please refer to:<BR>
-    <https://github.com/intel/libxcam/wiki/Tests>
+  * For detailed test cases, please go to [tests](https://github.com/intel/libxcam/wiki/Tests) page
 
 #### Reporting Bugs:
-  * Bugs or suggestions can be reported on the github issues page:<BR>
-    <https://github.com/intel/libxcam/issues>
-  * Security issues, please send email to feng.yuan@intel.com directly
+  * Bugs or suggestions can be reported on the github [issues](https://github.com/intel/libxcam/issues) page
+  * Security issues, please send email to wei.zong@intel.com directly
 
 #### Mailing list
-  * To post a message to all the list members, please send email to libxcam@lists.01.org.
-  * To register libxcam public maillist, please go to:<BR>
-    <https://lists.01.org/mailman/listinfo/libxcam>
+  * To post a message to all the list members, please send email to libxcam@lists.01.org
+  * To register libxcam public maillist, please go to [registration](https://lists.01.org/mailman/listinfo/libxcam) page
 
 #### Maintainer:
   * Wind Yuan <feng.yuan@intel.com>
+  * Wei Zong <wei.zong@intel.com>
 
 #### Contributors: (orders by first name)
   * Andrey Parfenov <a1994ndrey@gmail.com>
