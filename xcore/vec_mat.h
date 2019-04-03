@@ -935,6 +935,14 @@ MatrixN<T, 4> MatrixN<T, N>::inverse (const MatrixN<T, 4>& mat)
     return result * (1.0f / det);
 }
 
+typedef VectorN<uint32_t, 2> Vec2u;
+typedef VectorN<uint32_t, 3> Vec3u;
+typedef VectorN<uint32_t, 4> Vec4u;
+
+typedef VectorN<int32_t, 2> Vec2i;
+typedef VectorN<int32_t, 3> Vec3i;
+typedef VectorN<int32_t, 4> Vec4i;
+
 typedef VectorN<double, 2> Vec2d;
 typedef VectorN<double, 3> Vec3d;
 typedef VectorN<double, 4> Vec4d;

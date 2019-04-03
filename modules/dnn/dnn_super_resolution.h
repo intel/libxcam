@@ -1,5 +1,5 @@
 /*
- * dnn_object_detection.h -  object detection
+ * dnn_super_resolution.h -  super resolution
  *
  *  Copyright (c) 2019 Intel Corporation
  *
@@ -18,25 +18,24 @@
  * Author: Zong Wei <wei.zong@intel.com>
  */
 
-#ifndef _XCMA_DNN_OBJECT_DETECTION_H_
-#define _XCMA_DNN_OBJECT_DETECTION_H_
+#ifndef _XCMA_DNN_SUPER_RESOLUTION_H_
+#define _XCMA_DNN_SUPER_RESOLUTION_H_
 
 #pragma once
 
 #include <string>
 
 #include <xcam_std.h>
-#include <vec_mat.h>
 #include "dnn_inference_engine.h"
 
 namespace XCam {
 
-class DnnObjectDetection
+class DnnSuperResolution
     : public DnnInferenceEngine
 {
 public:
-    explicit DnnObjectDetection (DnnInferConfig& config);
-    virtual ~DnnObjectDetection ();
+    explicit DnnSuperResolution (DnnInferConfig& config);
+    virtual ~DnnSuperResolution ();
 
     XCamReturn set_model_input_info (DnnInferInputOutputInfo& info);
     XCamReturn get_model_input_info (DnnInferInputOutputInfo& info);
@@ -45,12 +44,8 @@ public:
     XCamReturn get_model_output_info (DnnInferInputOutputInfo& info);
 
     void* get_inference_results (uint32_t idx, uint32_t& size);
-    XCamReturn get_bounding_boxes (const float* result_ptr,
-                                   const uint32_t idx,
-                                   std::vector<Vec4i> &boxes,
-                                   std::vector<int32_t> &classes);
 };
 
 }  // namespace XCam
 
-#endif //_XCMA_DNN_OBJECT_DETECTION_H_
+#endif //_XCMA_DNN_SUPER_RESOLUTION_H_

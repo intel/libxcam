@@ -23,6 +23,10 @@
 #include <format_reader_ptr.h>
 #include <ext_list.hpp>
 
+//#if HAVE_OPENCV
+#include "ocv/cv_std.h"
+//#endif
+
 #include "dnn_inference_engine.h"
 
 using namespace std;
@@ -33,6 +37,7 @@ namespace XCam {
 DnnInferenceEngine::DnnInferenceEngine (DnnInferConfig& config)
     : _model_created (false)
     , _model_loaded (false)
+    , _model_type (config.model_type)
     , _input_image_width (0)
     , _input_image_height (0)
 {
@@ -193,7 +198,7 @@ DnnInferenceEngine::get_batch_size ()
 XCamReturn
 DnnInferenceEngine::start (bool sync)
 {
-    XCAM_LOG_DEBUG ("Start inference sync(%d)", sync);
+    XCAM_LOG_DEBUG ("Start inference %s", sync ? "Sync" : "Async");
 
     if (! _model_loaded) {
         XCAM_LOG_ERROR ("Please load the model firstly!");
@@ -561,7 +566,7 @@ DnnInferenceEngine::set_inference_data (std::vector<std::string> images)
 }
 
 std::shared_ptr<uint8_t>
-DnnInferenceEngine::read_inference_image (std::string image)
+DnnInferenceEngine::read_input_image (std::string image)
 {
     FormatReader::ReaderPtr reader (image.c_str ());
     if (reader.get () == NULL) {
@@ -569,7 +574,7 @@ DnnInferenceEngine::read_inference_image (std::string image)
         return NULL;
     }
 
-    uint32_t image_width =  reader->width ();
+    uint32_t image_width = reader->width ();
     uint32_t image_height = reader->height ();
 
     std::shared_ptr<uint8_t> data (reader->getData (image_width, image_height));
@@ -580,6 +585,82 @@ DnnInferenceEngine::read_inference_image (std::string image)
         XCAM_LOG_WARNING ("Valid input images were not found!");
         return NULL;
     }
+}
+
+XCamReturn
+DnnInferenceEngine::save_output_image (const std::string& image_name, uint32_t index)
+{
+    if (! _model_created || ! _model_loaded) {
+        XCAM_LOG_ERROR ("Please create and load the model firstly!");
+        return XCAM_RETURN_ERROR_ORDER;
+    }
+
+    OutputsDataMap outputs_info (_network.getOutputsInfo ());
+    if (index > outputs_info.size ()) {
+        XCAM_LOG_ERROR ("Output is out of range");
+        return XCAM_RETURN_ERROR_PARAM;
+    }
+
+    std::string model_type;
+    std::string item_name;
+
+    switch (_model_type) {
+    case DnnInferObjectDetection :
+        model_type = "DetectionOutput";
+        break;
+    case DnnInferSuperResolution :
+        model_type = "Convolution";
+        break;
+    default :
+        model_type = "DetectionOutput";
+        break;
+    }
+
+    for (auto & item : outputs_info) {
+        if (item.second->creatorLayer.lock ()->type == model_type.c_str ()) {
+            item_name = item.first;
+            break;
+        }
+    }
+
+    if (item_name.empty ()) {
+        XCAM_LOG_ERROR ("item name is empty!");
+        return XCAM_RETURN_ERROR_PARAM;
+    }
+
+    const Blob::Ptr output_blob = _infer_request.GetBlob (item_name);
+    const auto output_data = output_blob->buffer ().as<PrecisionTrait<Precision::FP32>::value_type*> ();
+
+    size_t image_count = output_blob->getTensorDesc ().getDims ()[0];
+    size_t channels = output_blob->getTensorDesc ().getDims ()[1];
+    size_t image_height = output_blob->getTensorDesc ().getDims ()[2];
+    size_t image_width = output_blob->getTensorDesc ().getDims ()[3];
+    size_t pixel_count = image_width * image_height;
+
+    XCAM_LOG_DEBUG ("Output size [image count, channels, height, width]: %d, %d, %d, %d",
+                    image_count, channels, image_height, image_width);
+
+    if (index > image_count) {
+        return XCAM_RETURN_ERROR_PARAM;
+    }
+
+#if HAVE_OPENCV
+    std::vector<cv::Mat> image_planes {cv::Mat (image_height, image_width, CV_32FC1, &(output_data[index * pixel_count * channels + pixel_count * 2])),
+                                       cv::Mat (image_height, image_width, CV_32FC1, &(output_data[index * pixel_count * channels + pixel_count])),
+                                       cv::Mat (image_height, image_width, CV_32FC1, &(output_data[index * pixel_count * channels]))
+                                      };
+
+    for (auto & image : image_planes) {
+        image.convertTo (image, CV_8UC1, 255);
+    }
+    cv::Mat result_image;
+    cv::merge (image_planes, result_image);
+    cv::imwrite (image_name.c_str (), result_image);
+#else
+    XCamDNN::save_bmp_file (image_name, output_data, image_width, image_height);
+#endif
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
 InferenceEngine::TargetDevice

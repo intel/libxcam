@@ -1,5 +1,5 @@
 /*
- * dnn_object_detection.cpp -  object detection
+ * dnn_super_resolution.cpp -  super resolution
  *
  *  Copyright (c) 2019 Intel Corporation
  *
@@ -20,27 +20,27 @@
 
 #include <inference_engine.hpp>
 
-#include "dnn_object_detection.h"
+#include "dnn_super_resolution.h"
 
 using namespace std;
 using namespace InferenceEngine;
 
 namespace XCam {
 
-DnnObjectDetection::DnnObjectDetection (DnnInferConfig& config)
+DnnSuperResolution::DnnSuperResolution (DnnInferConfig& config)
     : DnnInferenceEngine (config)
 {
-    XCAM_LOG_DEBUG ("DnnObjectDetection::DnnObjectDetection");
+    XCAM_LOG_DEBUG ("DnnSuperResolution::DnnSuperResolution");
 }
 
 
-DnnObjectDetection::~DnnObjectDetection ()
+DnnSuperResolution::~DnnSuperResolution ()
 {
 
 }
 
 XCamReturn
-DnnObjectDetection::get_model_input_info (DnnInferInputOutputInfo& info)
+DnnSuperResolution::get_model_input_info (DnnInferInputOutputInfo& info)
 {
     if (!_model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
@@ -72,9 +72,9 @@ DnnObjectDetection::get_model_input_info (DnnInferInputOutputInfo& info)
 }
 
 XCamReturn
-DnnObjectDetection::set_model_input_info (DnnInferInputOutputInfo& info)
+DnnSuperResolution::set_model_input_info (DnnInferInputOutputInfo& info)
 {
-    XCAM_LOG_DEBUG ("DnnObjectDetection::set_model_input_info");
+    XCAM_LOG_DEBUG ("DnnSuperResolution::set_model_input_info");
 
     if (!_model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
@@ -100,31 +100,39 @@ DnnObjectDetection::set_model_input_info (DnnInferInputOutputInfo& info)
 }
 
 XCamReturn
-DnnObjectDetection::get_model_output_info (DnnInferInputOutputInfo& info)
+DnnSuperResolution::get_model_output_info (DnnInferInputOutputInfo& info)
 {
     if (!_model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
         return XCAM_RETURN_ERROR_ORDER;
     }
 
-    int id = 0;
     std::string output_name;
     OutputsDataMap outputs_info (_network.getOutputsInfo ());
     DataPtr output_info;
     for (const auto& out : outputs_info) {
-        if (out.second->creatorLayer.lock()->type == "DetectionOutput") {
+        if (output_name.empty ()) {
             output_name = out.first;
-            output_info = out.second;
-            break;
         }
+
+        output_info = out.second;
+        if (!output_info) {
+            XCAM_LOG_ERROR ("output data pointer is not valid");
+            return XCAM_RETURN_ERROR_UNKNOWN;
+        }
+
+        out.second->setPrecision (Precision::FP32);
     }
+
+    uint32_t id = 0;
+
     if (output_info.get ()) {
         const InferenceEngine::SizeVector output_dims = output_info->getTensorDesc().getDims();
 
-        info.width[id]    = output_dims[0];
-        info.height[id]   = output_dims[1];
-        info.channels[id] = output_dims[2];
-        info.object_size[id] = output_dims[3];
+        info.object_size[id] = output_dims[0];
+        info.channels[id] = output_dims[1];
+        info.width[id]    = output_dims[2];
+        info.height[id]   = output_dims[3];
 
         info.precision[id] = convert_precision_type (output_info->getPrecision());
         info.layout[id] = convert_layout_type (output_info->getLayout());
@@ -139,7 +147,7 @@ DnnObjectDetection::get_model_output_info (DnnInferInputOutputInfo& info)
 }
 
 XCamReturn
-DnnObjectDetection::set_model_output_info (DnnInferInputOutputInfo& info)
+DnnSuperResolution::set_model_output_info (DnnInferInputOutputInfo& info)
 {
     if (!_model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
@@ -165,13 +173,12 @@ DnnObjectDetection::set_model_output_info (DnnInferInputOutputInfo& info)
 }
 
 void*
-DnnObjectDetection::get_inference_results (uint32_t idx, uint32_t& size)
+DnnSuperResolution::get_inference_results (uint32_t idx, uint32_t& size)
 {
     if (! _model_created || ! _model_loaded) {
         XCAM_LOG_ERROR ("Please create and load the model firstly!");
         return NULL;
     }
-    uint32_t id = 0;
     std::string item_name;
 
     OutputsDataMap outputs_info (_network.getOutputsInfo ());
@@ -181,11 +188,10 @@ DnnObjectDetection::get_inference_results (uint32_t idx, uint32_t& size)
     }
 
     for (auto & item : outputs_info) {
-        if (item.second->creatorLayer.lock()->type == "DetectionOutput") {
+        if (item.second->creatorLayer.lock()->type == "Convolution") {
             item_name = item.first;
             break;
         }
-        id++;
     }
 
     if (item_name.empty ()) {
@@ -193,67 +199,12 @@ DnnObjectDetection::get_inference_results (uint32_t idx, uint32_t& size)
         return NULL;
     }
 
-    const Blob::Ptr blob = _infer_request.GetBlob (item_name);
-    float* output_result = static_cast<PrecisionTrait<Precision::FP32>::value_type*>(blob->buffer ());
+    const Blob::Ptr output_blob = _infer_request.GetBlob (item_name);
+    const auto output_data = output_blob->buffer ().as<PrecisionTrait<Precision::FP32>::value_type*> ();
 
-    size = blob->byteSize ();
+    size = output_blob->byteSize ();
 
-    return (reinterpret_cast<void *>(output_result));
-}
-
-XCamReturn
-DnnObjectDetection::get_bounding_boxes (const float* result_ptr,
-                                        const uint32_t idx,
-                                        std::vector<Vec4i> &boxes,
-                                        std::vector<int32_t> &classes)
-{
-    if (!_model_created) {
-        XCAM_LOG_ERROR ("Please create the model firstly!");
-        return XCAM_RETURN_ERROR_ORDER;
-    }
-
-    if (!result_ptr) {
-        XCAM_LOG_ERROR ("Inference results error!");
-        return XCAM_RETURN_ERROR_PARAM;
-    }
-
-    DnnInferInputOutputInfo output_infos;
-    get_model_output_info (output_infos);
-
-    uint32_t image_width = get_input_image_width ();
-    uint32_t image_height = get_input_image_height ();
-    uint32_t max_proposal_count = output_infos.channels[idx];
-    uint32_t object_size = output_infos.object_size[idx];
-
-    uint32_t box_count = 0;
-    for (uint32_t cur_proposal = 0; cur_proposal < max_proposal_count; cur_proposal++) {
-        float image_id = result_ptr[cur_proposal * object_size + 0];
-        if (image_id < 0) {
-            break;
-        }
-
-        float label = result_ptr[cur_proposal * object_size + 1];
-        float confidence = result_ptr[cur_proposal * object_size + 2];
-        float xmin = result_ptr[cur_proposal * object_size + 3] * image_width;
-        float ymin = result_ptr[cur_proposal * object_size + 4] * image_height;
-        float xmax = result_ptr[cur_proposal * object_size + 5] * image_width;
-        float ymax = result_ptr[cur_proposal * object_size + 6] * image_height;
-
-        if (confidence > 0.5) {
-            classes.push_back(static_cast<int32_t>(label));
-            boxes.push_back (Vec4i ( static_cast<int32_t>(xmin),
-                                     static_cast<int32_t>(ymin),
-                                     static_cast<int32_t>(xmax - xmin),
-                                     static_cast<int32_t>(ymax - ymin) ));
-
-            XCAM_LOG_DEBUG ("Proposal:%d label:%d confidence:%f", cur_proposal, classes[box_count], confidence);
-            XCAM_LOG_DEBUG ("Boxes[%d] {%d, %d, %d, %d}",
-                            box_count, boxes[box_count][0], boxes[box_count][1],
-                            boxes[box_count][2], boxes[box_count][3]);
-            box_count++;
-        }
-    }
-    return XCAM_RETURN_NO_ERROR;
+    return (reinterpret_cast<void *>(output_data));
 }
 
 }  // namespace XCam
