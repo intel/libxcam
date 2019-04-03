@@ -31,6 +31,16 @@
 
 namespace XCam {
 
+enum DnnInferModelType {
+    DnnInferObjectDetection = 0,
+    DnnInferSemanticSegmentation = 1,
+    DnnInferSuperResolution = 2,
+    DnnInferHumanPoseEstimation = 3,
+    DnnInferTextDetection = 4,
+    DnnInferTextRecognition = 5,
+    DnnInferObjectRecognition = 6
+};
+
 enum DnnInferTargetDeviceType {
     DnnInferDeviceDefault = 0,
     DnnInferDeviceBalanced = 1,
@@ -168,6 +178,7 @@ struct DnnInferData {
 };
 
 struct DnnInferConfig {
+    DnnInferModelType model_type;
     DnnInferTargetDeviceType target_id;
     DnnInferInputOutputInfo input_infos;
     DnnInferInputOutputInfo output_infos;
@@ -177,7 +188,7 @@ struct DnnInferConfig {
     char * cldnn_ext_path;
     char * model_filename;
     char * output_layer_name;
-    uint32_t  perf_counter;
+    uint32_t perf_counter;
     uint32_t infer_req_num;
 
     DnnInferConfig () {
@@ -232,10 +243,12 @@ public:
     virtual XCamReturn set_model_output_info (DnnInferInputOutputInfo& info) = 0;
     virtual XCamReturn get_model_output_info (DnnInferInputOutputInfo& info) = 0;
 
-    virtual XCamReturn set_inference_data (std::vector<std::string> images) = 0;
+    virtual XCamReturn set_inference_data (std::vector<std::string> images);
     virtual void* get_inference_results (uint32_t idx, uint32_t& size) = 0;
 
-    std::shared_ptr<uint8_t> read_inference_image (std::string image);
+    std::shared_ptr<uint8_t> read_input_image (std::string image);
+    XCamReturn save_output_image (const std::string& image_name, uint32_t index);
+
     void print_log (uint32_t flag);
 
 protected:
@@ -264,6 +277,8 @@ protected:
 
     bool _model_created;
     bool _model_loaded;
+
+    DnnInferModelType _model_type;
 
     uint32_t _input_image_width;
     uint32_t _input_image_height;

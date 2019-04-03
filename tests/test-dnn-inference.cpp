@@ -28,208 +28,24 @@
 #include <xcam_std.h>
 #include "test_common.h"
 
-#include <dnn/dnn_inference_engine.h>
-#include <dnn/dnn_object_detection.h>
+#include "dnn/dnn_inference_utils.h"
+#include "dnn/dnn_inference_engine.h"
+#include "dnn/dnn_object_detection.h"
+#include "dnn/dnn_super_resolution.h"
 
 using namespace XCam;
 using namespace InferenceEngine;
 
-class Color {
-
-public:
-    Color (uint8_t r, uint8_t g, uint8_t b) {
-        _red = r;
-        _green = g;
-        _blue = b;
-    }
-
-public:
-    uint8_t _red;
-    uint8_t _green;
-    uint8_t _blue;
-};
-
-static void add_rectangles (
-    uint8_t *data,  uint32_t width, uint32_t height,
-    std::vector<int> rectangles, std::vector<int> classes, int thickness = 1)
-{
-    std::vector<Color> colors = {
-        // colors to be used for bounding boxes
-        Color ( 128, 64,  128 ),
-        Color ( 232, 35,  244 ),
-        Color ( 70,  70,  70 ),
-        Color ( 156, 102, 102 ),
-        Color ( 153, 153, 190 ),
-        Color ( 153, 153, 153 ),
-        Color ( 30,  170, 250 ),
-        Color ( 0,   220, 220 ),
-        Color ( 35,  142, 107 ),
-        Color ( 152, 251, 152 ),
-        Color ( 180, 130, 70 ),
-        Color ( 60,  20,  220 ),
-        Color ( 0,   0,   255 ),
-        Color ( 142, 0,   0 ),
-        Color ( 70,  0,   0 ),
-        Color ( 100, 60,  0 ),
-        Color ( 90,  0,   0 ),
-        Color ( 230, 0,   0 ),
-        Color ( 32,  11,  119 ),
-        Color ( 0,   74,  111 ),
-        Color ( 81,  0,   81 )
-    };
-    if (rectangles.size() % 4 != 0 || rectangles.size() / 4 != classes.size()) {
-        return;
-    }
-
-    for (size_t i = 0; i < classes.size(); i++) {
-        int x = rectangles.at(i * 4);
-        int y = rectangles.at(i * 4 + 1);
-        int w = rectangles.at(i * 4 + 2);
-        int h = rectangles.at(i * 4 + 3);
-
-        int cls = classes.at(i) % colors.size();  // color of a bounding box line
-
-        if (x < 0) x = 0;
-        if (y < 0) y = 0;
-        if (w < 0) w = 0;
-        if (h < 0) h = 0;
-
-        if (static_cast<std::size_t>(x) >= width) {
-            x = width - 1;
-            w = 0;
-            thickness = 1;
-        }
-        if (static_cast<std::size_t>(y) >= height) {
-            y = height - 1;
-            h = 0;
-            thickness = 1;
-        }
-
-        if (static_cast<std::size_t>(x + w) >= width) {
-            w = width - x - 1;
-        }
-        if (static_cast<std::size_t>(y + h) >= height) {
-            h = height - y - 1;
-        }
-
-        thickness = std::min(std::min(thickness, w / 2 + 1), h / 2 + 1);
-
-        size_t shift_first;
-        size_t shift_second;
-        for (int t = 0; t < thickness; t++) {
-            shift_first = (y + t) * width * 3;
-            shift_second = (y + h - t) * width * 3;
-            for (int ii = x; ii < x + w + 1; ii++) {
-                data[shift_first + ii * 3] = colors.at(cls)._red;
-                data[shift_first + ii * 3 + 1] = colors.at(cls)._green;
-                data[shift_first + ii * 3 + 2] = colors.at(cls)._blue;
-                data[shift_second + ii * 3] = colors.at(cls)._red;
-                data[shift_second + ii * 3 + 1] = colors.at(cls)._green;
-                data[shift_second + ii * 3 + 2] = colors.at(cls)._blue;
-            }
-        }
-
-        for (int t = 0; t < thickness; t++) {
-            shift_first = (x + t) * 3;
-            shift_second = (x + w - t) * 3;
-            for (int ii = y; ii < y + h + 1; ii++) {
-                data[shift_first + ii * width * 3] = colors.at(cls)._red;
-                data[shift_first + ii * width * 3 + 1] = colors.at(cls)._green;
-                data[shift_first + ii * width * 3 + 2] = colors.at(cls)._blue;
-                data[shift_second + ii * width * 3] = colors.at(cls)._red;
-                data[shift_second + ii * width * 3 + 1] = colors.at(cls)._green;
-                data[shift_second + ii * width * 3 + 2] = colors.at(cls)._blue;
-            }
-        }
-    }
-}
-
-static bool write_output_bmp (std::string name, unsigned char *data, uint32_t width, uint32_t height)
-{
-    std::ofstream out_file;
-    out_file.open (name, std::ofstream::binary);
-    if (!out_file.is_open ()) {
-        return false;
-    }
-
-    unsigned char file[14] = {
-        'B', 'M',           // magic
-        0, 0, 0, 0,         // size in bytes
-        0, 0,               // app data
-        0, 0,               // app data
-        40 + 14, 0, 0, 0      // start of data offset
-    };
-    unsigned char info[40] = {
-        40, 0, 0, 0,        // info hd size
-        0, 0, 0, 0,         // width
-        0, 0, 0, 0,         // height
-        1, 0,               // number color planes
-        24, 0,              // bits per pixel
-        0, 0, 0, 0,         // compression is none
-        0, 0, 0, 0,         // image bits size
-        0x13, 0x0B, 0, 0,   // horz resolution in pixel / m
-        0x13, 0x0B, 0, 0,   // vert resolution (0x03C3 = 96 dpi, 0x0B13 = 72 dpi)
-        0, 0, 0, 0,         // #colors in palette
-        0, 0, 0, 0,         // #important colors
-    };
-
-    if (height > (size_t)std::numeric_limits<int32_t>::max ||
-            width > (size_t)std::numeric_limits<int32_t>::max) {
-        XCAM_LOG_ERROR ("File size is too big: %dx%d", height, width);
-        return false;
-    }
-
-    int pad_size = static_cast<int>(4 - (width * 3) % 4) % 4;
-    int size_data = static_cast<int>(width * height * 3 + height * pad_size);
-    int size_all = size_data + sizeof(file) + sizeof(info);
-
-    file[2] = (unsigned char)(size_all);
-    file[3] = (unsigned char)(size_all >> 8);
-    file[4] = (unsigned char)(size_all >> 16);
-    file[5] = (unsigned char)(size_all >> 24);
-
-    info[4] = (unsigned char)(width);
-    info[5] = (unsigned char)(width >> 8);
-    info[6] = (unsigned char)(width >> 16);
-    info[7] = (unsigned char)(width >> 24);
-
-    int32_t negative_height = -(int32_t)height;
-    info[8] = (unsigned char)(negative_height);
-    info[9] = (unsigned char)(negative_height >> 8);
-    info[10] = (unsigned char)(negative_height >> 16);
-    info[11] = (unsigned char)(negative_height >> 24);
-
-    info[20] = (unsigned char)(size_data);
-    info[21] = (unsigned char)(size_data >> 8);
-    info[22] = (unsigned char)(size_data >> 16);
-    info[23] = (unsigned char)(size_data >> 24);
-
-    out_file.write(reinterpret_cast<char *>(file), sizeof(file));
-    out_file.write(reinterpret_cast<char *>(info), sizeof(info));
-
-    unsigned char pad[3] = { 0, 0, 0 };
-
-    for (size_t y = 0; y < height; y++) {
-        for (size_t x = 0; x < width; x++) {
-            unsigned char pixel[3];
-            pixel[0] = data[y * width * 3 + x * 3];
-            pixel[1] = data[y * width * 3 + x * 3 + 1];
-            pixel[2] = data[y * width * 3 + x * 3 + 2];
-
-            out_file.write(reinterpret_cast<char *>(pixel), 3);
-        }
-        out_file.write(reinterpret_cast<char *>(pad), pad_size);
-    }
-    return true;
-}
-
 static void usage (const char* arg0)
 {
     printf ("Usage:\n"
-            "%s --plugin PATH --input filename --model-name xx.xml ...\n"
+            "%s --input filename --model detect --model-file xx.xml ...\n"
             "\t--plugin            plugin path\n"
-            "\t--target-dev        target device, default: DnnInferDeviceCPU\n"
+            "\t--target-dev        target device, default: CPU\n"
+            "\t      selected from: CPU, GPU"
             "\t--ext-path          extension path\n"
+            "\t--model             pre-trained model name\n"
+            "\t      selected from: Detect, SR, Segment"
             "\t--model-file        model file name\n"
             "\t--input             input image \n"
             "\t--save              save output image \n"
@@ -243,7 +59,8 @@ int main (int argc, char *argv[])
         {"plugin", required_argument, NULL, 'p'},
         {"target-dev", required_argument, NULL, 'd'},
         {"ext-path", required_argument, NULL, 'x'},
-        {"model-file", required_argument, NULL, 'm'},
+        {"model", required_argument, NULL, 'm'},
+        {"model-file", required_argument, NULL, 'f'},
         {"input", required_argument, NULL, 'i'},
         {"save", required_argument, NULL, 's'},
         {"help", no_argument, NULL, 'h'},
@@ -260,7 +77,7 @@ int main (int argc, char *argv[])
     char* input_image = NULL;
     bool save_output = true;
 
-    int opt = -1;
+    int32_t opt = -1;
     while ((opt = getopt_long (argc, argv, "", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'p':
@@ -269,15 +86,10 @@ int main (int argc, char *argv[])
             break;
         case 'd':
             XCAM_ASSERT (optarg);
-            infer_config.target_id = (DnnInferTargetDeviceType)(atoi (optarg));
             if (!strcasecmp (optarg, "CPU")) {
                 infer_config.target_id = DnnInferDeviceCPU;
             } else if (!strcasecmp (optarg, "GPU")) {
                 infer_config.target_id = DnnInferDeviceGPU;
-            } else if (!strcasecmp (optarg, "FPGA")) {
-                infer_config.target_id = DnnInferDeviceFPGA;
-            } else if (!strcasecmp (optarg, "Myriad")) {
-                infer_config.target_id = DnnInferDeviceMyriad;
             } else {
                 XCAM_LOG_ERROR ("target device unknown type: %s", optarg);
                 usage (argv[0]);
@@ -289,6 +101,20 @@ int main (int argc, char *argv[])
             ext_path = optarg;
             break;
         case 'm':
+            XCAM_ASSERT (optarg);
+            if (!strcasecmp (optarg, "Detect")) {
+                infer_config.model_type = DnnInferObjectDetection;
+            } else if (!strcasecmp (optarg, "Segment")) {
+                infer_config.model_type = DnnInferSemanticSegmentation;
+            } else if (!strcasecmp (optarg, "SR")) {
+                infer_config.model_type = DnnInferSuperResolution;
+            } else {
+                XCAM_LOG_ERROR ("unsupported model type: %s", optarg);
+                usage (argv[0]);
+                return -1;
+            }
+            break;
+        case 'f':
             XCAM_ASSERT (optarg);
             infer_config.model_filename = optarg;
             break;
@@ -329,6 +155,7 @@ int main (int argc, char *argv[])
     printf ("target device id:\t\t%d\n", infer_config.target_id);
     printf ("extention path:\t\t%s\n", (ext_path != NULL) ? ext_path : "NULL");
     printf ("input image:\t\t%s\n", (input_image != NULL) ? input_image : "NULL");
+    printf ("model type:\t\t%d\n", infer_config.model_type);
     printf ("model file name:\t\t%s\n", (infer_config.model_filename != NULL) ? infer_config.model_filename : "NULL");
 
     // --------------------------- 1. Set input image file names -----------------------------------------------------------
@@ -347,7 +174,16 @@ int main (int argc, char *argv[])
     XCAM_LOG_DEBUG ("2. Create inference engine");
     infer_config.perf_counter = 0;
 
-    SmartPtr<DnnInferenceEngine> infer_engine = new DnnObjectDetection (infer_config);
+    SmartPtr<DnnInferenceEngine> infer_engine;
+
+    if (DnnInferObjectDetection == infer_config.model_type) {
+        infer_engine = new DnnObjectDetection (infer_config);
+    } else if (DnnInferSuperResolution == infer_config.model_type) {
+        infer_engine = new DnnSuperResolution (infer_config);
+    } else {
+        XCAM_LOG_ERROR ("Unsupported model type!");
+        return -1;
+    }
 
     DnnInferenceEngineInfo infer_info;
     CHECK (
@@ -398,8 +234,12 @@ int main (int argc, char *argv[])
             infer_engine->set_output_presion (i, DnnInferPrecisionFP32),
             "set output presion failed!");
         XCAM_LOG_DEBUG ("Idx %d : [%d X %d X %d] , [%d %d %d], batch size = %d", i,
-                        infer_config.output_infos.width[i], infer_config.output_infos.height[i], infer_config.output_infos.channels[i],
-                        infer_config.output_infos.precision[i], infer_config.output_infos.layout[i], infer_config.output_infos.data_type[i],
+                        infer_config.output_infos.width[i],
+                        infer_config.output_infos.height[i],
+                        infer_config.output_infos.channels[i],
+                        infer_config.output_infos.precision[i],
+                        infer_config.output_infos.layout[i],
+                        infer_config.output_infos.data_type[i],
                         infer_config.output_infos.batch_size);
     }
 
@@ -437,8 +277,6 @@ int main (int argc, char *argv[])
 
     uint32_t blob_size = 0;
     float* result_ptr = NULL;
-    std::vector<std::vector<int> > boxes(batch_size);
-    std::vector<std::vector<int> > classes(batch_size);
 
     for (uint32_t batch_idx = 0; batch_idx < batch_size; batch_idx ++) {
         result_ptr = (float*)infer_engine->get_inference_results (batch_idx, blob_size);
@@ -446,48 +284,45 @@ int main (int argc, char *argv[])
             continue;
         }
 
-        int image_width = infer_engine->get_input_image_width ();
-        int image_height = infer_engine->get_input_image_height ();
-        int max_proposal_count = infer_config.output_infos.channels[batch_idx];
-        int object_size = infer_config.output_infos.object_size[batch_idx];
+        if (DnnInferObjectDetection == infer_config.model_type) {
+            std::vector<Vec4i> boxes;
+            std::vector<int32_t> classes;
+            uint32_t image_width = infer_engine->get_input_image_width ();
+            uint32_t image_height = infer_engine->get_input_image_height ();
 
-        for (int32_t cur_proposal = 0; cur_proposal < max_proposal_count; cur_proposal++) {
-            float image_id = result_ptr[cur_proposal * object_size + 0];
-            if (image_id < 0) {
-                break;
-            }
+            SmartPtr<DnnObjectDetection> object_detector = infer_engine.dynamic_cast_ptr<DnnObjectDetection> ();
+            CHECK (
+                object_detector->get_bounding_boxes (result_ptr, batch_idx, boxes, classes),
+                "get bounding box failed!");
 
-            float label = result_ptr[cur_proposal * object_size + 1];
-            float confidence = result_ptr[cur_proposal * object_size + 2];
-            float xmin = result_ptr[cur_proposal * object_size + 3] * image_width;
-            float ymin = result_ptr[cur_proposal * object_size + 4] * image_height;
-            float xmax = result_ptr[cur_proposal * object_size + 5] * image_width;
-            float ymax = result_ptr[cur_proposal * object_size + 6] * image_height;
+            if (save_output) {
+                std::shared_ptr<unsigned char> input_image = infer_engine->read_input_image (images[batch_idx]);
 
-            if (confidence > 0.5) {
-                classes[image_id].push_back(static_cast<int>(label));
-                boxes[image_id].push_back(static_cast<int>(xmin));
-                boxes[image_id].push_back(static_cast<int>(ymin));
-                boxes[image_id].push_back(static_cast<int>(xmax - xmin));
-                boxes[image_id].push_back(static_cast<int>(ymax - ymin));
+                CHECK (
+                    XCamDNN::draw_bounding_boxes (input_image.get (),
+                                                  image_width, image_height,
+                                                  boxes, classes),
+                    "Draw bounding boxes failed!" );
 
-                XCAM_LOG_DEBUG ("Proposal:%d label:%d confidence:%f", cur_proposal, (int)label, confidence);
-                XCAM_LOG_DEBUG ("Boxes[%f] {%d, %d, %d, %d}",
-                                image_id, (int)xmin, (int)ymin, (int)xmax, (int)ymax);
-            }
-        }
+                const std::string image_path = images[batch_idx] + "_obj_detect_out_" + std::to_string (batch_idx) + ".bmp";
 
-        if (save_output) {
-            std::shared_ptr<unsigned char> orig_image = infer_engine->read_inference_image (images[batch_idx]);
-            add_rectangles (orig_image.get (),
-                            image_width, image_height,
-                            boxes[batch_idx], classes[batch_idx]);
-
-            const std::string image_path = images[batch_idx] + "_out_" + std::to_string (batch_idx) + ".bmp";
-            if (write_output_bmp (image_path, orig_image.get (), image_width, image_height)) {
+                CHECK (
+                    XCamDNN::save_bmp_file (image_path, input_image.get (), image_width, image_height),
+                    "Can't create image file: %s",
+                    image_path.c_str () );
                 XCAM_LOG_DEBUG ("Image %s created!", image_path.c_str ());
-            } else {
-                XCAM_LOG_ERROR ("Can't create image file: %s", image_path.c_str ());
+
+            }
+        } else if (DnnInferSuperResolution == infer_config.model_type) {
+            //SmartPtr<DnnSuperResolution> super_res = infer_engine.dynamic_cast_ptr<DnnSuperResolution> ();
+            if (save_output) {
+                const std::string image_path = images[batch_idx] + "_super_res_out_" + std::to_string (batch_idx) + ".bmp";
+
+                CHECK (
+                    infer_engine->save_output_image (image_path, batch_idx),
+                    "Can't create image file: %s",
+                    image_path.c_str () );
+                XCAM_LOG_DEBUG ("Image %s created!", image_path.c_str ());
             }
         }
     }
