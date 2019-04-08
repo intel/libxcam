@@ -18,16 +18,14 @@
  * Author: Zong Wei <wei.zong@intel.com>
  */
 
-#include <iomanip>
+#include "dnn_inference_engine.h"
 
+#include <iomanip>
 #include <format_reader_ptr.h>
 #include <ext_list.hpp>
-
-//#if HAVE_OPENCV
+#if HAVE_OPENCV
 #include "ocv/cv_std.h"
-//#endif
-
-#include "dnn_inference_engine.h"
+#endif
 
 using namespace std;
 using namespace InferenceEngine;
