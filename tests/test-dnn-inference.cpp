@@ -42,13 +42,13 @@ static void usage (const char* arg0)
             "%s --input filename --model detect --model-file xx.xml ...\n"
             "\t--plugin            plugin path\n"
             "\t--target-dev        target device, default: CPU\n"
-            "\t      selected from: CPU, GPU"
+            "\t                    selected from: CPU, GPU\n"
             "\t--ext-path          extension path\n"
             "\t--model             pre-trained model name\n"
-            "\t      selected from: Detect, SR, Segment"
+            "\t                    selected from: Detect, SR, Segment\n"
             "\t--model-file        model file name\n"
-            "\t--input             input image \n"
-            "\t--save              save output image \n"
+            "\t--input             input image\n"
+            "\t--save              save output image\n"
             "\t--help              usage\n",
             arg0);
 }
