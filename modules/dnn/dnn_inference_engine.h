@@ -18,8 +18,8 @@
  * Author: Zong Wei <wei.zong@intel.com>
  */
 
-#ifndef _XCMA_DNN_INFERENCE_ENGINE_H_
-#define _XCMA_DNN_INFERENCE_ENGINE_H_
+#ifndef XCAM_DNN_INFERENCE_ENGINE_H
+#define XCAM_DNN_INFERENCE_ENGINE_H
 
 #pragma once
 
@@ -292,4 +292,4 @@ protected:
 
 }  // namespace XCam
 
-#endif //_XCMA_DNN_INFERENCE_ENGINE_H_
+#endif // XCAM_DNN_INFERENCE_ENGINE_H
