@@ -11,3 +11,4 @@ test-gles-handler
 test-render-surround-view
 test-surround-view
 test-vk-handler
+test-dnn-inference
