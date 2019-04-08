@@ -18,8 +18,8 @@
  * Author: Zong Wei <wei.zong@intel.com>
  */
 
-#ifndef _XCMA_DNN_OBJECT_DETECTION_H_
-#define _XCMA_DNN_OBJECT_DETECTION_H_
+#ifndef XCAM_DNN_OBJECT_DETECTION_H
+#define XCAM_DNN_OBJECT_DETECTION_H
 
 #pragma once
 
@@ -53,4 +53,4 @@ public:
 
 }  // namespace XCam
 
-#endif //_XCMA_DNN_OBJECT_DETECTION_H_
+#endif // XCAM_DNN_OBJECT_DETECTION_H
