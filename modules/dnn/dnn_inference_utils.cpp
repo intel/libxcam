@@ -93,6 +93,12 @@ static unsigned char header_info[40] = {
     0, 0, 0, 0,         // #important colors
 };
 
+static inline void
+clamp (float &value, float min, float max)
+{
+    value = (value < min) ? min : ((value > max) ? max : value);
+}
+
 XCamReturn
 draw_bounding_boxes (
     uint8_t *data, uint32_t width, uint32_t height,
@@ -280,13 +286,19 @@ save_bmp_file (const std::string name, void* data, DnnInferImageFormatType forma
             for (size_t x = 0; x < width; x++) {
                 unsigned char pixel[3];
                 if (DnnInferImageFormatRGBPacked == format) {
-                    pixel[0] = static_cast<unsigned char>(data_ptr[y * width * 3 + x * 3]);
-                    pixel[1] = static_cast<unsigned char>(data_ptr[y * width * 3 + x * 3 + 1]);
-                    pixel[2] = static_cast<unsigned char>(data_ptr[y * width * 3 + x * 3 + 2]);
+                    clamp (data_ptr[y * width * 3 + x * 3], 0.0f, 1.0f);
+                    clamp (data_ptr[y * width * 3 + x * 3 + 1], 0.0f, 1.0f);
+                    clamp (data_ptr[y * width * 3 + x * 3 + 2], 0.0f, 1.0f);
+                    pixel[0] = static_cast<unsigned char>(data_ptr[y * width * 3 + x * 3] * 255);
+                    pixel[1] = static_cast<unsigned char>(data_ptr[y * width * 3 + x * 3 + 1] * 255);
+                    pixel[2] = static_cast<unsigned char>(data_ptr[y * width * 3 + x * 3 + 2] * 255);
                 } else if (DnnInferImageFormatBGRPlanar == format) {
-                    pixel[0] = static_cast<unsigned char>(data_ptr[y * width + x + 2 * width * height]);
-                    pixel[1] = static_cast<unsigned char>(data_ptr[y * width + x + width * height]);
-                    pixel[2] = static_cast<unsigned char>(data_ptr[y * width + x]);
+                    clamp (data_ptr[y * width + x + 2 * width * height], 0.0f, 1.0f);
+                    clamp (data_ptr[y * width + x + width * height], 0.0f, 1.0f);
+                    clamp (data_ptr[y * width + x], 0.0f, 1.0f);
+                    pixel[0] = static_cast<unsigned char>(data_ptr[y * width + x + 2 * width * height] * 255);
+                    pixel[1] = static_cast<unsigned char>(data_ptr[y * width + x + width * height] * 255);
+                    pixel[2] = static_cast<unsigned char>(data_ptr[y * width + x] * 255);
                 }
                 out_file.write (reinterpret_cast<char *>(pixel), 3);
             }
