@@ -33,57 +33,57 @@ namespace XCam {
 
 enum DnnInferModelType {
     DnnInferObjectDetection = 0,
-    DnnInferSemanticSegmentation = 1,
-    DnnInferSuperResolution = 2,
-    DnnInferHumanPoseEstimation = 3,
-    DnnInferTextDetection = 4,
-    DnnInferTextRecognition = 5,
-    DnnInferObjectRecognition = 6
+    DnnInferSemanticSegmentation,
+    DnnInferSuperResolution,
+    DnnInferHumanPoseEstimation,
+    DnnInferTextDetection,
+    DnnInferTextRecognition,
+    DnnInferObjectRecognition
 };
 
 enum DnnInferTargetDeviceType {
     DnnInferDeviceDefault = 0,
-    DnnInferDeviceBalanced = 1,
-    DnnInferDeviceCPU = 2,
-    DnnInferDeviceGPU = 3,
-    DnnInferDeviceFPGA = 4,
-    DnnInferDeviceMyriad = 5,
-    DnnInferDeviceHetero = 8
+    DnnInferDeviceBalanced,
+    DnnInferDeviceCPU,
+    DnnInferDeviceGPU,
+    DnnInferDeviceFPGA,
+    DnnInferDeviceMyriad,
+    DnnInferDeviceHetero
 };
 
 enum DnnInferPrecisionType {
-    DnnInferPrecisionMixed = 0,
-    DnnInferPrecisionFP32 = 10,
-    DnnInferPrecisionFP16 = 11,
-    DnnInferPrecisionQ78 = 20,
-    DnnInferPrecisionI16 = 30,
-    DnnInferPrecisionU8 = 40,
-    DnnInferPrecisionI8 = 50,
-    DnnInferPrecisionU16 = 60,
-    DnnInferPrecisionI32 = 70,
-    DnnInferPrecisionCustom = 80,
-    DnnInferPrecisionUnspecified = 255
+    DnnInferPrecisionU8 = 0,
+    DnnInferPrecisionI8,
+    DnnInferPrecisionU16,
+    DnnInferPrecisionI16,
+    DnnInferPrecisionQ78,
+    DnnInferPrecisionFP16,
+    DnnInferPrecisionI32,
+    DnnInferPrecisionFP32,
+    DnnInferPrecisionMixed,
+    DnnInferPrecisionCustom,
+    DnnInferPrecisionUnspecified = -1
 };
 
 enum DnnInferLayoutType {
     DnnInferLayoutAny = 0,
-    DnnInferLayoutNCHW = 1,
-    DnnInferLayoutNHWC = 2,
-    DnnInferLayoutOIHW = 64,
-    DnnInferLayoutC = 96,
-    DnnInferLayoutCHW = 128,
-    DnnInferLayoutHW = 192,
-    DnnInferLayoutNC = 193,
-    DnnInferLayoutCN = 194,
-    DnnInferLayoutBlocked = 200
+    DnnInferLayoutNCHW,
+    DnnInferLayoutNHWC,
+    DnnInferLayoutOIHW,
+    DnnInferLayoutC,
+    DnnInferLayoutCHW,
+    DnnInferLayoutHW,
+    DnnInferLayoutNC,
+    DnnInferLayoutCN,
+    DnnInferLayoutBlocked
 };
 
 enum DnnInferMemoryType {
     DnnInferMemoryDefault = 0,
-    DnnInferMemoryHost = 1,
-    DnnInferMemoryGPU = 2,
-    DnnInferMemoryMYRIAD = 3,
-    DnnInferMemoryShared = 4
+    DnnInferMemoryHost,
+    DnnInferMemoryGPU,
+    DnnInferMemoryMYRIAD,
+    DnnInferMemoryShared
 };
 
 enum DnnInferImageFormatType {
@@ -99,24 +99,24 @@ enum DnnInferImageFormatType {
 
 enum DnnInferMode {
     DnnInferModeSync = 0,
-    DnnInferModeAsync = 1
+    DnnInferModeAsync
 };
 
 enum DnnInferDataType {
     DnnInferDataTypeNonImage = 0,
-    DnnInferDataTypeImage = 1
+    DnnInferDataTypeImage
 };
 
 enum DnnInferLogLevel {
-    DnnInferLogLevelNone = 0x0,
-    DnnInferLogLevelEngine = 0x1,
-    DnnInferLogLevelLayer = 0x2
+    DnnInferLogLevelNone = 0,
+    DnnInferLogLevelEngine,
+    DnnInferLogLevelLayer
 };
 
 enum DnnInferInfoType {
-    DnnInferInfoEngine = 0x0,
-    DnnInferInfoPlugin = 0x1,
-    DnnInferInfoNetwork = 0x2
+    DnnInferInfoEngine = 0,
+    DnnInferInfoPlugin,
+    DnnInferInfoNetwork
 };
 
 struct DnnInferImageSize {
@@ -229,6 +229,8 @@ public:
     DnnInferPrecisionType get_input_precision (uint32_t idx);
     XCamReturn set_output_precision (uint32_t idx, DnnInferPrecisionType precision);
     DnnInferPrecisionType get_output_precision (uint32_t idx);
+
+    DnnInferImageFormatType get_output_format (uint32_t idx);
 
     XCamReturn set_input_layout (uint32_t idx, DnnInferLayoutType layout);
     XCamReturn set_output_layout (uint32_t idx, DnnInferLayoutType layout);

@@ -274,22 +274,15 @@ DnnInferenceEngine::get_input_precision (uint32_t idx)
         return DnnInferPrecisionUnspecified;
     }
 
-    InputsDataMap inputs_info (_network.getInputsInfo ());
+    DnnInferInputOutputInfo inputs_info;
+    get_model_input_info (inputs_info);
 
-    if (idx > inputs_info.size ()) {
-        XCAM_LOG_ERROR ("Input is out of range");
+    if (idx > get_input_size ()) {
+        XCAM_LOG_ERROR ("Index is out of range");
         return DnnInferPrecisionUnspecified;
     }
 
-    uint32_t i = 0;
-    for (auto & in : inputs_info) {
-        if (i == idx) {
-            Precision input_precision = in.second->getPrecision ();
-            return convert_precision_type (input_precision);
-        }
-        i++;
-    }
-    return DnnInferPrecisionUnspecified;
+    return inputs_info.precision[idx];
 }
 
 XCamReturn
@@ -328,22 +321,34 @@ DnnInferenceEngine::get_output_precision (uint32_t idx)
         return DnnInferPrecisionUnspecified;
     }
 
-    OutputsDataMap outputs_info (_network.getOutputsInfo ());
+    DnnInferInputOutputInfo outputs_info;
+    get_model_output_info (outputs_info);
 
-    if (idx > outputs_info.size ()) {
-        XCAM_LOG_ERROR ("Input is out of range");
+    if (idx > get_output_size ()) {
+        XCAM_LOG_ERROR ("Index is out of range");
         return DnnInferPrecisionUnspecified;
     }
 
-    uint32_t i = 0;
-    for (auto & out : outputs_info) {
-        if (i == idx) {
-            Precision output_precision = out.second->getPrecision ();
-            return convert_precision_type (output_precision);
-        }
-        i++;
+    return outputs_info.precision[idx];
+}
+
+DnnInferImageFormatType
+DnnInferenceEngine::get_output_format (uint32_t idx)
+{
+    if (! _model_created) {
+        XCAM_LOG_ERROR ("Please create the model firstly!");
+        return DnnInferImageFormatUnknown;
     }
-    return DnnInferPrecisionUnspecified;
+
+    DnnInferInputOutputInfo outputs_info;
+    get_model_output_info (outputs_info);
+
+    if (idx > get_output_size ()) {
+        XCAM_LOG_ERROR ("Index is out of range");
+        return DnnInferImageFormatUnknown;
+    }
+
+    return outputs_info.format[idx];
 }
 
 XCamReturn
@@ -593,19 +598,10 @@ DnnInferenceEngine::save_output_image (const std::string& image_name, uint32_t i
     cv::merge (image_planes, result_image);
     cv::imwrite (image_name.c_str (), result_image);
 #else
-    DnnInferInputOutputInfo output_infos;
-    get_model_output_info (output_infos);
-
     if (3 == channels) {
-        for (uint32_t i = 0; i < image_height * image_width * channels; i += 3) {
-            output_data[index * pixel_count * channels + i] *= 255;
-            output_data[index * pixel_count * channels + i + 1] *= 255;
-            output_data[index * pixel_count * channels + i + 2] *= 255;
-        }
-
         XCamDNN::save_bmp_file (image_name,
                                 &output_data[index * pixel_count * channels],
-                                output_infos.format[index],
+                                get_output_format (index),
                                 get_output_precision (index),
                                 image_width,
                                 image_height);
@@ -760,24 +756,24 @@ InferenceEngine::Precision
 DnnInferenceEngine::convert_precision_type (DnnInferPrecisionType precision)
 {
     switch (precision) {
-    case DnnInferPrecisionMixed:
-        return InferenceEngine::Precision::MIXED;
-    case DnnInferPrecisionFP32:
-        return InferenceEngine::Precision::FP32;
-    case DnnInferPrecisionFP16:
-        return InferenceEngine::Precision::FP16;
-    case DnnInferPrecisionQ78:
-        return InferenceEngine::Precision::Q78;
-    case DnnInferPrecisionI16:
-        return InferenceEngine::Precision::I16;
     case DnnInferPrecisionU8:
         return InferenceEngine::Precision::U8;
     case DnnInferPrecisionI8:
         return InferenceEngine::Precision::I8;
     case DnnInferPrecisionU16:
         return InferenceEngine::Precision::U16;
+    case DnnInferPrecisionI16:
+        return InferenceEngine::Precision::I16;
+    case DnnInferPrecisionQ78:
+        return InferenceEngine::Precision::Q78;
+    case DnnInferPrecisionFP16:
+        return InferenceEngine::Precision::FP16;
     case DnnInferPrecisionI32:
         return InferenceEngine::Precision::I32;
+    case DnnInferPrecisionFP32:
+        return InferenceEngine::Precision::FP32;
+    case DnnInferPrecisionMixed:
+        return InferenceEngine::Precision::MIXED;
     case DnnInferPrecisionCustom:
         return InferenceEngine::Precision::CUSTOM;
     case DnnInferPrecisionUnspecified:
