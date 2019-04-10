@@ -19,10 +19,12 @@
  */
 
 #include "dnn_inference_engine.h"
+#include "dnn_inference_utils.h"
 
 #include <iomanip>
 #include <format_reader_ptr.h>
 #include <ext_list.hpp>
+
 #if HAVE_OPENCV
 #include "ocv/cv_std.h"
 #endif
@@ -43,7 +45,6 @@ DnnInferenceEngine::DnnInferenceEngine (DnnInferConfig& config)
 
     create_model (config);
 }
-
 
 DnnInferenceEngine::~DnnInferenceEngine ()
 {
@@ -238,14 +239,13 @@ DnnInferenceEngine::get_output_size ()
 }
 
 XCamReturn
-DnnInferenceEngine::set_input_presion (uint32_t idx, DnnInferPrecisionType precision)
+DnnInferenceEngine::set_input_precision (uint32_t idx, DnnInferPrecisionType precision)
 {
     if (! _model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
         return XCAM_RETURN_ERROR_ORDER;
     }
 
-    uint32_t id = 0;
     InputsDataMap inputs_info (_network.getInputsInfo ());
 
     if (idx > inputs_info.size ()) {
@@ -253,27 +253,27 @@ DnnInferenceEngine::set_input_presion (uint32_t idx, DnnInferPrecisionType preci
         return XCAM_RETURN_ERROR_PARAM;
     }
 
-    for (auto & item : inputs_info) {
-        if (id == idx) {
+    uint32_t i = 0;
+    for (auto & in : inputs_info) {
+        if (i == idx) {
             Precision input_precision = convert_precision_type (precision);
-            item.second->setPrecision (input_precision);
+            in.second->setPrecision (input_precision);
             break;
         }
-        id++;
+        i++;
     }
 
     return XCAM_RETURN_NO_ERROR;
 }
 
 DnnInferPrecisionType
-DnnInferenceEngine::get_input_presion (uint32_t idx)
+DnnInferenceEngine::get_input_precision (uint32_t idx)
 {
     if (! _model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
         return DnnInferPrecisionUnspecified;
     }
 
-    uint32_t id = 0;
     InputsDataMap inputs_info (_network.getInputsInfo ());
 
     if (idx > inputs_info.size ()) {
@@ -281,25 +281,25 @@ DnnInferenceEngine::get_input_presion (uint32_t idx)
         return DnnInferPrecisionUnspecified;
     }
 
-    for (auto & item : inputs_info) {
-        if (id == idx) {
-            Precision input_precision = item.second->getPrecision ();
+    uint32_t i = 0;
+    for (auto & in : inputs_info) {
+        if (i == idx) {
+            Precision input_precision = in.second->getPrecision ();
             return convert_precision_type (input_precision);
         }
-        id++;
+        i++;
     }
     return DnnInferPrecisionUnspecified;
 }
 
 XCamReturn
-DnnInferenceEngine::set_output_presion (uint32_t idx, DnnInferPrecisionType precision)
+DnnInferenceEngine::set_output_precision (uint32_t idx, DnnInferPrecisionType precision)
 {
     if (! _model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
         return XCAM_RETURN_ERROR_ORDER;
     }
 
-    uint32_t id = 0;
     OutputsDataMap outputs_info (_network.getOutputsInfo ());
 
     if (idx > outputs_info.size ()) {
@@ -307,27 +307,27 @@ DnnInferenceEngine::set_output_presion (uint32_t idx, DnnInferPrecisionType prec
         return XCAM_RETURN_ERROR_PARAM;
     }
 
-    for (auto & item : outputs_info) {
-        if (id == idx) {
+    uint32_t i = 0;
+    for (auto & out : outputs_info) {
+        if (i == idx) {
             Precision output_precision = convert_precision_type (precision);
-            item.second->setPrecision (output_precision);
+            out.second->setPrecision (output_precision);
             break;
         }
-        id++;
+        i++;
     }
 
     return XCAM_RETURN_NO_ERROR;
 }
 
 DnnInferPrecisionType
-DnnInferenceEngine::get_output_presion (uint32_t idx)
+DnnInferenceEngine::get_output_precision (uint32_t idx)
 {
     if (! _model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
         return DnnInferPrecisionUnspecified;
     }
 
-    uint32_t id = 0;
     OutputsDataMap outputs_info (_network.getOutputsInfo ());
 
     if (idx > outputs_info.size ()) {
@@ -335,12 +335,13 @@ DnnInferenceEngine::get_output_presion (uint32_t idx)
         return DnnInferPrecisionUnspecified;
     }
 
-    for (auto & item : outputs_info) {
-        if (id == idx) {
-            Precision output_precision = item.second->getPrecision ();
+    uint32_t i = 0;
+    for (auto & out : outputs_info) {
+        if (i == idx) {
+            Precision output_precision = out.second->getPrecision ();
             return convert_precision_type (output_precision);
         }
-        id++;
+        i++;
     }
     return DnnInferPrecisionUnspecified;
 }
@@ -352,7 +353,6 @@ DnnInferenceEngine::set_input_layout (uint32_t idx, DnnInferLayoutType layout)
         XCAM_LOG_ERROR ("Please create the model firstly!");
         return XCAM_RETURN_ERROR_ORDER;
     }
-    uint32_t id = 0;
     InputsDataMap inputs_info (_network.getInputsInfo ());
 
     if (idx > inputs_info.size ()) {
@@ -360,14 +360,14 @@ DnnInferenceEngine::set_input_layout (uint32_t idx, DnnInferLayoutType layout)
         return XCAM_RETURN_ERROR_PARAM;
     }
 
-    for (auto & item : inputs_info) {
-        if (id == idx) {
-            /** Creating first input blob **/
+    uint32_t i = 0;
+    for (auto & in : inputs_info) {
+        if (i == idx) {
             Layout input_layout = convert_layout_type (layout);
-            item.second->setLayout (input_layout);
+            in.second->setLayout (input_layout);
             break;
         }
-        id++;
+        i++;
     }
 
     return XCAM_RETURN_NO_ERROR;
@@ -381,7 +381,6 @@ DnnInferenceEngine::set_output_layout (uint32_t idx, DnnInferLayoutType layout)
         return XCAM_RETURN_ERROR_ORDER;
     }
 
-    uint32_t id = 0;
     OutputsDataMap outputs_info (_network.getOutputsInfo ());
 
     if (idx > outputs_info.size ()) {
@@ -389,69 +388,14 @@ DnnInferenceEngine::set_output_layout (uint32_t idx, DnnInferLayoutType layout)
         return XCAM_RETURN_ERROR_PARAM;
     }
 
-    for (auto & item : outputs_info) {
-        if (id == idx) {
+    uint32_t i = 0;
+    for (auto & out : outputs_info) {
+        if (i == idx) {
             Layout output_layout = convert_layout_type (layout);
-            item.second->setLayout (output_layout);
+            out.second->setLayout (output_layout);
             break;
         }
-        id++;
-    }
-
-    return XCAM_RETURN_NO_ERROR;
-}
-
-XCamReturn
-DnnInferenceEngine::set_model_input_info (DnnInferInputOutputInfo& info)
-{
-    XCAM_LOG_DEBUG ("DnnInferenceEngine::set_model_input_info");
-
-    if (!_model_created) {
-        XCAM_LOG_ERROR ("Please create the model firstly!");
-        return XCAM_RETURN_ERROR_ORDER;
-    }
-
-    InputsDataMap inputs_info (_network.getInputsInfo ());
-
-    if (info.numbers != inputs_info.size ()) {
-        XCAM_LOG_ERROR ("Input size is not matched with model info numbers %d !", info.numbers);
-        return XCAM_RETURN_ERROR_PARAM;
-    }
-    int id = 0;
-
-    for (auto & item : inputs_info) {
-        Precision precision = convert_precision_type (info.precision[id]);
-        item.second->setPrecision (precision);
-        Layout layout = convert_layout_type (info.layout[id]);
-        item.second->setLayout (layout);
-        id++;
-    }
-
-    return XCAM_RETURN_NO_ERROR;
-}
-
-XCamReturn
-DnnInferenceEngine::set_model_output_info (DnnInferInputOutputInfo& info)
-{
-    if (!_model_created) {
-        XCAM_LOG_ERROR ("Please create the model firstly!");
-        return XCAM_RETURN_ERROR_ORDER;
-    }
-
-    OutputsDataMap outputs_info (_network.getOutputsInfo ());
-
-    if (info.numbers != outputs_info.size()) {
-        XCAM_LOG_ERROR ("Output size is not matched with model!");
-        return XCAM_RETURN_ERROR_PARAM;
-    }
-
-    int id = 0;
-    for (auto & item : outputs_info) {
-        Precision precision = convert_precision_type (info.precision[id]);
-        item.second->setPrecision (precision);
-        Layout layout = convert_layout_type (info.layout[id]);
-        item.second->setLayout (layout);
-        id++;
+        i++;
     }
 
     return XCAM_RETURN_NO_ERROR;
@@ -461,7 +405,7 @@ XCamReturn
 DnnInferenceEngine::set_input_blob (uint32_t idx, DnnInferData& data)
 {
     unsigned int id = 0;
-    std::string item_name;
+    std::string input_name;
     InputsDataMap inputs_info (_network.getInputsInfo ());
 
     if (idx > inputs_info.size()) {
@@ -469,16 +413,16 @@ DnnInferenceEngine::set_input_blob (uint32_t idx, DnnInferData& data)
         return XCAM_RETURN_ERROR_PARAM;
     }
 
-    for (auto & item : inputs_info) {
+    for (auto & in : inputs_info) {
         if (id == idx) {
-            item_name = item.first;
+            input_name = in.first;
             break;
         }
         id++;
     }
 
-    if (item_name.empty ()) {
-        XCAM_LOG_ERROR ("item name is empty!");
+    if (input_name.empty ()) {
+        XCAM_LOG_ERROR ("input name is empty!");
         return XCAM_RETURN_ERROR_PARAM;
     }
 
@@ -487,7 +431,7 @@ DnnInferenceEngine::set_input_blob (uint32_t idx, DnnInferData& data)
         return XCAM_RETURN_ERROR_PARAM;
     }
 
-    Blob::Ptr blob = _infer_request.GetBlob (item_name);
+    Blob::Ptr blob = _infer_request.GetBlob (input_name);
     if (data.precision == DnnInferPrecisionFP32) {
         if (data.data_type == DnnInferDataTypeImage) {
             copy_image_to_blob<PrecisionTrait<Precision::FP32>::value_type>(data, blob, data.batch_idx);
@@ -529,9 +473,9 @@ DnnInferenceEngine::set_inference_data (std::vector<std::string> images)
         uint32_t image_width = 0;
         uint32_t image_height = 0;
 
-        for (auto & item : inputs_info) {
-            image_width = inputs_info[item.first]->getDims()[0];
-            image_height = inputs_info[item.first]->getDims()[1];
+        for (auto & in : inputs_info) {
+            image_width = inputs_info[in.first]->getDims()[0];
+            image_height = inputs_info[in.first]->getDims()[1];
         }
 
         std::shared_ptr<unsigned char> data (reader->getData (image_width, image_height));
@@ -548,11 +492,10 @@ DnnInferenceEngine::set_inference_data (std::vector<std::string> images)
             image.image_format = DnnInferImageFormatBGRPacked;
 
             // set precision & data type
-            image.precision = get_input_presion (idx);
+            image.precision = get_input_precision (idx);
             image.data_type = DnnInferDataTypeImage;
 
             set_input_blob (idx, image);
-
             idx ++;
         } else {
             XCAM_LOG_WARNING ("Valid input images were not found!");
@@ -564,7 +507,7 @@ DnnInferenceEngine::set_inference_data (std::vector<std::string> images)
 }
 
 std::shared_ptr<uint8_t>
-DnnInferenceEngine::read_input_image (std::string image)
+DnnInferenceEngine::read_input_image (std::string& image)
 {
     FormatReader::ReaderPtr reader (image.c_str ());
     if (reader.get () == NULL) {
@@ -593,40 +536,31 @@ DnnInferenceEngine::save_output_image (const std::string& image_name, uint32_t i
         return XCAM_RETURN_ERROR_ORDER;
     }
 
+    if (NULL == _output_layer_type[_model_type]) {
+        XCAM_LOG_ERROR ("Please set model output layer type!");
+        return XCAM_RETURN_ERROR_PARAM;
+    }
+
     OutputsDataMap outputs_info (_network.getOutputsInfo ());
     if (index > outputs_info.size ()) {
         XCAM_LOG_ERROR ("Output is out of range");
         return XCAM_RETURN_ERROR_PARAM;
     }
 
-    std::string model_type;
-    std::string item_name;
-
-    switch (_model_type) {
-    case DnnInferObjectDetection :
-        model_type = "DetectionOutput";
-        break;
-    case DnnInferSuperResolution :
-        model_type = "Convolution";
-        break;
-    default :
-        model_type = "DetectionOutput";
-        break;
-    }
-
-    for (auto & item : outputs_info) {
-        if (item.second->creatorLayer.lock ()->type == model_type.c_str ()) {
-            item_name = item.first;
+    std::string output_name;
+    for (auto & out : outputs_info) {
+        if ( !strncmp (out.second->creatorLayer.lock()->type.c_str (), _output_layer_type[_model_type], strlen(_output_layer_type[_model_type]))) {
+            output_name = out.first;
             break;
         }
     }
 
-    if (item_name.empty ()) {
-        XCAM_LOG_ERROR ("item name is empty!");
+    if (output_name.empty ()) {
+        XCAM_LOG_ERROR ("out name is empty!");
         return XCAM_RETURN_ERROR_PARAM;
     }
 
-    const Blob::Ptr output_blob = _infer_request.GetBlob (item_name);
+    const Blob::Ptr output_blob = _infer_request.GetBlob (output_name);
     const auto output_data = output_blob->buffer ().as<PrecisionTrait<Precision::FP32>::value_type*> ();
 
     size_t image_count = output_blob->getTensorDesc ().getDims ()[0];
@@ -635,18 +569,22 @@ DnnInferenceEngine::save_output_image (const std::string& image_name, uint32_t i
     size_t image_width = output_blob->getTensorDesc ().getDims ()[3];
     size_t pixel_count = image_width * image_height;
 
-    XCAM_LOG_DEBUG ("Output size [image count, channels, height, width]: %d, %d, %d, %d",
-                    image_count, channels, image_height, image_width);
+    XCAM_LOG_DEBUG ("Output size [image count, channels, width, height]: %d, %d, %d, %d",
+                    image_count, channels, image_width, image_height);
 
     if (index > image_count) {
         return XCAM_RETURN_ERROR_PARAM;
     }
 
 #if HAVE_OPENCV
-    std::vector<cv::Mat> image_planes {cv::Mat (image_height, image_width, CV_32FC1, &(output_data[index * pixel_count * channels + pixel_count * 2])),
-                                       cv::Mat (image_height, image_width, CV_32FC1, &(output_data[index * pixel_count * channels + pixel_count])),
-                                       cv::Mat (image_height, image_width, CV_32FC1, &(output_data[index * pixel_count * channels]))
-                                      };
+    std::vector<cv::Mat> image_planes;
+    if (3 == channels) {
+        image_planes.push_back (cv::Mat (image_height, image_width, CV_32FC1, &(output_data[index * pixel_count * channels + pixel_count * 2])));
+        image_planes.push_back (cv::Mat (image_height, image_width, CV_32FC1, &(output_data[index * pixel_count * channels + pixel_count])));
+        image_planes.push_back (cv::Mat (image_height, image_width, CV_32FC1, &(output_data[index * pixel_count * channels])));
+    } else if (1 == channels) {
+        image_planes.push_back (cv::Mat (image_height, image_width, CV_32FC1, &(output_data[index * pixel_count])));
+    }
 
     for (auto & image : image_planes) {
         image.convertTo (image, CV_8UC1, 255);
@@ -655,10 +593,66 @@ DnnInferenceEngine::save_output_image (const std::string& image_name, uint32_t i
     cv::merge (image_planes, result_image);
     cv::imwrite (image_name.c_str (), result_image);
 #else
-    XCamDNN::save_bmp_file (image_name, output_data, image_width, image_height);
+    DnnInferInputOutputInfo output_infos;
+    get_model_output_info (output_infos);
+
+    if (3 == channels) {
+        for (uint32_t i = 0; i < image_height * image_width * channels; i += 3) {
+            output_data[index * pixel_count * channels + i] *= 255;
+            output_data[index * pixel_count * channels + i + 1] *= 255;
+            output_data[index * pixel_count * channels + i + 2] *= 255;
+        }
+
+        XCamDNN::save_bmp_file (image_name,
+                                &output_data[index * pixel_count * channels],
+                                output_infos.format[index],
+                                get_output_precision (index),
+                                image_width,
+                                image_height);
+    }
 #endif
 
     return XCAM_RETURN_NO_ERROR;
+}
+
+void*
+DnnInferenceEngine::get_inference_results (uint32_t idx, uint32_t& size)
+{
+    if (! _model_created || ! _model_loaded) {
+        XCAM_LOG_ERROR ("Please create and load the model firstly!");
+        return NULL;
+    }
+
+    std::string output_name;
+    OutputsDataMap outputs_info (_network.getOutputsInfo ());
+    if (idx > outputs_info.size ()) {
+        XCAM_LOG_ERROR ("Output is out of range");
+        return NULL;
+    }
+
+    if (NULL == _output_layer_type[_model_type]) {
+        XCAM_LOG_ERROR ("Please set model output layer type!");
+        return NULL;
+    }
+
+    for (auto & out : outputs_info) {
+        if ( !strncmp (out.second->creatorLayer.lock()->type.c_str (), _output_layer_type[_model_type], strlen(_output_layer_type[_model_type]))) {
+            output_name = out.first;
+            break;
+        }
+    }
+
+    if (output_name.empty ()) {
+        XCAM_LOG_ERROR ("out name is empty!");
+        return NULL;
+    }
+
+    const Blob::Ptr blob = _infer_request.GetBlob (output_name);
+    float* output_result = static_cast<PrecisionTrait<Precision::FP32>::value_type*>(blob->buffer ());
+
+    size = blob->byteSize ();
+
+    return (reinterpret_cast<void *>(output_result));
 }
 
 InferenceEngine::TargetDevice

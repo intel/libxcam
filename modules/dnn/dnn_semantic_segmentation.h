@@ -1,5 +1,5 @@
 /*
- * dnn_object_detection.h -  object detection
+ * dnn_semantic_segmentation.h -  semantic segmentation
  *
  *  Copyright (c) 2019 Intel Corporation
  *
@@ -18,25 +18,24 @@
  * Author: Zong Wei <wei.zong@intel.com>
  */
 
-#ifndef XCAM_DNN_OBJECT_DETECTION_H
-#define XCAM_DNN_OBJECT_DETECTION_H
+#ifndef XCAM_DNN_SEMANTIC_SEGMENTATION_H
+#define XCAM_DNN_SEMANTIC_SEGMENTATION_H
 
 #pragma once
 
 #include <string>
 
 #include <xcam_std.h>
-#include <vec_mat.h>
 #include "dnn_inference_engine.h"
 
 namespace XCam {
 
-class DnnObjectDetection
+class DnnSemanticSegmentation
     : public DnnInferenceEngine
 {
 public:
-    explicit DnnObjectDetection (DnnInferConfig& config);
-    virtual ~DnnObjectDetection ();
+    explicit DnnSemanticSegmentation (DnnInferConfig& config);
+    virtual ~DnnSemanticSegmentation ();
 
     XCamReturn set_model_input_info (DnnInferInputOutputInfo& info);
     XCamReturn get_model_input_info (DnnInferInputOutputInfo& info);
@@ -44,10 +43,9 @@ public:
     XCamReturn set_model_output_info (DnnInferInputOutputInfo& info);
     XCamReturn get_model_output_info (DnnInferInputOutputInfo& info);
 
-    XCamReturn get_bounding_boxes (const float* result_ptr,
-                                   const uint32_t idx,
-                                   std::vector<Vec4i> &boxes,
-                                   std::vector<int32_t> &classes);
+    XCamReturn get_segmentation_map (const float* result_ptr,
+                                     const uint32_t idx,
+                                     std::vector<std::vector<uint32_t>>& out_classes);
 
 protected:
     XCamReturn set_output_layer_type (const char* type);
@@ -55,5 +53,4 @@ protected:
 
 }  // namespace XCam
 
-#endif // XCAM_DNN_OBJECT_DETECTION_H
-
+#endif //XCAM_DNN_SEMANTIC_SEGMENTATION_H

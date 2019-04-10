@@ -23,6 +23,8 @@
 
 #include <vec_mat.h>
 
+#include "dnn_inference_engine.h"
+
 namespace XCamDNN {
 
 XCamReturn
@@ -31,7 +33,15 @@ draw_bounding_boxes (
     std::vector<XCam::Vec4i> rectangles, std::vector<int32_t> classes, int32_t thickness = 1);
 
 XCamReturn
-save_bmp_file (const std::string name, unsigned char* data, uint32_t width, uint32_t height);
+label_pixels (const std::string name, std::vector<std::vector<uint32_t>> map);
+
+XCamReturn
+save_bmp_file (const std::string name,
+               void* data,
+               XCam::DnnInferImageFormatType format,
+               XCam::DnnInferPrecisionType precision,
+               uint32_t width,
+               uint32_t height);
 
 }  // namespace XCamDNN
 

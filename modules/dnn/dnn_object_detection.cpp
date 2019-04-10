@@ -31,12 +31,19 @@ DnnObjectDetection::DnnObjectDetection (DnnInferConfig& config)
     : DnnInferenceEngine (config)
 {
     XCAM_LOG_DEBUG ("DnnObjectDetection::DnnObjectDetection");
+    set_output_layer_type ("DetectionOutput");
 }
-
 
 DnnObjectDetection::~DnnObjectDetection ()
 {
 
+}
+
+XCamReturn
+DnnObjectDetection::set_output_layer_type (const char* type)
+{
+    _output_layer_type.insert (DnnOutputLayerType::value_type (DnnInferObjectDetection, type));
+    return XCAM_RETURN_NO_ERROR;
 }
 
 XCamReturn
@@ -50,8 +57,8 @@ DnnObjectDetection::get_model_input_info (DnnInferInputOutputInfo& info)
     int id = 0;
     InputsDataMap inputs_info (_network.getInputsInfo ());
 
-    for (auto & item : inputs_info) {
-        auto& input = item.second;
+    for (auto & in : inputs_info) {
+        auto& input = in.second;
         const InferenceEngine::SizeVector input_dims = input->getDims ();
 
         info.width[id] = input_dims[0];
@@ -61,8 +68,7 @@ DnnObjectDetection::get_model_input_info (DnnInferInputOutputInfo& info)
         info.precision[id] = convert_precision_type (input->getPrecision());
         info.layout[id] = convert_layout_type (input->getLayout());
 
-        item.second->setPrecision(Precision::U8);
-
+        in.second->setPrecision(Precision::U8);
         id++;
     }
     info.batch_size = get_batch_size ();
@@ -86,14 +92,14 @@ DnnObjectDetection::set_model_input_info (DnnInferInputOutputInfo& info)
         XCAM_LOG_ERROR ("Input size is not matched with model info numbers %d !", info.numbers);
         return XCAM_RETURN_ERROR_PARAM;
     }
-    int id = 0;
 
-    for (auto & item : inputs_info) {
-        Precision precision = convert_precision_type (info.precision[id]);
-        item.second->setPrecision (precision);
-        Layout layout = convert_layout_type (info.layout[id]);
-        item.second->setLayout (layout);
-        id++;
+    int idx = 0;
+    for (auto & in : inputs_info) {
+        Precision precision = convert_precision_type (info.precision[idx]);
+        in.second->setPrecision (precision);
+        Layout layout = convert_layout_type (info.layout[idx]);
+        in.second->setLayout (layout);
+        idx ++;
     }
 
     return XCAM_RETURN_NO_ERROR;
@@ -107,33 +113,34 @@ DnnObjectDetection::get_model_output_info (DnnInferInputOutputInfo& info)
         return XCAM_RETURN_ERROR_ORDER;
     }
 
-    int id = 0;
+    int idx = 0;
     std::string output_name;
     OutputsDataMap outputs_info (_network.getOutputsInfo ());
     DataPtr output_info;
     for (const auto& out : outputs_info) {
-        if (out.second->creatorLayer.lock()->type == "DetectionOutput") {
+        if (output_name.empty ()) {
             output_name = out.first;
-            output_info = out.second;
-            break;
         }
-    }
-    if (output_info.get ()) {
-        const InferenceEngine::SizeVector output_dims = output_info->getTensorDesc().getDims();
 
-        info.width[id]    = output_dims[0];
-        info.height[id]   = output_dims[1];
-        info.channels[id] = output_dims[2];
-        info.object_size[id] = output_dims[3];
+        output_info = out.second;
+        if (output_info.get ()) {
+            const InferenceEngine::SizeVector output_dims = output_info->getTensorDesc().getDims();
 
-        info.precision[id] = convert_precision_type (output_info->getPrecision());
-        info.layout[id] = convert_layout_type (output_info->getLayout());
-
-        info.batch_size = 1;
-        info.numbers = outputs_info.size ();
-    } else {
-        XCAM_LOG_ERROR ("Get output info error!");
-        return XCAM_RETURN_ERROR_UNKNOWN;
+            info.width[idx]    = output_dims[0];
+            info.height[idx]   = output_dims[1];
+            info.channels[idx] = output_dims[2];
+            info.object_size[idx] = output_dims[3];
+            info.precision[idx] = convert_precision_type (output_info->getPrecision());
+            info.layout[idx] = convert_layout_type (output_info->getLayout());
+            info.data_type[idx] = DnnInferDataTypeNonImage;
+            info.format[idx] = DnnInferImageFormatUnknown;
+            info.batch_size = idx + 1;
+            info.numbers = outputs_info.size ();
+        } else {
+            XCAM_LOG_ERROR ("Get output info error!");
+            return XCAM_RETURN_ERROR_UNKNOWN;
+        }
+        idx ++;
     }
     return XCAM_RETURN_NO_ERROR;
 }
@@ -152,53 +159,16 @@ DnnObjectDetection::set_model_output_info (DnnInferInputOutputInfo& info)
         return XCAM_RETURN_ERROR_PARAM;
     }
 
-    int id = 0;
-    for (auto & item : outputs_info) {
-        Precision precision = convert_precision_type (info.precision[id]);
-        item.second->setPrecision (precision);
-        Layout layout = convert_layout_type (info.layout[id]);
-        item.second->setLayout (layout);
-        id++;
+    int idx = 0;
+    for (auto & out : outputs_info) {
+        Precision precision = convert_precision_type (info.precision[idx]);
+        out.second->setPrecision (precision);
+        Layout layout = convert_layout_type (info.layout[idx]);
+        out.second->setLayout (layout);
+        idx++;
     }
 
     return XCAM_RETURN_NO_ERROR;
-}
-
-void*
-DnnObjectDetection::get_inference_results (uint32_t idx, uint32_t& size)
-{
-    if (! _model_created || ! _model_loaded) {
-        XCAM_LOG_ERROR ("Please create and load the model firstly!");
-        return NULL;
-    }
-    uint32_t id = 0;
-    std::string item_name;
-
-    OutputsDataMap outputs_info (_network.getOutputsInfo ());
-    if (idx > outputs_info.size ()) {
-        XCAM_LOG_ERROR ("Output is out of range");
-        return NULL;
-    }
-
-    for (auto & item : outputs_info) {
-        if (item.second->creatorLayer.lock()->type == "DetectionOutput") {
-            item_name = item.first;
-            break;
-        }
-        id++;
-    }
-
-    if (item_name.empty ()) {
-        XCAM_LOG_ERROR ("item name is empty!");
-        return NULL;
-    }
-
-    const Blob::Ptr blob = _infer_request.GetBlob (item_name);
-    float* output_result = static_cast<PrecisionTrait<Precision::FP32>::value_type*>(blob->buffer ());
-
-    size = blob->byteSize ();
-
-    return (reinterpret_cast<void *>(output_result));
 }
 
 XCamReturn
