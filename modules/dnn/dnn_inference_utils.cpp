@@ -47,34 +47,57 @@ public:
     uint8_t _blue;
 };
 
+static std::vector<Color> colors = {
+    {128, 64,  128},
+    {232, 35,  244},
+    {70,  70,  70},
+    {156, 102, 102},
+    {153, 153, 190},
+    {153, 153, 153},
+    {30,  170, 250},
+    {0,   220, 220},
+    {35,  142, 107},
+    {152, 251, 152},
+    {180, 130, 70},
+    {60,  20,  220},
+    {0,   0,   255},
+    {142, 0,   0},
+    {70,  0,   0},
+    {100, 60,  0},
+    {90,  0,   0},
+    {230, 0,   0},
+    {32,  11,  119},
+    {0,   74,  111},
+    {81,  0,   81}
+};
+
+static unsigned char file_header[14] = {
+    'B', 'M',           // magic
+    0, 0, 0, 0,         // size in bytes
+    0, 0,               // app data
+    0, 0,               // app data
+    40 + 14, 0, 0, 0    // start of data offset
+};
+
+static unsigned char header_info[40] = {
+    40, 0, 0, 0,        // info hd size
+    0, 0, 0, 0,         // width
+    0, 0, 0, 0,         // height
+    1, 0,               // number color planes
+    24, 0,              // bits per pixel
+    0, 0, 0, 0,         // compression is none
+    0, 0, 0, 0,         // image bits size
+    0x13, 0x0B, 0, 0,   // horz resolution in pixel / m
+    0x13, 0x0B, 0, 0,   // vert resolution (0x03C3 = 96 dpi, 0x0B13 = 72 dpi)
+    0, 0, 0, 0,         // #colors in palette
+    0, 0, 0, 0,         // #important colors
+};
+
 XCamReturn
 draw_bounding_boxes (
-    uint8_t *data,  uint32_t width, uint32_t height,
+    uint8_t *data, uint32_t width, uint32_t height,
     std::vector<Vec4i> rectangles, std::vector<int32_t> classes, int32_t thickness)
 {
-    std::vector<Color> colors = {
-        Color ( 128, 64,  128 ),
-        Color ( 232, 35,  244 ),
-        Color ( 70,  70,  70 ),
-        Color ( 156, 102, 102 ),
-        Color ( 153, 153, 190 ),
-        Color ( 153, 153, 153 ),
-        Color ( 30,  170, 250 ),
-        Color ( 0,   220, 220 ),
-        Color ( 35,  142, 107 ),
-        Color ( 152, 251, 152 ),
-        Color ( 180, 130, 70 ),
-        Color ( 60,  20,  220 ),
-        Color ( 0,   0,   255 ),
-        Color ( 142, 0,   0 ),
-        Color ( 70,  0,   0 ),
-        Color ( 100, 60,  0 ),
-        Color ( 90,  0,   0 ),
-        Color ( 230, 0,   0 ),
-        Color ( 32,  11,  119 ),
-        Color ( 0,   74,  111 ),
-        Color ( 81,  0,   81 )
-    };
     if (rectangles.size() != classes.size()) {
         return XCAM_RETURN_ERROR_PARAM;
     }
@@ -145,7 +168,7 @@ draw_bounding_boxes (
 }
 
 XCamReturn
-save_bmp_file (const std::string name, unsigned char* data, uint32_t width, uint32_t height)
+label_pixels (const std::string name, std::vector<std::vector<uint32_t>> map)
 {
     std::ofstream out_file;
     out_file.open (name, std::ofstream::binary);
@@ -153,26 +176,8 @@ save_bmp_file (const std::string name, unsigned char* data, uint32_t width, uint
         return XCAM_RETURN_ERROR_FILE;
     }
 
-    unsigned char file[14] = {
-        'B', 'M',           // magic
-        0, 0, 0, 0,         // size in bytes
-        0, 0,               // app data
-        0, 0,               // app data
-        40 + 14, 0, 0, 0    // start of data offset
-    };
-    unsigned char info[40] = {
-        40, 0, 0, 0,        // info hd size
-        0, 0, 0, 0,         // width
-        0, 0, 0, 0,         // height
-        1, 0,               // number color planes
-        24, 0,              // bits per pixel
-        0, 0, 0, 0,         // compression is none
-        0, 0, 0, 0,         // image bits size
-        0x13, 0x0B, 0, 0,   // horz resolution in pixel / m
-        0x13, 0x0B, 0, 0,   // vert resolution (0x03C3 = 96 dpi, 0x0B13 = 72 dpi)
-        0, 0, 0, 0,         // #colors in palette
-        0, 0, 0, 0,         // #important colors
-    };
+    auto height = map.size();
+    auto width = map.at(0).size();
 
     if (height > (size_t)std::numeric_limits<int32_t>::max ||
             width > (size_t)std::numeric_limits<int32_t>::max) {
@@ -182,44 +187,131 @@ save_bmp_file (const std::string name, unsigned char* data, uint32_t width, uint
 
     int32_t pad_size = static_cast<int32_t>(4 - (width * 3) % 4) % 4;
     int32_t size_data = static_cast<int32_t>(width * height * 3 + height * pad_size);
-    int32_t size_all = size_data + sizeof(file) + sizeof(info);
+    int32_t size_all = size_data + sizeof(file_header) + sizeof(header_info);
 
-    file[2] = (unsigned char)(size_all);
-    file[3] = (unsigned char)(size_all >> 8);
-    file[4] = (unsigned char)(size_all >> 16);
-    file[5] = (unsigned char)(size_all >> 24);
+    file_header[2] = (unsigned char)(size_all);
+    file_header[3] = (unsigned char)(size_all >> 8);
+    file_header[4] = (unsigned char)(size_all >> 16);
+    file_header[5] = (unsigned char)(size_all >> 24);
 
-    info[4] = (unsigned char)(width);
-    info[5] = (unsigned char)(width >> 8);
-    info[6] = (unsigned char)(width >> 16);
-    info[7] = (unsigned char)(width >> 24);
+    header_info[4] = (unsigned char)(width);
+    header_info[5] = (unsigned char)(width >> 8);
+    header_info[6] = (unsigned char)(width >> 16);
+    header_info[7] = (unsigned char)(width >> 24);
 
     int32_t negative_height = -(int32_t)height;
-    info[8] = (unsigned char)(negative_height);
-    info[9] = (unsigned char)(negative_height >> 8);
-    info[10] = (unsigned char)(negative_height >> 16);
-    info[11] = (unsigned char)(negative_height >> 24);
+    header_info[8] = (unsigned char)(negative_height);
+    header_info[9] = (unsigned char)(negative_height >> 8);
+    header_info[10] = (unsigned char)(negative_height >> 16);
+    header_info[11] = (unsigned char)(negative_height >> 24);
 
-    info[20] = (unsigned char)(size_data);
-    info[21] = (unsigned char)(size_data >> 8);
-    info[22] = (unsigned char)(size_data >> 16);
-    info[23] = (unsigned char)(size_data >> 24);
+    header_info[20] = (unsigned char)(size_data);
+    header_info[21] = (unsigned char)(size_data >> 8);
+    header_info[22] = (unsigned char)(size_data >> 16);
+    header_info[23] = (unsigned char)(size_data >> 24);
 
-    out_file.write(reinterpret_cast<char *>(file), sizeof(file));
-    out_file.write(reinterpret_cast<char *>(info), sizeof(info));
+    out_file.write (reinterpret_cast<char *>(file_header), sizeof(file_header));
+    out_file.write (reinterpret_cast<char *>(header_info), sizeof(header_info));
 
-    unsigned char pad[3] = { 0, 0, 0 };
+    unsigned char pad[3] = {0, 0, 0};
 
     for (size_t y = 0; y < height; y++) {
         for (size_t x = 0; x < width; x++) {
             unsigned char pixel[3];
-            pixel[0] = static_cast<unsigned char>(data[y * width * 3 + x * 3]);
-            pixel[1] = static_cast<unsigned char>(data[y * width * 3 + x * 3 + 1]);
-            pixel[2] = static_cast<unsigned char>(data[y * width * 3 + x * 3 + 2]);
+            size_t index = map.at(y).at(x);
+            pixel[0] = colors.at(index)._red;
+            pixel[1] = colors.at(index)._green;
+            pixel[2] = colors.at(index)._blue;
             out_file.write(reinterpret_cast<char *>(pixel), 3);
         }
         out_file.write(reinterpret_cast<char *>(pad), pad_size);
     }
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
+save_bmp_file (const std::string name, void* data, DnnInferImageFormatType format, DnnInferPrecisionType precision, uint32_t width, uint32_t height)
+{
+    std::ofstream out_file;
+    out_file.open (name, std::ofstream::binary);
+    if (!out_file.is_open ()) {
+        return XCAM_RETURN_ERROR_FILE;
+    }
+
+    if (height > (size_t)std::numeric_limits<int32_t>::max ||
+            width > (size_t)std::numeric_limits<int32_t>::max) {
+        XCAM_LOG_ERROR ("File size is too big: %dx%d", height, width);
+        return XCAM_RETURN_ERROR_PARAM;
+    }
+
+    int32_t pad_size = static_cast<int32_t>(4 - (width * 3) % 4) % 4;
+    int32_t size_data = static_cast<int32_t>(width * height * 3 + height * pad_size);
+    int32_t size_all = size_data + sizeof(file_header) + sizeof(header_info);
+
+    file_header[2] = (unsigned char)(size_all);
+    file_header[3] = (unsigned char)(size_all >> 8);
+    file_header[4] = (unsigned char)(size_all >> 16);
+    file_header[5] = (unsigned char)(size_all >> 24);
+
+    header_info[4] = (unsigned char)(width);
+    header_info[5] = (unsigned char)(width >> 8);
+    header_info[6] = (unsigned char)(width >> 16);
+    header_info[7] = (unsigned char)(width >> 24);
+
+    int32_t negative_height = -(int32_t)height;
+    header_info[8] = (unsigned char)(negative_height);
+    header_info[9] = (unsigned char)(negative_height >> 8);
+    header_info[10] = (unsigned char)(negative_height >> 16);
+    header_info[11] = (unsigned char)(negative_height >> 24);
+
+    header_info[20] = (unsigned char)(size_data);
+    header_info[21] = (unsigned char)(size_data >> 8);
+    header_info[22] = (unsigned char)(size_data >> 16);
+    header_info[23] = (unsigned char)(size_data >> 24);
+
+    out_file.write (reinterpret_cast<char *>(file_header), sizeof(file_header));
+    out_file.write (reinterpret_cast<char *>(header_info), sizeof(header_info));
+
+    unsigned char pad[3] = { 0, 0, 0 };
+    if (DnnInferPrecisionFP32 == precision) {
+        auto data_ptr = reinterpret_cast<float*>(data);
+        for (size_t y = 0; y < height; y++) {
+            for (size_t x = 0; x < width; x++) {
+                unsigned char pixel[3];
+                if (DnnInferImageFormatRGBPacked == format) {
+                    pixel[0] = static_cast<unsigned char>(data_ptr[y * width * 3 + x * 3]);
+                    pixel[1] = static_cast<unsigned char>(data_ptr[y * width * 3 + x * 3 + 1]);
+                    pixel[2] = static_cast<unsigned char>(data_ptr[y * width * 3 + x * 3 + 2]);
+                } else if (DnnInferImageFormatBGRPlanar == format) {
+                    pixel[0] = static_cast<unsigned char>(data_ptr[y * width + x + 2 * width * height]);
+                    pixel[1] = static_cast<unsigned char>(data_ptr[y * width + x + width * height]);
+                    pixel[2] = static_cast<unsigned char>(data_ptr[y * width + x]);
+                }
+                out_file.write (reinterpret_cast<char *>(pixel), 3);
+            }
+            out_file.write (reinterpret_cast<char *>(pad), pad_size);
+        }
+    } else {
+        auto data_ptr = reinterpret_cast<unsigned char*>(data);
+        for (size_t y = 0; y < height; y++) {
+            for (size_t x = 0; x < width; x++) {
+                unsigned char pixel[3];
+                if (DnnInferImageFormatRGBPacked == format) {
+                    pixel[0] = data_ptr[y * width * 3 + x * 3];
+                    pixel[1] = data_ptr[y * width * 3 + x * 3 + 1];
+                    pixel[2] = data_ptr[y * width * 3 + x * 3 + 2];
+                } else if (DnnInferImageFormatBGRPlanar == format) {
+                    pixel[0] = data_ptr[y * width + x + 2 * width * height];
+                    pixel[1] = data_ptr[y * width + x + width * height];
+                    pixel[2] = data_ptr[y * width + x];
+                }
+                out_file.write (reinterpret_cast<char *>(pixel), 3);
+            }
+            out_file.write (reinterpret_cast<char *>(pad), pad_size);
+        }
+    }
+
     return XCAM_RETURN_NO_ERROR;
 }
 

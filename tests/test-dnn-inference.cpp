@@ -32,6 +32,7 @@
 #include "dnn/dnn_inference_engine.h"
 #include "dnn/dnn_object_detection.h"
 #include "dnn/dnn_super_resolution.h"
+#include "dnn/dnn_semantic_segmentation.h"
 
 using namespace XCam;
 using namespace InferenceEngine;
@@ -180,6 +181,8 @@ int main (int argc, char *argv[])
         infer_engine = new DnnObjectDetection (infer_config);
     } else if (DnnInferSuperResolution == infer_config.model_type) {
         infer_engine = new DnnSuperResolution (infer_config);
+    } else if (DnnInferSemanticSegmentation == infer_config.model_type) {
+        infer_engine = new DnnSemanticSegmentation (infer_config);
     } else {
         XCAM_LOG_ERROR ("Unsupported model type!");
         return -1;
@@ -214,7 +217,7 @@ int main (int argc, char *argv[])
     for (uint32_t i = 0; i < infer_config.input_infos.numbers; i++) {
         infer_config.input_infos.data_type[i] = DnnInferDataTypeImage;
         CHECK (
-            infer_engine->set_input_presion (i, DnnInferPrecisionU8),
+            infer_engine->set_input_precision (i, DnnInferPrecisionU8),
             "set input presion failed!");
         XCAM_LOG_DEBUG ("Idx %d : [%d X %d X %d] , [%d %d %d], batch size = %d", i,
                         infer_config.input_infos.width[i], infer_config.input_infos.height[i], infer_config.input_infos.channels[i],
@@ -231,7 +234,7 @@ int main (int argc, char *argv[])
 
     for (uint32_t i = 0; i < infer_config.output_infos.numbers; i++) {
         CHECK (
-            infer_engine->set_output_presion (i, DnnInferPrecisionFP32),
+            infer_engine->set_output_precision (i, DnnInferPrecisionFP32),
             "set output presion failed!");
         XCAM_LOG_DEBUG ("Idx %d : [%d X %d X %d] , [%d %d %d], batch size = %d", i,
                         infer_config.output_infos.width[i],
@@ -307,19 +310,41 @@ int main (int argc, char *argv[])
                 const std::string image_path = images[batch_idx] + "_obj_detect_out_" + std::to_string (batch_idx) + ".bmp";
 
                 CHECK (
-                    XCamDNN::save_bmp_file (image_path, input_image.get (), image_width, image_height),
+                    XCamDNN::save_bmp_file (image_path,
+                                            input_image.get (),
+                                            DnnInferImageFormatRGBPacked,
+                                            DnnInferPrecisionU8,
+                                            image_width,
+                                            image_height),
                     "Can't create image file: %s",
                     image_path.c_str () );
                 XCAM_LOG_DEBUG ("Image %s created!", image_path.c_str ());
 
             }
         } else if (DnnInferSuperResolution == infer_config.model_type) {
-            //SmartPtr<DnnSuperResolution> super_res = infer_engine.dynamic_cast_ptr<DnnSuperResolution> ();
             if (save_output) {
                 const std::string image_path = images[batch_idx] + "_super_res_out_" + std::to_string (batch_idx) + ".bmp";
 
                 CHECK (
                     infer_engine->save_output_image (image_path, batch_idx),
+                    "Can't create image file: %s",
+                    image_path.c_str () );
+                XCAM_LOG_DEBUG ("Image %s created!", image_path.c_str ());
+            }
+        }  else if (DnnInferSemanticSegmentation == infer_config.model_type) {
+            SmartPtr<DnnSemanticSegmentation> semantic_seg = infer_engine.dynamic_cast_ptr<DnnSemanticSegmentation> ();
+            if (save_output) {
+                const std::string image_path = images[batch_idx] + "_semantic_seg_out_" + std::to_string (batch_idx) + ".bmp";
+                uint32_t map_width = infer_config.output_infos.width[batch_idx];
+                uint32_t map_height = infer_config.output_infos.height[batch_idx];
+
+                std::vector<std::vector<uint32_t>> seg_map (map_height, std::vector<uint32_t>(map_width, 0));
+                CHECK (
+                    semantic_seg->get_segmentation_map (result_ptr, batch_idx, seg_map),
+                    "get segmentation map failed!");
+
+                CHECK (
+                    XCamDNN::label_pixels (image_path, seg_map),
                     "Can't create image file: %s",
                     image_path.c_str () );
                 XCAM_LOG_DEBUG ("Image %s created!", image_path.c_str ());

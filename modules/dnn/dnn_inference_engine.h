@@ -154,6 +154,7 @@ struct DnnInferInputOutputInfo {
     DnnInferPrecisionType precision[DNN_INFER_MAX_INPUT_OUTPUT];
     DnnInferLayoutType layout[DNN_INFER_MAX_INPUT_OUTPUT];
     DnnInferDataType data_type[DNN_INFER_MAX_INPUT_OUTPUT];
+    DnnInferImageFormatType format[DNN_INFER_MAX_INPUT_OUTPUT];
     uint32_t batch_size;
     uint32_t numbers;
 };
@@ -200,6 +201,8 @@ struct DnnInferConfig {
     };
 };
 
+typedef std::map<DnnInferModelType, const char*> DnnOutputLayerType;
+
 class DnnInferenceEngine {
 public:
     explicit DnnInferenceEngine (DnnInferConfig& config);
@@ -222,10 +225,10 @@ public:
     size_t get_input_size ();
     size_t get_output_size ();
 
-    XCamReturn set_input_presion (uint32_t idx, DnnInferPrecisionType precision);
-    DnnInferPrecisionType get_input_presion (uint32_t idx);
-    XCamReturn set_output_presion (uint32_t idx, DnnInferPrecisionType precision);
-    DnnInferPrecisionType get_output_presion (uint32_t idx);
+    XCamReturn set_input_precision (uint32_t idx, DnnInferPrecisionType precision);
+    DnnInferPrecisionType get_input_precision (uint32_t idx);
+    XCamReturn set_output_precision (uint32_t idx, DnnInferPrecisionType precision);
+    DnnInferPrecisionType get_output_precision (uint32_t idx);
 
     XCamReturn set_input_layout (uint32_t idx, DnnInferLayoutType layout);
     XCamReturn set_output_layout (uint32_t idx, DnnInferLayoutType layout);
@@ -244,15 +247,15 @@ public:
     virtual XCamReturn get_model_output_info (DnnInferInputOutputInfo& info) = 0;
 
     virtual XCamReturn set_inference_data (std::vector<std::string> images);
-    virtual void* get_inference_results (uint32_t idx, uint32_t& size) = 0;
 
-    std::shared_ptr<uint8_t> read_input_image (std::string image);
+    void* get_inference_results (uint32_t idx, uint32_t& size);
+    std::shared_ptr<uint8_t> read_input_image (std::string& image);
     XCamReturn save_output_image (const std::string& image_name, uint32_t index);
 
     void print_log (uint32_t flag);
 
 protected:
-
+    virtual XCamReturn set_output_layer_type (const char* type) = 0;
     InferenceEngine::TargetDevice get_device_from_string (const std::string& device_name);
     InferenceEngine::TargetDevice get_device_from_id (DnnInferTargetDeviceType device);
 
@@ -288,8 +291,11 @@ protected:
     InferenceEngine::CNNNetwork _network;
     InferenceEngine::InferRequest _infer_request;
     std::vector<InferenceEngine::CNNLayerPtr> _layers;
+
+    DnnOutputLayerType _output_layer_type;
 };
 
 }  // namespace XCam
 
 #endif // XCAM_DNN_INFERENCE_ENGINE_H
+

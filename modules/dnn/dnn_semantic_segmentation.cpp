@@ -1,5 +1,5 @@
 /*
- * dnn_super_resolution.cpp -  super resolution
+ * dnn_semantic_segmentation.cpp -  semantic segmentation
  *
  *  Copyright (c) 2019 Intel Corporation
  *
@@ -20,58 +20,57 @@
 
 #include <inference_engine.hpp>
 
-#include "dnn_super_resolution.h"
+#include "dnn_semantic_segmentation.h"
 
 using namespace std;
 using namespace InferenceEngine;
 
 namespace XCam {
 
-DnnSuperResolution::DnnSuperResolution (DnnInferConfig& config)
+DnnSemanticSegmentation::DnnSemanticSegmentation (DnnInferConfig& config)
     : DnnInferenceEngine (config)
 {
-    XCAM_LOG_DEBUG ("DnnSuperResolution::DnnSuperResolution");
-    set_output_layer_type ("Convolution");
+    XCAM_LOG_DEBUG ("DnnSemanticSegmentation::DnnSemanticSegmentation");
+    set_output_layer_type ("ArgMax");
 }
 
-
-DnnSuperResolution::~DnnSuperResolution ()
+DnnSemanticSegmentation::~DnnSemanticSegmentation ()
 {
 
 }
 
 XCamReturn
-DnnSuperResolution::set_output_layer_type (const char* type)
+DnnSemanticSegmentation::set_output_layer_type (const char* type)
 {
-    _output_layer_type.insert (DnnOutputLayerType::value_type (DnnInferSuperResolution, type));
+    _output_layer_type.insert (DnnOutputLayerType::value_type (DnnInferSemanticSegmentation, type));
     return XCAM_RETURN_NO_ERROR;
 }
 
 XCamReturn
-DnnSuperResolution::get_model_input_info (DnnInferInputOutputInfo& info)
+DnnSemanticSegmentation::get_model_input_info (DnnInferInputOutputInfo& info)
 {
     if (!_model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
         return XCAM_RETURN_ERROR_ORDER;
     }
 
-    int idx = 0;
+    int id = 0;
     InputsDataMap inputs_info (_network.getInputsInfo ());
 
     for (auto & in : inputs_info) {
         auto& input = in.second;
         const InferenceEngine::SizeVector input_dims = input->getDims ();
 
-        info.width[idx] = input_dims[0];
-        info.height[idx] = input_dims[1];
-        info.channels[idx] = input_dims[2];
-        info.object_size[idx] = input_dims[3];
-        info.precision[idx] = convert_precision_type (input->getPrecision());
-        info.layout[idx] = convert_layout_type (input->getLayout());
+        info.width[id] = input_dims[0];
+        info.height[id] = input_dims[1];
+        info.channels[id] = input_dims[2];
+        info.object_size[id] = input_dims[3];
+        info.precision[id] = convert_precision_type (input->getPrecision());
+        info.layout[id] = convert_layout_type (input->getLayout());
 
         in.second->setPrecision(Precision::U8);
 
-        idx ++;
+        id++;
     }
     info.batch_size = get_batch_size ();
     info.numbers = inputs_info.size ();
@@ -80,9 +79,9 @@ DnnSuperResolution::get_model_input_info (DnnInferInputOutputInfo& info)
 }
 
 XCamReturn
-DnnSuperResolution::set_model_input_info (DnnInferInputOutputInfo& info)
+DnnSemanticSegmentation::set_model_input_info (DnnInferInputOutputInfo& info)
 {
-    XCAM_LOG_DEBUG ("DnnSuperResolution::set_model_input_info");
+    XCAM_LOG_DEBUG ("DnnSemanticSegmentation::set_model_input_info");
 
     if (!_model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
@@ -101,14 +100,14 @@ DnnSuperResolution::set_model_input_info (DnnInferInputOutputInfo& info)
         in.second->setPrecision (precision);
         Layout layout = convert_layout_type (info.layout[idx]);
         in.second->setLayout (layout);
-        idx ++;
+        idx++;
     }
 
     return XCAM_RETURN_NO_ERROR;
 }
 
 XCamReturn
-DnnSuperResolution::get_model_output_info (DnnInferInputOutputInfo& info)
+DnnSemanticSegmentation::get_model_output_info (DnnInferInputOutputInfo& info)
 {
     if (!_model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
@@ -127,16 +126,16 @@ DnnSuperResolution::get_model_output_info (DnnInferInputOutputInfo& info)
 
         output_info = out.second;
         if (output_info.get ()) {
-            const InferenceEngine::SizeVector output_dims = output_info->getTensorDesc().getDims();
+            const InferenceEngine::SizeVector output_dims = output_info->getTensorDesc ().getDims ();
 
             info.object_size[idx] = output_dims[0];
             info.channels[idx] = output_dims[1];
             info.height[idx] = output_dims[2];
             info.width[idx] = output_dims[3];
-            info.precision[idx] = convert_precision_type (output_info->getPrecision());
-            info.layout[idx] = convert_layout_type (output_info->getLayout());
-            info.data_type[idx] = DnnInferDataTypeImage;
-            info.format[idx] = DnnInferImageFormatBGRPlanar;
+            info.precision[idx] = convert_precision_type (output_info->getPrecision ());
+            info.layout[idx] = convert_layout_type (output_info->getLayout ());
+            info.data_type[idx] = DnnInferDataTypeNonImage;
+            info.format[idx] = DnnInferImageFormatGeneric1D;
             info.batch_size = idx + 1;
             info.numbers = outputs_info.size ();
         } else {
@@ -147,11 +146,17 @@ DnnSuperResolution::get_model_output_info (DnnInferInputOutputInfo& info)
         out.second->setPrecision (Precision::FP32);
     }
 
+
+    if (output_info.get ()) {
+    } else {
+        XCAM_LOG_ERROR ("Get output info error!");
+        return XCAM_RETURN_ERROR_UNKNOWN;
+    }
     return XCAM_RETURN_NO_ERROR;
 }
 
 XCamReturn
-DnnSuperResolution::set_model_output_info (DnnInferInputOutputInfo& info)
+DnnSemanticSegmentation::set_model_output_info (DnnInferInputOutputInfo& info)
 {
     if (!_model_created) {
         XCAM_LOG_ERROR ("Please create the model firstly!");
@@ -173,6 +178,52 @@ DnnSuperResolution::set_model_output_info (DnnInferInputOutputInfo& info)
         idx++;
     }
 
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
+DnnSemanticSegmentation::get_segmentation_map (const float* result_ptr,
+        const uint32_t idx,
+        std::vector<std::vector<uint32_t>>& out_classes)
+{
+    if (!_model_created) {
+        XCAM_LOG_ERROR ("Please create the model firstly!");
+        return XCAM_RETURN_ERROR_ORDER;
+    }
+
+    if (!result_ptr) {
+        XCAM_LOG_ERROR ("Inference results error!");
+        return XCAM_RETURN_ERROR_PARAM;
+    }
+
+    DnnInferInputOutputInfo output_infos;
+    get_model_output_info (output_infos);
+
+    uint32_t map_width = output_infos.width[idx];
+    uint32_t map_height = output_infos.height[idx];
+    uint32_t channels = output_infos.channels[idx];
+    //uint32_t object_size = output_infos.object_size[idx];
+    uint32_t stride = map_width * map_height * channels;
+
+    const auto output_data = result_ptr;
+
+    std::vector<std::vector<float>> out_prob (map_height, std::vector<float>(map_width, 0.0));
+
+    for (uint32_t w = 0; w < map_width; w++) {
+        for (uint32_t h = 0; h < map_height; h++) {
+            if (channels == 1) {
+                out_classes[h][w] = output_data[stride * idx + map_width * h + w];
+            } else {
+                for (uint32_t ch = 0; ch < channels; ch++) {
+                    auto data = output_data[stride * idx + map_width * map_height * ch + map_width * h + w];
+                    if (data > out_prob[h][w]) {
+                        out_classes[h][w] = ch;
+                        out_prob[h][w] = data;
+                    }
+                }
+            }
+        }
+    }
     return XCAM_RETURN_NO_ERROR;
 }
 

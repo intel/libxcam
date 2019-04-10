@@ -43,9 +43,11 @@ public:
     XCamReturn set_model_output_info (DnnInferInputOutputInfo& info);
     XCamReturn get_model_output_info (DnnInferInputOutputInfo& info);
 
-    void* get_inference_results (uint32_t idx, uint32_t& size);
+protected:
+    XCamReturn set_output_layer_type (const char* type);
 };
 
 }  // namespace XCam
 
 #endif // XCAM_DNN_SUPER_RESOLUTION_H
+
