@@ -96,6 +96,10 @@ public:
         return _scale_global_output;
     }
 
+    int get_fisheye_num () {
+        return _fisheye_num;
+    }
+
 protected:
     virtual XCamReturn prepare_buffer_pool_video_info (const VideoBufferInfo &input, VideoBufferInfo &output);
     virtual XCamReturn prepare_parameters (SmartPtr<VideoBuffer> &input, SmartPtr<VideoBuffer> &output);

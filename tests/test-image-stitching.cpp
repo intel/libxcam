@@ -21,8 +21,7 @@
 
 #include "test_common.h"
 #include "test_inline.h"
-#include <unistd.h>
-#include <getopt.h>
+#include "test_stream.h"
 #include <image_file_handle.h>
 #include <calibration_parser.h>
 #include <ocl/cl_device.h>
@@ -33,6 +32,8 @@
 #if HAVE_OPENCV
 #include "ocv/cv_utils.h"
 #endif
+
+using namespace XCam;
 
 #define XCAM_TEST_STITCH_DEBUG 0
 #define XCAM_ALIGNED_WIDTH 16
@@ -47,89 +48,253 @@
         return false;                              \
     }
 
-using namespace XCam;
+enum SVOutIdx {
+    IdxStitch    = 0,
+    IdxTopView,
+    IdxFreeView,
+    IdxCount
+};
 
-#if XCAM_TEST_STITCH_DEBUG
-static void dbg_write_image (
-    SmartPtr<CLContext> context, SmartPtr<CLImage360Stitch> image_360,
-    SmartPtr<VideoBuffer> input_bufs[], SmartPtr<VideoBuffer> output_buf,
-    SmartPtr<VideoBuffer> top_view_buf, SmartPtr<VideoBuffer> rectified_view_buf,
-    bool all_in_one, int fisheye_num, int input_count);
-#endif
+static const char *instrinsic_names[] = {
+    "intrinsic_camera_front.txt",
+    "intrinsic_camera_right.txt",
+    "intrinsic_camera_rear.txt",
+    "intrinsic_camera_left.txt"
+};
+static const char *exstrinsic_names[] = {
+    "extrinsic_camera_front.txt",
+    "extrinsic_camera_right.txt",
+    "extrinsic_camera_rear.txt",
+    "extrinsic_camera_left.txt"
+};
+
+static const float viewpoints_range[] = {64.0f, 160.0f, 64.0f, 160.0f};
+
+class CLStream
+    : public Stream
+{
+public:
+    explicit CLStream (const char *file_name = NULL, uint32_t width = 0, uint32_t height = 0);
+    virtual ~CLStream () {}
+
+    virtual XCamReturn create_buf_pool (uint32_t reserve_count);
+};
+typedef std::vector<SmartPtr<CLStream>> CLStreams;
+
+CLStream::CLStream (const char *file_name, uint32_t width, uint32_t height)
+    : Stream (file_name, width, height)
+{
+}
+
+XCamReturn
+CLStream::create_buf_pool (uint32_t reserve_count)
+{
+    XCAM_ASSERT (get_width () && get_height ());
+
+    VideoBufferInfo info;
+    info.init (V4L2_PIX_FMT_NV12, get_width (), get_height ());
+
+    SmartPtr<CLVideoBufferPool> pool = new CLVideoBufferPool ();
+    XCAM_ASSERT (pool.ptr ());
+    if (!pool->set_video_info (info) || !pool->reserve (reserve_count)) {
+        XCAM_LOG_ERROR ("create buffer pool failed");
+        return XCAM_RETURN_ERROR_MEM;
+    }
+
+    set_buf_pool (pool);
+
+    return XCAM_RETURN_NO_ERROR;
+}
 
 static bool
 parse_calibration_params (
-    IntrinsicParameter intrinsic_param[],
-    ExtrinsicParameter extrinsic_param[],
-    int fisheye_num)
+    const char *path, uint32_t idx, IntrinsicParameter &intr_param, ExtrinsicParameter &extr_param)
 {
-    static const char *instrinsic_names[] = {
-        "intrinsic_camera_front.txt", "intrinsic_camera_right.txt",
-        "intrinsic_camera_rear.txt", "intrinsic_camera_left.txt"
-    };
-    static const char *exstrinsic_names[] = {
-        "extrinsic_camera_front.txt", "extrinsic_camera_right.txt",
-        "extrinsic_camera_rear.txt", "extrinsic_camera_left.txt"
-    };
+    char intr_path[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
+    char extr_path[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
+    snprintf (intr_path, XCAM_TEST_MAX_STR_SIZE, "%s/%s", path, instrinsic_names[idx]);
+    snprintf (extr_path, XCAM_TEST_MAX_STR_SIZE, "%s/%s", path, exstrinsic_names[idx]);
+    CHECK_ACCESS (intr_path);
+    CHECK_ACCESS (extr_path);
 
-    std::string fisheye_config_path = FISHEYE_CONFIG_PATH;
-    const char *env = std::getenv (FISHEYE_CONFIG_ENV_VAR);
-    if (env)
-        fisheye_config_path.assign (env, strlen (env));
-    XCAM_LOG_INFO ("calibration config path:%s", fisheye_config_path.c_str ());
-
-    CalibrationParser calib_parser;
-    XCAM_ASSERT (fisheye_num <= 4);
-
-    char intrinsic_path[1024], extrinsic_path[1024];
-    for(int index = 0; index < fisheye_num; index++) {
-        snprintf (intrinsic_path, 1023, "%s/%s", fisheye_config_path.c_str (), instrinsic_names[index]);
-        snprintf (extrinsic_path, 1023, "%s/%s", fisheye_config_path.c_str (), exstrinsic_names[index]);
-
-        CHECK_ACCESS (intrinsic_path);
-        CHECK_ACCESS (extrinsic_path);
-
-        if (!xcam_ret_is_ok (
-                    calib_parser.parse_intrinsic_file (intrinsic_path, intrinsic_param[index]))) {
-            XCAM_LOG_ERROR ("parse fisheye:%d intrinsic file:%s failed.", index, intrinsic_path);
-            return false;
-        }
-        if (!xcam_ret_is_ok (
-                    calib_parser.parse_extrinsic_file (extrinsic_path, extrinsic_param[index]))) {
-            XCAM_LOG_ERROR ("parse fisheye:%d extrinsic file:%s failed.", index, extrinsic_path);
-            return false;
-        }
-
-        extrinsic_param[index].trans_x += TEST_CAMERA_POSITION_OFFSET_X;
-    }
+    CalibrationParser parser;
+    CHECK (parser.parse_intrinsic_file (intr_path, intr_param), "parse intrinsic params(%s) failed", intr_path);
+    CHECK (parser.parse_extrinsic_file (extr_path, extr_param), "parse extrinsic params(%s) failed", extr_path);
+    extr_param.trans_x += TEST_CAMERA_POSITION_OFFSET_X;
 
     return true;
 }
 
-XCamReturn
-read_file_to_video_buffer (
-    ImageFileHandle &file,
-    uint32_t width,
-    uint32_t height,
-    uint32_t row_pitch,
-    SmartPtr<VideoBuffer> &buf)
+static void
+combine_name (const char *orig_name, const char *embedded_str, char *new_name)
 {
-    size_t size = row_pitch * height / 2 * 3;
-    uint8_t *nv12_mem = (uint8_t *) xcam_malloc0 (sizeof (uint8_t) * size);
-    XCAM_ASSERT (nv12_mem);
+    const char *dir_delimiter = strrchr (orig_name, '/');
 
-    XCamReturn ret = file.read_file (nv12_mem, size);
-    if (ret != XCAM_RETURN_NO_ERROR) {
-        xcam_free (nv12_mem);
-        return ret;
+    if (dir_delimiter) {
+        std::string path (orig_name, dir_delimiter - orig_name + 1);
+        XCAM_ASSERT (path.c_str ());
+        snprintf (new_name, XCAM_TEST_MAX_STR_SIZE, "%s%s_%s", path.c_str (), embedded_str, dir_delimiter + 1);
+    } else {
+        snprintf (new_name, XCAM_TEST_MAX_STR_SIZE, "%s_%s", embedded_str, orig_name);
+    }
+}
+
+static void
+add_stream (CLStreams &streams, const char *stream_name, uint32_t width, uint32_t height)
+{
+    char file_name[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
+    combine_name (streams[0]->get_file_name (), stream_name, file_name);
+
+    SmartPtr<CLStream> stream = new CLStream (file_name, width, height);
+    XCAM_ASSERT (stream.ptr ());
+    streams.push_back (stream);
+}
+
+static void
+write_in_image (
+    const SmartPtr<CLImage360Stitch> &stitcher, const CLStreams &ins, uint32_t frame_num)
+{
+#if (XCAM_TEST_STREAM_DEBUG) && (XCAM_TEST_OPENCV)
+    char img_name[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
+    char frame_str[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
+    char idx_str[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
+    std::snprintf (frame_str, XCAM_TEST_MAX_STR_SIZE, "frame:%d", frame_num);
+
+    bool all_in_one = (ins.size () == 1) ? true : false;
+    int fisheye_per_frame = all_in_one ? stitcher->get_fisheye_num () : 1;
+    StitchInfo info = stitcher->get_stitch_info ();
+
+    cv::Mat mat;
+    for (uint32_t i = 0; i < ins.size (); i++) {
+        convert_to_mat (ins[i]->get_buf (), mat);
+
+        for (int j = 0; j < fisheye_per_frame; j++) {
+            cv::circle (mat, cv::Point (info.fisheye_info[j].center_x, info.fisheye_info[j].center_y),
+                        info.fisheye_info[j].radius, cv::Scalar(0, 0, 255), 2);
+        }
+
+        cv::putText (mat, frame_str, cv::Point(20, 50), cv::FONT_HERSHEY_COMPLEX, 2.0,
+                     cv::Scalar(0, 0, 255), 2, 8, false);
+        if (!all_in_one) {
+            std::snprintf (idx_str, XCAM_TEST_MAX_STR_SIZE, "idx:%d", i);
+            cv::putText (mat, idx_str, cv::Point (20, 110), cv::FONT_HERSHEY_COMPLEX, 2.0,
+                         cv::Scalar (0, 0, 255), 2, 8, false);
+        }
+
+        if (all_in_one)
+            std::snprintf (img_name, XCAM_TEST_MAX_STR_SIZE, "orig_fisheye_%d.jpg", frame_num);
+        else
+            std::snprintf (img_name, XCAM_TEST_MAX_STR_SIZE, "orig_fisheye_%d_%d.jpg", frame_num, i);
+
+        cv::imwrite (img_name, mat);
+    }
+#else
+    XCAM_UNUSED (stitcher);
+    XCAM_UNUSED (ins);
+    XCAM_UNUSED (frame_num);
+#endif
+}
+
+static void
+write_out_image (const SmartPtr<CLStream> &out, uint32_t frame_num)
+{
+#if !XCAM_TEST_STREAM_DEBUG
+    XCAM_UNUSED (frame_num);
+    out->write_buf ();
+#else
+    char frame_str[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
+    std::snprintf (frame_str, XCAM_TEST_MAX_STR_SIZE, "frame:%d", frame_num);
+    out->write_buf (frame_str);
+
+#if XCAM_TEST_OPENCV
+    char img_name[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
+    std::snprintf (img_name, XCAM_TEST_MAX_STR_SIZE, "%s_%d.jpg", out->get_file_name (), frame_num);
+    out->debug_write_image (img_name, frame_str);
+#endif
+#endif
+}
+
+static void
+write_image (
+    const SmartPtr<CLImage360Stitch> &stitcher,
+    const CLStreams &ins, const CLStreams &outs,
+    bool save_output, bool save_topview, bool save_freeview)
+{
+    static uint32_t frame_num = 0;
+
+    write_in_image (stitcher, ins, frame_num);
+
+    if (save_output)
+        write_out_image (outs[IdxStitch], frame_num);
+
+    const BowlDataConfig config = stitcher->get_fisheye_bowl_config ();
+    if (save_topview) {
+        std::vector<PointFloat2> map_table;
+
+        XCAM_ASSERT (outs[IdxTopView]->get_buf ().ptr ());
+        sample_generate_top_view (
+            outs[IdxStitch]->get_buf (), outs[IdxTopView]->get_buf (), config, map_table);
+        write_out_image (outs[IdxTopView], frame_num);
     }
 
-    uint32_t offset_uv = row_pitch * height;
-    convert_nv12_mem_to_video_buffer (nv12_mem, width, height, row_pitch, offset_uv, buf);
-    XCAM_ASSERT (buf.ptr ());
+    if (save_freeview) {
+        std::vector<PointFloat2> map_table;
+        float start_angle = -45.0f, end_angle = 45.0f;
 
-    xcam_free (nv12_mem);
-    return XCAM_RETURN_NO_ERROR;
+        XCAM_ASSERT (outs[IdxFreeView]->get_buf ().ptr ());
+        sample_generate_rectified_view (
+            outs[IdxStitch]->get_buf (), outs[IdxFreeView]->get_buf (),
+            config, start_angle, end_angle, map_table);
+        write_out_image (outs[IdxFreeView], frame_num);
+    }
+
+    frame_num++;
+}
+
+static int
+run_stitcher (
+    const SmartPtr<CLImage360Stitch> &stitcher,
+    const CLStreams &ins, const CLStreams &outs,
+    bool save_output, bool save_topview, bool save_freeview, int loop)
+{
+    CHECK (check_streams<CLStreams> (ins), "invalid input streams");
+    CHECK (check_streams<CLStreams> (outs), "invalid output streams");
+
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+    SmartPtr<VideoBuffer> in_buffers, pre_buf;
+    while (loop--) {
+        for (uint32_t i = 0; i < ins.size (); ++i) {
+            CHECK (ins[i]->rewind (), "rewind buffer from file(%s) failed", ins[i]->get_file_name ());
+        }
+
+        do {
+            for (uint32_t i = 0; i < ins.size (); ++i) {
+                ret = ins[i]->read_buf();
+                if (ret == XCAM_RETURN_BYPASS)
+                    break;
+                CHECK (ret, "read buffer from file(%s) failed", ins[i]->get_file_name ());
+
+                if (i == 0)
+                    in_buffers = ins[i]->get_buf ();
+                else
+                    pre_buf->attach_buffer (ins[i]->get_buf ());
+
+                pre_buf = ins[i]->get_buf ();
+            }
+            if (ret == XCAM_RETURN_BYPASS)
+                break;
+
+            ret = stitcher->execute (in_buffers, outs[IdxStitch]->get_buf ());
+            CHECK (ret, "execute stitcher failed");
+
+            if (save_output || save_topview || save_freeview)
+                write_image (stitcher, ins, outs, save_output, save_topview, save_freeview);
+
+            FPS_CALCULATION (image-stitching, XCAM_OBJ_DUR_FRAME_NUM);
+        } while (true);
+    }
+
+    return 0;
 }
 
 void usage(const char* arg0)
@@ -152,10 +317,9 @@ void usage(const char* arg0)
             "\t--fm                optional, enable or disable feature match, default: true\n"
 #endif
             "\t--fisheye-num       optional, the number of fisheye lens, default: 2\n"
-            "\t--all-in-one        optional, all fisheye in one image, select from [true/false], default: true\n"
             "\t--save              optional, save file or not, select from [true/false], default: true\n"
-            "\t--save-top-view     optional, save top view videos. default: no\n"
-            "\t--save-free-view    optional, save rectified(free) view videos. default: no\n"
+            "\t--save-topview      optional, save top view videos, select from [true/false], default: false\n"
+            "\t--save-freeview     optional, save free(rectified) view videos, select from [true/false], default: false\n"
             "\t--framerate         optional, framerate of saved video, default: 30.0\n"
             "\t--loop              optional, how many loops need to run for performance test, default: 1\n"
             "\t--help              usage\n",
@@ -164,26 +328,17 @@ void usage(const char* arg0)
 
 int main (int argc, char *argv[])
 {
-    XCamReturn ret = XCAM_RETURN_NO_ERROR;
-    SmartPtr<CLContext> context;
-    SmartPtr<BufferPool> buf_pool[XCAM_STITCH_FISHEYE_MAX_NUM];
-    ImageFileHandle file_in[XCAM_STITCH_FISHEYE_MAX_NUM];
-    ImageFileHandle file_out;
-    SmartPtr<VideoBuffer> input_buf, output_buf, top_view_buf, rectified_view_buf;
-    VideoBufferInfo input_buf_info, output_buf_info, top_view_buf_info, rectified_view_buf_info;
-    SmartPtr<CLImage360Stitch> image_360;
-
-    uint32_t input_format = V4L2_PIX_FMT_NV12;
     uint32_t input_width = 1920;
     uint32_t input_height = 1080;
     uint32_t output_height = 960;
     uint32_t output_width = output_height * 2;
+    uint32_t topview_width = 1920;
+    uint32_t topview_height = 1080;
+    uint32_t freeview_width = 1920;
+    uint32_t freeview_height = 1080;
 
-    uint32_t top_view_width = 1920;
-    uint32_t top_view_height = 1080;
-
-    uint32_t rectified_view_width = 1920;
-    uint32_t rectified_view_height = 1080;
+    CLStreams ins;
+    CLStreams outs;
 
     int loop = 1;
     bool enable_seam = false;
@@ -196,22 +351,11 @@ int main (int argc, char *argv[])
     StitchResMode res_mode = StitchRes1080P;
     SurroundMode surround_mode = SphereView;
 
-    IntrinsicParameter intrinsic_param[XCAM_STITCH_FISHEYE_MAX_NUM];
-    ExtrinsicParameter extrinsic_param[XCAM_STITCH_FISHEYE_MAX_NUM];
-
     int fisheye_num = 2;
-    bool all_in_one = true;
-    bool need_save_output = true;
-    bool save_top_view = false;
-    bool save_free_view = false;
+    bool save_output = true;
+    bool save_topview = false;
+    bool save_freeview = false;
     double framerate = 30.0;
-
-    const char *file_in_name[XCAM_STITCH_FISHEYE_MAX_NUM] = {NULL};
-    const char *file_out_name = NULL;
-    const char *top_view_filename = "top_view.mp4";
-    const char *rectified_view_filename = "rectified_view.mp4";
-
-    int input_count = 0;
 
     const struct option long_opts[] = {
         {"input", required_argument, NULL, 'i'},
@@ -232,8 +376,8 @@ int main (int argc, char *argv[])
         {"fisheye-num", required_argument, NULL, 'N'},
         {"all-in-one", required_argument, NULL, 'A'},
         {"save", required_argument, NULL, 's'},
-        {"save-top-view", no_argument, NULL, 't'},
-        {"save-free-view", no_argument, NULL, 'v'},
+        {"save-topview", required_argument, NULL, 't'},
+        {"save-freeview", required_argument, NULL, 'v'},
         {"framerate", required_argument, NULL, 'f'},
         {"loop", required_argument, NULL, 'l'},
         {"help", no_argument, NULL, 'e'},
@@ -245,12 +389,10 @@ int main (int argc, char *argv[])
         switch (opt) {
         case 'i':
             XCAM_ASSERT (optarg);
-            file_in_name[input_count] = optarg;
-            input_count++;
+            PUSH_STREAM (CLStream, ins, optarg);
             break;
         case 'o':
-            XCAM_ASSERT (optarg);
-            file_out_name = optarg;
+            PUSH_STREAM (CLStream, outs, optarg);
             break;
         case 'w':
             input_width = atoi(optarg);
@@ -317,17 +459,14 @@ int main (int argc, char *argv[])
                 return -1;
             }
             break;
-        case 'A':
-            all_in_one = (strcasecmp (optarg, "false") == 0 ? false : true);
-            break;
         case 's':
-            need_save_output = (strcasecmp (optarg, "false") == 0 ? false : true);
+            save_output = (strcasecmp (optarg, "false") == 0 ? false : true);
             break;
         case 't':
-            save_top_view = true;
+            save_topview = (strcasecmp (optarg, "true") == 0 ? true : false);
             break;
         case 'v':
-            save_free_view = true;
+            save_freeview = (strcasecmp (optarg, "true") == 0 ? true : false);
             break;
         case 'f':
             framerate = atof(optarg);
@@ -351,46 +490,28 @@ int main (int argc, char *argv[])
         return -1;
     }
 
-    if (!all_in_one && input_count != fisheye_num) {
-        XCAM_LOG_ERROR ("multiple-input mode: conflicting input number(%d) and fisheye number(%d)",
-                        input_count, fisheye_num);
+    if ((ins.size () != 1) && (ins.size () != (uint32_t)fisheye_num)) {
+        XCAM_LOG_ERROR (
+            "multiple-input mode: conflicting input number(%d) and fisheye number(%d)",
+            ins.size (), fisheye_num);
         return -1;
     }
 
-    for (int i = 0; i < input_count; i++) {
-        if (!file_in_name[i]) {
-            XCAM_LOG_ERROR ("input[%d] path is NULL", i);
-            return -1;
-        }
+    for (uint32_t i = 0; i < ins.size (); ++i) {
+        CHECK_EXP (ins[i].ptr (), "input stream is NULL, index:%d", i);
+        CHECK_EXP (strlen (ins[i]->get_file_name ()), "input file name was not set, index:%d", i);
     }
 
-    if (!file_out_name && need_save_output) {
-        XCAM_LOG_ERROR ("output path is NULL, video can't be saved");
-        return -1;
-    }
+    CHECK_EXP (outs.size () == 1 && outs[IdxStitch].ptr (), "surrond view needs 1 output stream");
+    CHECK_EXP (strlen (outs[IdxStitch]->get_file_name ()), "output file name was not set");
 
     output_width = XCAM_ALIGN_UP (output_width, XCAM_ALIGNED_WIDTH);
     output_height = XCAM_ALIGN_UP (output_height, XCAM_ALIGNED_WIDTH);
-    // if (output_width != output_height * 2) {
-    //     XCAM_LOG_ERROR ("incorrect output size width:%d height:%d", output_width, output_height);
-    //     return -1;
-    // }
 
-#if !HAVE_OPENCV
-    if (need_save_output) {
-        XCAM_LOG_WARNING ("non-OpenCV mode, can't save video to file:%s", XCAM_STR (file_out_name));
-        need_save_output = false;
+    for (uint32_t i = 0; i < ins.size (); ++i) {
+        printf ("input%d file:\t\t%s\n", i, ins[i]->get_file_name ());
     }
-#endif
-
-    printf ("Description------------------------\n");
-    if (all_in_one)
-        printf ("input file:\t\t%s\n", file_in_name[0]);
-    else {
-        for (int i = 0; i < input_count; i++)
-            printf ("input file %d:\t\t%s\n", i, file_in_name[i]);
-    }
-    printf ("output file:\t\t%s\n", XCAM_STR (file_out_name));
+    printf ("output file:\t\t%s\n", outs[IdxStitch]->get_file_name ());
     printf ("input width:\t\t%d\n", input_width);
     printf ("input height:\t\t%d\n", input_height);
     printf ("output width:\t\t%d\n", output_width);
@@ -407,237 +528,79 @@ int main (int argc, char *argv[])
     printf ("feature match:\t\t%s\n", need_fm ? "true" : "false");
 #endif
     printf ("fisheye number:\t\t%d\n", fisheye_num);
-    printf ("all in one:\t\t%s\n", all_in_one ? "true" : "false");
-    printf ("save file:\t\t%s\n", need_save_output ? "true" : "false");
-    printf ("save top-view file:\t%s\n", save_top_view ? top_view_filename : "NO");
-    printf ("save free-view file:\t%s\n", save_free_view ? rectified_view_filename : "NO");
+    printf ("save file:\t\t%s\n", save_output ? "true" : "false");
+    printf ("save topview file:\t%s\n", save_topview ? "true" : "false");
+    printf ("save freeview file:\t%s\n", save_freeview ? "true" : "false");
     printf ("framerate:\t\t%.3lf\n", framerate);
     printf ("loop count:\t\t%d\n", loop);
     printf ("-----------------------------------\n");
 
-    context = CLDevice::instance ()->get_context ();
-    image_360 =
-        create_image_360_stitch (
-            context, enable_seam, scale_mode, enable_fisheye_map, enable_lsc, surround_mode,
-            res_mode, fisheye_num, all_in_one).dynamic_cast_ptr<CLImage360Stitch> ();
-    XCAM_ASSERT (image_360.ptr ());
-    image_360->set_output_size (output_width, output_height);
-    image_360->set_pool_type (CLImageHandler::CLVideoPoolType);
+    for (uint32_t i = 0; i < ins.size (); ++i) {
+        ins[i]->set_buf_size (input_width, input_height);
+        CHECK (ins[i]->create_buf_pool (6), "create buffer pool failed");
+        CHECK (ins[i]->open_reader ("rb"), "open input file(%s) failed", ins[i]->get_file_name ());
+    }
+
+    outs[IdxStitch]->set_buf_size (output_width, output_height);
+    if (save_output) {
+        CHECK (outs[IdxStitch]->estimate_file_format (),
+            "%s: estimate file format failed", outs[IdxStitch]->get_file_name ());
+        CHECK (outs[IdxStitch]->open_writer ("wb"), "open output file(%s) failed", outs[IdxStitch]->get_file_name ());
+    }
+
+    SmartPtr<CLContext> context = CLDevice::instance ()->get_context ();
+    SmartPtr<CLImage360Stitch> stitcher = create_image_360_stitch (
+        context, enable_seam, scale_mode, enable_fisheye_map, enable_lsc, surround_mode,
+        res_mode, fisheye_num, (ins.size () == 1)).dynamic_cast_ptr<CLImage360Stitch> ();
+    XCAM_ASSERT (stitcher.ptr ());
+    stitcher->set_output_size (output_width, output_height);
+    stitcher->set_pool_type (CLImageHandler::CLVideoPoolType);
 #if HAVE_OPENCV
-    image_360->set_feature_match (need_fm);
+    stitcher->set_feature_match (need_fm);
 #endif
 
     if (surround_mode == BowlView) {
-        if (!parse_calibration_params (intrinsic_param, extrinsic_param, fisheye_num)) {
-            XCAM_LOG_ERROR ("parse calibration data failed in surround view.");
-            return -1;
-        }
+        std::string fisheye_cfg_path = FISHEYE_CONFIG_PATH;
+        const char *env = std::getenv (FISHEYE_CONFIG_ENV_VAR);
+        if (env)
+            fisheye_cfg_path.assign (env, strlen (env));
+        XCAM_LOG_INFO ("calibration config path: %s", fisheye_cfg_path.c_str ());
 
+        IntrinsicParameter intr_param;
+        ExtrinsicParameter extr_param;
         for (int i = 0; i < fisheye_num; i++) {
-            image_360->set_fisheye_intrinsic (intrinsic_param[i], i);
-            image_360->set_fisheye_extrinsic (extrinsic_param[i], i);
-        }
-    }
-
-    input_buf_info.init (input_format, input_width, input_height);
-    output_buf_info.init (input_format, output_width, output_height);
-    top_view_buf_info.init (input_format, top_view_width, top_view_height);
-    rectified_view_buf_info.init (input_format, rectified_view_width, rectified_view_height);
-    for (int i = 0; i < input_count; i++) {
-        SmartPtr<BufferPool> pool = new CLVideoBufferPool ();
-        XCAM_ASSERT (pool.ptr ());
-        pool->set_video_info (input_buf_info);
-        if (!pool->reserve (6)) {
-            XCAM_LOG_ERROR ("init buffer pool failed");
-            return -1;
-        }
-
-        buf_pool[i] = pool;
-    }
-
-    SmartPtr<BufferPool> top_view_pool = new CLVideoBufferPool ();
-    XCAM_ASSERT (top_view_pool.ptr ());
-    top_view_pool->set_video_info (top_view_buf_info);
-    if (!top_view_pool->reserve (6)) {
-        XCAM_LOG_ERROR ("top-view-buffer pool reserve failed");
-        return -1;
-    }
-    top_view_buf = top_view_pool->get_buffer (top_view_pool);
-
-    SmartPtr<BufferPool> rectified_view_pool = new CLVideoBufferPool ();
-    XCAM_ASSERT (rectified_view_pool.ptr ());
-    rectified_view_pool->set_video_info (rectified_view_buf_info);
-    if (!rectified_view_pool->reserve (6)) {
-        XCAM_LOG_ERROR ("top-view-buffer pool reserve failed");
-        return -1;
-    }
-    rectified_view_buf = rectified_view_pool->get_buffer (rectified_view_pool);
-
-    for (int i = 0; i < input_count; i++) {
-        ret = file_in[i].open (file_in_name[i], "rb");
-        CHECK (ret, "open %s failed", file_in_name[i]);
-    }
-
-#if HAVE_OPENCV
-    cv::VideoWriter writer;
-    cv::VideoWriter top_view_writer;
-    cv::VideoWriter rectified_view_writer;
-    if (need_save_output) {
-        cv::Size dst_size = cv::Size (output_width, output_height);
-        if (!writer.open (file_out_name, FOURCC_X264, framerate, dst_size)) {
-            XCAM_LOG_ERROR ("open file %s failed", file_out_name);
-            return -1;
-        }
-    }
-    if (save_top_view) {
-        cv::Size dst_size = cv::Size (top_view_width, top_view_height);
-        if (!top_view_writer.open (top_view_filename, FOURCC_X264, framerate, dst_size)) {
-            XCAM_LOG_ERROR ("open file %s failed", top_view_filename);
-            return -1;
-        }
-    }
-    if (save_free_view) {
-        cv::Size dst_size = cv::Size (rectified_view_width, rectified_view_height);
-        if (!rectified_view_writer.open (rectified_view_filename, FOURCC_X264, framerate, dst_size)) {
-            XCAM_LOG_ERROR ("open file %s failed", rectified_view_filename);
-            return -1;
-        }
-    }
-#endif
-
-    SmartPtr<VideoBuffer> pre_buf, cur_buf;
-    int frame_id = 0;
-#if (HAVE_OPENCV)
-#if XCAM_TEST_STITCH_DEBUG
-    SmartPtr<VideoBuffer> input_bufs[XCAM_STITCH_FISHEYE_MAX_NUM];
-#endif
-    std::vector<PointFloat2> top_view_map_table;
-    std::vector<PointFloat2> rectified_view_map_table;
-    float rectified_start_angle = -45.0f, rectified_end_angle = 45.0f;
-#endif
-
-    while (loop--) {
-        for (int i = 0; i < input_count; i++) {
-            ret = file_in[i].rewind ();
-            CHECK (ret, "image_360 stitch rewind file(%s) failed", file_in_name[i]);
-        }
-
-        do {
-            for (int i = 0; i < input_count; i++) {
-                cur_buf = buf_pool[i]->get_buffer (buf_pool[i]);
-                XCAM_ASSERT (cur_buf.ptr ());
-                ret = file_in[i].read_buf (cur_buf);
-                // ret = read_file_to_video_buffer (file_in[i], input_width, input_height, input_width, cur_buf);
-                if (ret == XCAM_RETURN_BYPASS)
-                    break;
-                if (ret == XCAM_RETURN_ERROR_FILE) {
-                    XCAM_LOG_ERROR ("read buffer from %s failed", file_in_name[i]);
-                    return -1;
-                }
-
-                if (i == 0)
-                    input_buf = cur_buf;
-                else
-                    pre_buf->attach_buffer (cur_buf);
-
-                pre_buf = cur_buf;
-#if (HAVE_OPENCV) && (XCAM_TEST_STITCH_DEBUG)
-                input_bufs[i] = cur_buf;
-#endif
-            }
-            if (ret == XCAM_RETURN_BYPASS)
-                break;
-
-            ret = image_360->execute (input_buf, output_buf);
-            CHECK (ret, "image_360 stitch execute failed");
-
-#if HAVE_OPENCV
-            if (need_save_output) {
-                cv::Mat out_mat;
-                convert_to_mat (output_buf, out_mat);
-                writer.write (out_mat);
+            if (!parse_calibration_params (fisheye_cfg_path.c_str (), i, intr_param, extr_param)) {
+                XCAM_LOG_ERROR ("parse calibration data failed in surround view");
+                return -1;
             }
 
-            BowlDataConfig config = image_360->get_fisheye_bowl_config ();
-            if (save_top_view) {
-                cv::Mat top_view_mat;
-                sample_generate_top_view (output_buf, top_view_buf, config, top_view_map_table);
-                convert_to_mat (top_view_buf, top_view_mat);
-                top_view_writer.write (top_view_mat);
-            }
-            if (save_free_view) {
-                cv::Mat rectified_view_mat;
-                sample_generate_rectified_view (output_buf, rectified_view_buf, config, rectified_start_angle,
-                                                rectified_end_angle, rectified_view_map_table);
-                convert_to_mat (rectified_view_buf, rectified_view_mat);
-                rectified_view_writer.write (rectified_view_mat);
-            }
-
-#if XCAM_TEST_STITCH_DEBUG
-            dbg_write_image (context, image_360, input_bufs, output_buf, top_view_buf, rectified_view_buf,
-                             all_in_one, fisheye_num, input_count);
-#endif
-
-            if (!(need_save_output || save_top_view || save_free_view))
-#endif
-                ensure_gpu_buffer_done (output_buf);
-
-            frame_id++;
-            FPS_CALCULATION (image_stitching, XCAM_OBJ_DUR_FRAME_NUM);
-        } while (true);
+            stitcher->set_fisheye_intrinsic (intr_param, i);
+            stitcher->set_fisheye_extrinsic (extr_param, i);
+        }
     }
+
+    add_stream (outs, "topview", topview_width, topview_height);
+    if (save_topview) {
+        CHECK (outs[IdxTopView]->create_buf_pool (1), "create topview buffer pool failed");
+        CHECK (outs[IdxTopView]->estimate_file_format (),
+            "%s: estimate file format failed", outs[IdxTopView]->get_file_name ());
+        CHECK (outs[IdxTopView]->open_writer ("wb"),
+            "open topview file(%s) failed", outs[IdxTopView]->get_file_name ());
+    }
+
+    add_stream (outs, "freeview", freeview_width, freeview_height);
+    if (save_freeview) {
+        CHECK (outs[IdxFreeView]->create_buf_pool (1), "create freeview buffer pool failed");
+        CHECK (outs[IdxFreeView]->estimate_file_format (),
+            "%s: estimate file format failed", outs[IdxFreeView]->get_file_name ());
+        CHECK (outs[IdxFreeView]->open_writer ("wb"),
+            "open freeview file(%s) failed", outs[IdxFreeView]->get_file_name ());
+    }
+
+    CHECK_EXP (
+        run_stitcher (stitcher, ins, outs, save_output, save_topview, save_freeview, loop) == 0,
+        "run stitcher failed");
 
     return 0;
 }
-
-#if (HAVE_OPENCV) && (XCAM_TEST_STITCH_DEBUG)
-static void dbg_write_image (
-    SmartPtr<CLContext> context, SmartPtr<CLImage360Stitch> image_360,
-    SmartPtr<VideoBuffer> input_bufs[], SmartPtr<VideoBuffer> output_buf,
-    SmartPtr<VideoBuffer> top_view_buf, SmartPtr<VideoBuffer> rectified_view_buf,
-    bool all_in_one, int fisheye_num, int input_count)
-{
-    cv::Mat mat;
-    static int frame_count = 0;
-    char file_name [1024];
-    StitchInfo stitch_info = image_360->get_stitch_info ();
-
-    std::snprintf (file_name, 1023, "orig_fisheye_%d.jpg", frame_count);
-    for (int i = 0; i < input_count; i++) {
-        if (!all_in_one)
-            std::snprintf (file_name, 1023, "orig_fisheye_%d_%d.jpg", frame_count, i);
-
-        convert_to_mat (input_bufs[i], mat);
-        int fisheye_per_frame = all_in_one ? fisheye_num : 1;
-        for (int i = 0; i < fisheye_per_frame; i++) {
-            cv::circle (mat, cv::Point(stitch_info.fisheye_info[i].center_x, stitch_info.fisheye_info[i].center_y),
-                        stitch_info.fisheye_info[i].radius, cv::Scalar(0, 0, 255), 2);
-        }
-        cv::imwrite (file_name, mat);
-    }
-
-    char frame_str[1024];
-    std::snprintf (frame_str, 1023, "%d", frame_count);
-
-    convert_to_mat (output_buf, mat);
-    cv::putText (mat, frame_str, cv::Point(120, 120), cv::FONT_HERSHEY_COMPLEX, 2.0,
-                 cv::Scalar(0, 0, 255), 2, 8, false);
-    std::snprintf (file_name, 1023, "stitched_img_%d.jpg", frame_count);
-    cv::imwrite (file_name, mat);
-
-    convert_to_mat (top_view_buf, mat);
-    cv::putText (mat, frame_str, cv::Point(120, 120), cv::FONT_HERSHEY_COMPLEX, 2.0,
-                 cv::Scalar(0, 0, 255), 2, 8, false);
-    std::snprintf (file_name, 1023, "top_view_img_%d.jpg", frame_count);
-    cv::imwrite (file_name, mat);
-
-    convert_to_mat (rectified_view_buf, mat);
-    cv::putText (mat, frame_str, cv::Point(120, 120), cv::FONT_HERSHEY_COMPLEX, 2.0,
-                 cv::Scalar(0, 0, 255), 2, 8, false);
-    std::snprintf (file_name, 1023, "rectified_view_img_%d.jpg", frame_count);
-    cv::imwrite (file_name, mat);
-
-    frame_count++;
-}
-#endif
 
