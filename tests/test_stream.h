@@ -87,12 +87,10 @@ public:
     uint32_t get_height () const {
         return _height;
     }
-    SmartPtr<VideoBuffer> &get_buf () {
-        return _buf;
-    }
     const char *get_file_name () const {
         return _file_name;
     }
+    SmartPtr<VideoBuffer> &get_buf ();
     XCamReturn estimate_file_format ();
 
     XCamReturn open_reader (const char *option);
@@ -247,6 +245,17 @@ Stream::write_buf (char *frame_str) {
     }
 
     return XCAM_RETURN_NO_ERROR;
+}
+
+SmartPtr<VideoBuffer> &
+Stream::get_buf ()
+{
+    if (!_buf.ptr () && _pool.ptr ()) {
+        _buf = _pool->get_buffer (_pool);
+        XCAM_ASSERT (_buf.ptr ());
+    }
+
+    return _buf;
 }
 
 XCamReturn
