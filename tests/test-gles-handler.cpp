@@ -43,7 +43,7 @@ public:
     explicit GLStream (const char *file_name = NULL, uint32_t width = 0, uint32_t height = 0);
     virtual ~GLStream () {}
 
-    virtual XCamReturn create_buf_pool (const VideoBufferInfo &info, uint32_t count);
+    virtual XCamReturn create_buf_pool (uint32_t reserve_count);
 };
 
 typedef std::vector<SmartPtr<GLStream>> GLStreams;
@@ -54,12 +54,16 @@ GLStream::GLStream (const char *file_name, uint32_t width, uint32_t height)
 }
 
 XCamReturn
-GLStream::create_buf_pool (const VideoBufferInfo &info, uint32_t count)
+GLStream::create_buf_pool (uint32_t reserve_count)
 {
+    XCAM_ASSERT (get_width () && get_height ());
+
+    VideoBufferInfo info;
+    info.init (V4L2_PIX_FMT_NV12, get_width (), get_height ());
+
     SmartPtr<GLVideoBufferPool> pool = new GLVideoBufferPool (info);
     XCAM_ASSERT (pool.ptr ());
-
-    if (!pool->reserve (count)) {
+    if (!pool->reserve (reserve_count)) {
         XCAM_LOG_ERROR ("create buffer pool failed");
         return XCAM_RETURN_ERROR_MEM;
     }
@@ -213,16 +217,12 @@ int main (int argc, char **argv)
     SmartPtr<EGLBase> egl = new EGLBase ();
     XCAM_FAIL_RETURN (ERROR, egl->init (), -1, "init EGL failed");
 
-    VideoBufferInfo in_info;
-    in_info.init (V4L2_PIX_FMT_NV12, input_width, input_height);
     for (uint32_t i = 0; i < ins.size (); ++i) {
         ins[i]->set_buf_size (input_width, input_height);
-        CHECK (ins[i]->create_buf_pool (in_info, XCAM_GL_RESERVED_BUF_COUNT), "create buffer pool failed");
+        CHECK (ins[i]->create_buf_pool (XCAM_GL_RESERVED_BUF_COUNT), "create buffer pool failed");
         CHECK (ins[i]->open_reader ("rb"), "open input file(%s) failed", ins[i]->get_file_name ());
     }
 
-    VideoBufferInfo out_info;
-    out_info.init (V4L2_PIX_FMT_NV12, output_width, output_height);
     outs[0]->set_buf_size (output_width, output_height);
     if (save_output) {
         CHECK (outs[0]->estimate_file_format (), "%s: estimate file format failed", outs[0]->get_file_name ());
@@ -233,6 +233,9 @@ int main (int argc, char **argv)
     case GLTypeCopy: {
         SmartPtr<GLCopyHandler> copyer = new GLCopyHandler ();
         XCAM_ASSERT (copyer.ptr ());
+
+        VideoBufferInfo out_info;
+        out_info.init (V4L2_PIX_FMT_NV12, output_width, output_height);
 
         Rect in_area = Rect (0, 0, output_width, output_height);
         Rect out_area = in_area;

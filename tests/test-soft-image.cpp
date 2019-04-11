@@ -50,7 +50,7 @@ public:
     explicit SoftStream (const char *file_name = NULL, uint32_t width = 0, uint32_t height = 0);
     virtual ~SoftStream () {}
 
-    virtual XCamReturn create_buf_pool (const VideoBufferInfo &info, uint32_t count);
+    virtual XCamReturn create_buf_pool (uint32_t reserve_count);
 
 private:
     XCAM_DEAD_COPY (SoftStream);
@@ -63,13 +63,16 @@ SoftStream::SoftStream (const char *file_name, uint32_t width, uint32_t height)
 }
 
 XCamReturn
-SoftStream::create_buf_pool (const VideoBufferInfo &info, uint32_t count)
+SoftStream::create_buf_pool (uint32_t reserve_count)
 {
+    XCAM_ASSERT (get_width () && get_height ());
+
+    VideoBufferInfo info;
+    info.init (V4L2_PIX_FMT_NV12, get_width (), get_height ());
+
     SmartPtr<BufferPool> pool = new SoftVideoBufAllocator ();
     XCAM_ASSERT (pool.ptr ());
-
-    pool->set_video_info (info);
-    if (!pool->reserve (count)) {
+    if (!pool->set_video_info (info) || !pool->reserve (reserve_count)) {
         XCAM_LOG_ERROR ("create buffer pool failed");
         return XCAM_RETURN_ERROR_MEM;
     }
@@ -204,11 +207,9 @@ int main (int argc, char *argv[])
     printf ("save output:\t\t%s\n", save_output ? "true" : "false");
     printf ("loop count:\t\t%d\n", loop);
 
-    VideoBufferInfo in_info;
-    in_info.init (V4L2_PIX_FMT_NV12, input_width, input_height);
     for (uint32_t i = 0; i < ins.size (); ++i) {
         ins[i]->set_buf_size (input_width, input_height);
-        CHECK (ins[i]->create_buf_pool (in_info, 6), "create buffer pool failed");
+        CHECK (ins[i]->create_buf_pool (6), "create buffer pool failed");
         CHECK (ins[i]->open_reader ("rb"), "open input file(%s) failed", ins[i]->get_file_name ());
     }
 

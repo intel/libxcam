@@ -102,7 +102,7 @@ public:
 
     XCamReturn read_buf ();
     XCamReturn write_buf (char *frame_str = NULL);
-    virtual XCamReturn create_buf_pool (const VideoBufferInfo &info, uint32_t count) = 0;
+    virtual XCamReturn create_buf_pool (uint32_t reserve_count) = 0;
 
 #if XCAM_TEST_OPENCV
     void debug_write_image (char *img_name, char *frame_str = NULL, char *idx_str = NULL);

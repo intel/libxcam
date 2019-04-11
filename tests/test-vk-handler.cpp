@@ -47,7 +47,7 @@ public:
         _device = device;
     }
 
-    virtual XCamReturn create_buf_pool (const VideoBufferInfo &info, uint32_t count);
+    virtual XCamReturn create_buf_pool (uint32_t reserve_count);
 
 private:
     SmartPtr<VKDevice>    _device;
@@ -61,21 +61,19 @@ VKStream::VKStream (const char *file_name, uint32_t width, uint32_t height)
 }
 
 XCamReturn
-VKStream::create_buf_pool (const VideoBufferInfo &info, uint32_t count)
+VKStream::create_buf_pool (uint32_t reserve_count)
 {
+    XCAM_ASSERT (get_width () && get_height ());
     XCAM_FAIL_RETURN (
         ERROR, _device.ptr(), XCAM_RETURN_ERROR_PARAM,
         "vulkan device id NULL, please set device first");
 
+    VideoBufferInfo info;
+    info.init (V4L2_PIX_FMT_NV12, get_width (), get_height ());
+
     SmartPtr<BufferPool> pool = create_vk_buffer_pool (_device);
     XCAM_ASSERT (pool.ptr ());
-
-    if (!pool->set_video_info (info)) {
-        XCAM_LOG_ERROR ("set video info failed");
-        return XCAM_RETURN_ERROR_UNKNOWN;
-    }
-
-    if (!pool->reserve (count)) {
+    if (!pool->set_video_info (info) || !pool->reserve (reserve_count)) {
         XCAM_LOG_ERROR ("create buffer pool failed");
         return XCAM_RETURN_ERROR_MEM;
     }
@@ -238,12 +236,10 @@ int main (int argc, char **argv)
         ERROR, vk_device.ptr(), -1,
         "Get default VKDevice failed, please check vulkan environment");
 
-    VideoBufferInfo in_info;
-    in_info.init (V4L2_PIX_FMT_NV12, input_width, input_height);
     for (uint32_t i = 0; i < ins.size (); ++i) {
         ins[i]->set_buf_size (input_width, input_height);
         ins[i]->set_vk_device (vk_device);
-        CHECK (ins[i]->create_buf_pool (in_info, 4), "create buffer pool failed");
+        CHECK (ins[i]->create_buf_pool (4), "create buffer pool failed");
         CHECK (ins[i]->open_reader ("rb"), "open input file(%s) failed", ins[i]->get_file_name ());
     }
 
