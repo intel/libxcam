@@ -98,7 +98,7 @@ public:
     }
 #endif
 
-    virtual XCamReturn create_buf_pool (const VideoBufferInfo &info, uint32_t count);
+    virtual XCamReturn create_buf_pool (uint32_t reserve_count);
 
 private:
     XCAM_DEAD_COPY (SVStream);
@@ -119,11 +119,15 @@ SVStream::SVStream (const char *file_name, uint32_t width, uint32_t height)
 }
 
 XCamReturn
-SVStream::create_buf_pool (const VideoBufferInfo &info, uint32_t count)
+SVStream::create_buf_pool (uint32_t reserve_count)
 {
+    XCAM_ASSERT (get_width () && get_height ());
     XCAM_FAIL_RETURN (
         ERROR, _module != SVModuleNone, XCAM_RETURN_ERROR_PARAM,
         "invalid module, please set module first");
+
+    VideoBufferInfo info;
+    info.init (V4L2_PIX_FMT_NV12, get_width (), get_height ());
 
     SmartPtr<BufferPool> pool;
     if (_module == SVModuleSoft) {
@@ -142,7 +146,7 @@ SVStream::create_buf_pool (const VideoBufferInfo &info, uint32_t count)
     }
     XCAM_ASSERT (pool.ptr ());
 
-    if (!pool->reserve (count)) {
+    if (!pool->reserve (reserve_count)) {
         XCAM_LOG_ERROR ("create buffer pool failed");
         return XCAM_RETURN_ERROR_MEM;
     }
@@ -695,12 +699,10 @@ int main (int argc, char *argv[])
 #endif
     }
 
-    VideoBufferInfo in_info;
-    in_info.init (V4L2_PIX_FMT_NV12, input_width, input_height);
     for (uint32_t i = 0; i < ins.size (); ++i) {
         ins[i]->set_module (module);
         ins[i]->set_buf_size (input_width, input_height);
-        CHECK (ins[i]->create_buf_pool (in_info, 6), "create buffer pool failed");
+        CHECK (ins[i]->create_buf_pool (6), "create buffer pool failed");
         CHECK (ins[i]->open_reader ("rb"), "open input file(%s) failed", ins[i]->get_file_name ());
     }
 
