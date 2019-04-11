@@ -307,7 +307,7 @@ void usage(const char* arg0)
             "\t--input-h           optional, input height, default: 1080\n"
             "\t--output-w          optional, output width, default: 1920\n"
             "\t--output-h          optional, output width, default: 960\n"
-            "\t--res-mode          optional, image resolution mode, select from [1080p/1080p4/4k], default: 1080p\n"
+            "\t--res-mode          optional, image resolution mode, select from [1080p/1080p4/4k/8k6], default: 1080p\n"
             "\t--surround-mode     optional, stitching surround mode, select from [sphere, bowl], default: sphere\n"
             "\t--scale-mode        optional, image scaling mode, select from [local/global], default: local\n"
             "\t--enable-seam       optional, enable seam finder in blending area, default: no\n"
@@ -413,6 +413,8 @@ int main (int argc, char *argv[])
                 res_mode = StitchRes1080P4;
             else if (!strcasecmp (optarg, "4k"))
                 res_mode = StitchRes4K;
+            else if (!strcasecmp (optarg, "8k6"))
+                res_mode = StitchRes8K6;
             else {
                 XCAM_LOG_ERROR ("incorrect resolution mode");
                 return -1;
