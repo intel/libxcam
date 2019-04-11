@@ -37,18 +37,18 @@ public:
     explicit DnnSemanticSegmentation (DnnInferConfig& config);
     virtual ~DnnSemanticSegmentation ();
 
-    XCamReturn set_model_input_info (DnnInferInputOutputInfo& info);
-    XCamReturn get_model_input_info (DnnInferInputOutputInfo& info);
+    virtual XCamReturn set_model_input_info (DnnInferInputOutputInfo& info);
+    virtual XCamReturn get_model_input_info (DnnInferInputOutputInfo& info);
 
-    XCamReturn set_model_output_info (DnnInferInputOutputInfo& info);
-    XCamReturn get_model_output_info (DnnInferInputOutputInfo& info);
+    virtual XCamReturn set_model_output_info (DnnInferInputOutputInfo& info);
+    virtual XCamReturn get_model_output_info (DnnInferInputOutputInfo& info);
 
     XCamReturn get_segmentation_map (const float* result_ptr,
                                      const uint32_t idx,
                                      std::vector<std::vector<uint32_t>>& out_classes);
 
 protected:
-    XCamReturn set_output_layer_type (const char* type);
+    virtual XCamReturn set_output_layer_type (const char* type);
 };
 
 }  // namespace XCam

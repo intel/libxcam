@@ -38,11 +38,11 @@ public:
     explicit DnnObjectDetection (DnnInferConfig& config);
     virtual ~DnnObjectDetection ();
 
-    XCamReturn set_model_input_info (DnnInferInputOutputInfo& info);
-    XCamReturn get_model_input_info (DnnInferInputOutputInfo& info);
+    virtual XCamReturn set_model_input_info (DnnInferInputOutputInfo& info);
+    virtual XCamReturn get_model_input_info (DnnInferInputOutputInfo& info);
 
-    XCamReturn set_model_output_info (DnnInferInputOutputInfo& info);
-    XCamReturn get_model_output_info (DnnInferInputOutputInfo& info);
+    virtual XCamReturn set_model_output_info (DnnInferInputOutputInfo& info);
+    virtual XCamReturn get_model_output_info (DnnInferInputOutputInfo& info);
 
     XCamReturn get_bounding_boxes (const float* result_ptr,
                                    const uint32_t idx,
@@ -50,7 +50,7 @@ public:
                                    std::vector<int32_t> &classes);
 
 protected:
-    XCamReturn set_output_layer_type (const char* type);
+    virtual XCamReturn set_output_layer_type (const char* type);
 };
 
 }  // namespace XCam
