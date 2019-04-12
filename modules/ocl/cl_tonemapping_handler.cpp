@@ -20,6 +20,9 @@
 
 #include "cl_utils.h"
 #include "cl_tonemapping_handler.h"
+#if HAVE_LIBDRM
+#include "drm_bo_buffer.h"
+#endif
 
 namespace XCam {
 

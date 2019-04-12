@@ -22,6 +22,9 @@
 #include "cl_defog_dcp_handler.h"
 #include <algorithm>
 #include "cl_device.h"
+#if HAVE_LIBDRM
+#include "drm_bo_buffer.h"
+#endif
 
 enum {
     KernelDarkChannel = 0,
