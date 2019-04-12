@@ -63,6 +63,9 @@ test_device_manager_LDADD = $(TEST_CORE_LA)
 if USE_LOCAL_ATOMISP
 test_device_manager_CXXFLAGS += -I$(top_srcdir)/ext/atomisp
 endif
+if HAVE_LIBDRM
+test_device_manager_CXXFLAGS += $(LIBDRM_CFLAGS)
+endif
 if ENABLE_IA_AIQ
 test_device_manager_LDADD += $(top_builddir)/modules/isp/libxcam_isp.la
 endif
@@ -99,6 +102,13 @@ test_image_blend_LDADD = \
     $(TEST_CORE_LA) \
     $(TEST_OCL_LA)  \
     $(NULL)
+
+if HAVE_LIBDRM
+test_cl_image_CXXFLAGS += $(LIBDRM_CFLAGS)
+test_binary_kernel_CXXFLAGS += $(LIBDRM_CFLAGS)
+test_pipe_manager_CXXFLAGS += $(LIBDRM_CFLAGS)
+test_image_blend_CXXFLAGS += $(LIBDRM_CFLAGS)
+endif
 
 test_image_stitching_SOURCES = test-image-stitching.cpp
 test_image_stitching_CXXFLAGS = $(TEST_BASE_CXXFLAGS)

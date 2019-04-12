@@ -20,6 +20,9 @@
 
 #include "gstxcamfilter.h"
 #include "gstxcambuffermeta.h"
+#if HAVE_LIBDRM
+#include "drm_bo_buffer.h"
+#endif
 
 #include <gst/gstmeta.h>
 #include <gst/allocators/gstdmabuf.h>
