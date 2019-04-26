@@ -123,8 +123,9 @@ convert_to_climage (
         if (offset == 0) {
             cl_buf = cl_video_buf;
         } else {
-            uint32_t row_pitch = CLImage::calculate_pixel_bytes (desc.format) *
-                                 XCAM_ALIGN_UP (desc.width, XCAM_CL_IMAGE_ALIGNMENT_X);
+            uint32_t row_pitch = (desc.row_pitch != 0) ? desc.row_pitch :
+                                 (CLImage::calculate_pixel_bytes (desc.format) *
+                                     XCAM_ALIGN_UP (desc.width, XCAM_CL_IMAGE_ALIGNMENT_X));
             uint32_t size = row_pitch * desc.height;
 
             cl_buf = new CLSubBuffer (context, cl_video_buf, flags, offset, size);
