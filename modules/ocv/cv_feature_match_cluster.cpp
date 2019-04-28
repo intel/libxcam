@@ -280,21 +280,10 @@ CVFeatureMatchCluster::feature_match (
     XCAM_ASSERT (_left_rect.width && _left_rect.height);
     XCAM_ASSERT (_right_rect.width && _right_rect.height);
 
-    cv::UMat left_umat, right_umat;
     cv::Mat left_img, right_img;
-
-    if (_cl_buf_mem[BufIdLeft] && _cl_buf_mem[BufIdRight]) {
-        if (!get_crop_image_umat (left_buf, _left_rect, left_umat, BufIdLeft)
-                || !get_crop_image_umat (right_buf, _right_rect, right_umat, BufIdRight))
-            return;
-
-        left_img = left_umat.getMat (cv::ACCESS_READ);
-        right_img = right_umat.getMat (cv::ACCESS_READ);
-    } else {
-        if (!convert_range_to_mat (left_buf, _left_rect, left_img)
-                || !convert_range_to_mat (right_buf, _right_rect, right_img))
-            return;
-    }
+    if (!convert_range_to_mat (left_buf, _left_rect, left_img)
+            || !convert_range_to_mat (right_buf, _right_rect, right_img))
+        return;
 
     detect_and_match (left_img, right_img);
 

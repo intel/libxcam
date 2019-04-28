@@ -45,10 +45,7 @@ public:
     virtual void feature_match (
         const SmartPtr<VideoBuffer> &left_buf, const SmartPtr<VideoBuffer> &right_buf);
 
-    void set_cl_buf_mem (void *mem, BufId id);
-
 protected:
-    bool get_crop_image_umat (const SmartPtr<VideoBuffer> &buffer, const Rect &crop_rect, cv::UMat &img, BufId id);
     void add_detected_data (cv::Mat image, cv::Ptr<cv::Feature2D> detector, std::vector<cv::Point2f> &corners);
 
     void debug_write_image (
@@ -74,9 +71,6 @@ private:
 
 private:
     XCAM_DEAD_COPY (CVFeatureMatch);
-
-protected:
-    void       *_cl_buf_mem[BufIdMax];
 
 private:
     int         _dst_width;

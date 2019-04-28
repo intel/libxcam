@@ -121,11 +121,8 @@ protected:
     void update_image_overlap ();
 
 private:
-    void init_opencv_ocl ();
     void init_feature_match ();
     void update_scale_factors (uint32_t fm_idx, const Rect &crop_left, const Rect &crop_right);
-    void set_fm_buf_mem (
-        const SmartPtr<VideoBuffer> &buf_left, const SmartPtr<VideoBuffer> &buf_right, int fm_idx);
 
 private:
     XCAM_DEAD_COPY (CLImage360Stitch);

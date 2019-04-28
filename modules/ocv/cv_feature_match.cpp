@@ -35,12 +35,10 @@ CVFeatureMatch::CVFeatureMatch ()
     , _dst_width (0)
     , _need_adjust (false)
 {
-    xcam_mem_clear (_cl_buf_mem);
 }
 
 CVFeatureMatch::~CVFeatureMatch ()
 {
-    xcam_mem_clear (_cl_buf_mem);
 }
 
 
@@ -54,40 +52,6 @@ void
 CVFeatureMatch::enable_adjust_crop_area ()
 {
     _need_adjust = true;
-}
-
-void
-CVFeatureMatch::set_cl_buf_mem (void *mem, BufId id)
-{
-#if HAVE_LIBCL
-    XCAM_ASSERT (mem);
-    _cl_buf_mem[id] = mem;
-#else
-    XCAM_LOG_DEBUG ("non-OpenCL mode, failed to set cl buffer memory");
-#endif
-}
-
-bool
-CVFeatureMatch::get_crop_image_umat (
-    const SmartPtr<VideoBuffer> &buffer, const Rect &crop_rect, cv::UMat &img, BufId id)
-{
-#if HAVE_LIBCL
-    VideoBufferInfo info = buffer->get_video_info ();
-
-    cv::UMat umat;
-    cv::ocl::convertFromBuffer (_cl_buf_mem[id], info.strides[0], info.height, info.width, CV_8U, umat);
-    if (umat.empty ()) {
-        XCAM_LOG_ERROR ("FeatureMatch(idx:%d): convert bo buffer to UMat failed", _fm_idx);
-        return false;
-    }
-
-    img = umat (cv::Rect(crop_rect.pos_x, crop_rect.pos_y, crop_rect.width, crop_rect.height));
-
-    return true;
-#else
-    XCAM_LOG_ERROR ("FeatureMatch(idx:%d): non-OpenCL mode, failed to get umat", _fm_idx);
-    return false;
-#endif
 }
 
 void
@@ -267,21 +231,10 @@ CVFeatureMatch::feature_match (
     XCAM_ASSERT (_left_rect.width && _left_rect.height);
     XCAM_ASSERT (_right_rect.width && _right_rect.height);
 
-    cv::UMat left_umat, right_umat;
     cv::Mat left_img, right_img;
-
-    if (_cl_buf_mem[BufIdLeft] && _cl_buf_mem[BufIdRight]) {
-        if (!get_crop_image_umat (left_buf, _left_rect, left_umat, BufIdLeft)
-                || !get_crop_image_umat (right_buf, _right_rect, right_umat, BufIdRight))
-            return;
-
-        left_img = left_umat.getMat (cv::ACCESS_READ);
-        right_img = right_umat.getMat (cv::ACCESS_READ);
-    } else {
-        if (!convert_range_to_mat (left_buf, _left_rect, left_img)
-                || !convert_range_to_mat (right_buf, _right_rect, right_img))
-            return;
-    }
+    if (!convert_range_to_mat (left_buf, _left_rect, left_img)
+            || !convert_range_to_mat (right_buf, _right_rect, right_img))
+        return;
 
     detect_and_match (left_img, right_img);
 
