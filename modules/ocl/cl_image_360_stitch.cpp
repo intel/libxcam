@@ -21,11 +21,7 @@
 #include "cl_utils.h"
 #include "cl_device.h"
 #include "cl_image_360_stitch.h"
-#if HAVE_OPENCV
-#include "ocv/cv_feature_match.h"
-#include "ocv/cv_feature_match_cluster.h"
-#include <opencv2/core/ocl.hpp>
-#endif
+#include "interface/feature_match.h"
 
 #define XCAM_BLENDER_GLOBAL_SCALE_EXT_WIDTH 64
 
@@ -794,26 +790,6 @@ CLImage360Stitch::reset_buffer_info (SmartPtr<VideoBuffer> &input)
 }
 
 void
-CLImage360Stitch::init_opencv_ocl ()
-{
-#if HAVE_OPENCV
-    if (!cv::ocl::haveOpenCL ()) {
-        XCAM_LOG_ERROR ("OpenCV does not support OpenCL");
-        XCAM_ASSERT (false);
-    }
-
-    char *platform_name = CLDevice::instance()->get_platform_name ();
-    cl_platform_id platform_id = CLDevice::instance()->get_platform_id ();
-    cl_device_id device_id = CLDevice::instance()->get_device_id ();
-    cl_context context_id = _context->get_context_id ();
-    cv::ocl::attachContext (platform_name, platform_id, context_id, device_id);
-    cv::ocl::setUseOpenCL (false);
-#else
-    XCAM_LOG_ERROR ("non-OpenCV mode, failed to initialize opencv ocl");
-#endif
-}
-
-void
 CLImage360Stitch::init_feature_match ()
 {
 #if HAVE_OPENCV
@@ -844,7 +820,6 @@ CLImage360Stitch::prepare_parameters (SmartPtr<VideoBuffer> &input, SmartPtr<Vid
     if (!_is_stitch_inited) {
 #if HAVE_OPENCV
         if (_enable_fm) {
-            init_opencv_ocl ();
             init_feature_match ();
         }
 #endif
@@ -950,27 +925,6 @@ CLImage360Stitch::update_scale_factors (uint32_t fm_idx, const Rect &crop_left, 
 #endif
 }
 
-void
-CLImage360Stitch::set_fm_buf_mem (
-    const SmartPtr<VideoBuffer> &buf_left, const SmartPtr<VideoBuffer> &buf_right, int fm_idx)
-{
-#if HAVE_OPENCV
-    SmartPtr<CVFeatureMatch> fm = _feature_match[fm_idx].dynamic_cast_ptr<CVFeatureMatch> ();
-    XCAM_ASSERT (fm.ptr ());
-
-    SmartPtr<CLBuffer> cl_buf_left = convert_to_clbuffer (_context, buf_left);
-    SmartPtr<CLBuffer> cl_buf_right = convert_to_clbuffer (_context, buf_right);
-    XCAM_ASSERT (cl_buf_left.ptr () && cl_buf_left.ptr ());
-    cl_mem mem_left = cl_buf_left->get_mem_id ();
-    cl_mem mem_right = cl_buf_right->get_mem_id ();
-
-    fm->set_cl_buf_mem (mem_left, CVFeatureMatch::BufIdLeft);
-    fm->set_cl_buf_mem (mem_right, CVFeatureMatch::BufIdRight);
-#else
-    XCAM_LOG_ERROR ("non-OpenCV mode, failed to set feature match buffer memory");
-#endif
-}
-
 #if HAVE_OPENCV
 static void
 convert_to_stitch_rect (const Rect &xcam_rect, Rect &stitch_rect, SurroundMode surround_mode)
@@ -1008,8 +962,6 @@ CLImage360Stitch::sub_handler_execute_done (SmartPtr<CLImageHandler> &handler)
 
         for (int i = 0; i < _fisheye_num; i++) {
             idx_next = (i == (_fisheye_num - 1)) ? 0 : (i + 1);
-
-            set_fm_buf_mem (_fisheye[i].buf, _fisheye[idx_next].buf, i);
 
             convert_to_stitch_rect (_img_merge_info[i].right, crop_left, _surround_mode);
             convert_to_stitch_rect (_img_merge_info[idx_next].left, crop_right, _surround_mode);
