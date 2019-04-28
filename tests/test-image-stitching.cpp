@@ -518,8 +518,8 @@ int main (int argc, char *argv[])
     printf ("input height:\t\t%d\n", input_height);
     printf ("output width:\t\t%d\n", output_width);
     printf ("output height:\t\t%d\n", output_height);
-    printf ("resolution mode:\t%s\n",
-            res_mode == StitchRes1080P ? "1080P" : (res_mode == StitchRes1080P4 ? "1080P4" : "4K"));
+    printf ("resolution mode:\t%s\n", res_mode == StitchRes1080P ? "1080P" :
+             (res_mode == StitchRes1080P4 ? "1080P4" : (res_mode == StitchRes4K ? "4K" : "8K6")));
     printf ("surround mode: \t\t%s\n",
             surround_mode == SphereView ? "sphere view" : "bowl view");
     printf ("scale mode:\t\t%s\n", scale_mode == CLBlenderScaleLocal ? "local" : "global");
