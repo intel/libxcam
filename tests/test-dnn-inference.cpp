@@ -290,8 +290,8 @@ int main (int argc, char *argv[])
         if (DnnInferObjectDetection == infer_config.model_type) {
             std::vector<Vec4i> boxes;
             std::vector<int32_t> classes;
-            uint32_t image_width = infer_engine->get_input_image_width ();
-            uint32_t image_height = infer_engine->get_input_image_height ();
+            uint32_t image_width = infer_engine->get_input_image_width (batch_idx);
+            uint32_t image_height = infer_engine->get_input_image_height (batch_idx);
 
             SmartPtr<DnnObjectDetection> object_detector = infer_engine.dynamic_cast_ptr<DnnObjectDetection> ();
             CHECK (

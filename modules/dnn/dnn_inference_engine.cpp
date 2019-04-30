@@ -38,11 +38,10 @@ DnnInferenceEngine::DnnInferenceEngine (DnnInferConfig& config)
     : _model_created (false)
     , _model_loaded (false)
     , _model_type (config.model_type)
-    , _input_image_width (0)
-    , _input_image_height (0)
 {
     XCAM_LOG_DEBUG ("DnnInferenceEngine::DnnInferenceEngine");
-
+    _input_image_width.clear ();
+    _input_image_height.clear ();
     create_model (config);
 }
 
@@ -472,8 +471,8 @@ DnnInferenceEngine::set_inference_data (std::vector<std::string> images)
             continue;
         }
 
-        _input_image_width = reader->width ();
-        _input_image_height = reader->height ();
+        _input_image_width.push_back (reader->width ());
+        _input_image_height.push_back (reader->height ());
 
         uint32_t image_width = 0;
         uint32_t image_height = 0;
@@ -856,7 +855,7 @@ DnnInferenceEngine::copy_image_to_blob (const DnnInferData& data, Blob::Ptr& blo
                 std::memcpy (blob_data + batch_offset + ch * image_size, buffer + ch * image_stride_size, image_size);
             }
         } else {
-            for (size_t ch = 0; ch < channels; ++ch) {
+            for (size_t ch = 0; ch < channels; ch++) {
                 for (size_t h = 0; h < height; h++) {
                     std::memcpy (blob_data + batch_offset + ch * image_size + h * width, buffer + ch * image_stride_size + h * data.width_stride, width);
                 }
@@ -864,7 +863,7 @@ DnnInferenceEngine::copy_image_to_blob (const DnnInferData& data, Blob::Ptr& blo
         }
     } else if (DnnInferImageFormatBGRPacked == data.image_format) {
         for (size_t pid = 0; pid < image_size; pid++) {
-            for (size_t ch = 0; ch < channels; ++ch) {
+            for (size_t ch = 0; ch < channels; ch++) {
                 blob_data[batch_offset + ch * image_size + pid] = buffer[pid * channels + ch];
             }
         }

@@ -184,11 +184,11 @@ struct DnnInferConfig {
     DnnInferInputOutputInfo input_infos;
     DnnInferInputOutputInfo output_infos;
 
-    char * plugin_path;
-    char * cpu_ext_path;
-    char * cldnn_ext_path;
-    char * model_filename;
-    char * output_layer_name;
+    const char * plugin_path;
+    const char * cpu_ext_path;
+    const char * cldnn_ext_path;
+    const char * model_filename;
+    const char * output_layer_name;
     uint32_t perf_counter;
     uint32_t infer_req_num;
 
@@ -235,11 +235,11 @@ public:
     XCamReturn set_input_layout (uint32_t idx, DnnInferLayoutType layout);
     XCamReturn set_output_layout (uint32_t idx, DnnInferLayoutType layout);
 
-    uint32_t get_input_image_height () const {
-        return _input_image_height;
+    uint32_t get_input_image_height (uint32_t idx) const {
+        return (idx >= _input_image_height.size ()) ? 0 : _input_image_height[idx];
     };
-    uint32_t get_input_image_width () const {
-        return _input_image_width;
+    uint32_t get_input_image_width (uint32_t idx) const {
+        return (idx >= _input_image_width.size ()) ? 0 : _input_image_width[idx];
     };
 
     virtual XCamReturn set_model_input_info (DnnInferInputOutputInfo& info) = 0;
@@ -285,8 +285,8 @@ protected:
 
     DnnInferModelType _model_type;
 
-    uint32_t _input_image_width;
-    uint32_t _input_image_height;
+    std::vector<uint32_t> _input_image_width;
+    std::vector<uint32_t> _input_image_height;
 
     InferenceEngine::InferencePlugin _plugin;
     InferenceEngine::CNNNetReader _network_reader;
