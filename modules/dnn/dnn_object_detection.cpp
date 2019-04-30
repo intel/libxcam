@@ -190,8 +190,8 @@ DnnObjectDetection::get_bounding_boxes (const float* result_ptr,
     DnnInferInputOutputInfo output_infos;
     get_model_output_info (output_infos);
 
-    uint32_t image_width = get_input_image_width ();
-    uint32_t image_height = get_input_image_height ();
+    uint32_t image_width = get_input_image_width (idx);
+    uint32_t image_height = get_input_image_height (idx);
     uint32_t max_proposal_count = output_infos.channels[idx];
     uint32_t object_size = output_infos.object_size[idx];
 
