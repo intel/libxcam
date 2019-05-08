@@ -60,12 +60,12 @@ OpenCL is used to improve performance in different platforms.
   * install ocl-icd-dev, ocl-icd-opencl-dev
   * If --enable-gst, need install libgstreamer1.0-dev, libgstreamer-plugins-base1.0-dev
   * If --enable-aiq, need get ia_imaging lib which we don't support
-  * If --enable-libcl, need compile [OpenCL](https://www.freedesktop.org/wiki/Software/Beignet) driver
+  * If --enable-libcl, need compile or install [OpenCL](https://github.com/intel/compute-runtime) driver
   * If --enable-opencv, suggest [OpenCV](http://opencv.org) versions [3.0.0 - 3.4.3] (or: [OpenCV Wiki](https://github.com/opencv/opencv/wiki))
   * If --enable-render, need compile [OpenSceneGraph](https://github.com/openscenegraph/OpenSceneGraph) library with configure option "-DOSG_WINDOWING_SYSTEM=X11"
   * If --enable-gles, need to install [Mesa3D](https://www.mesa3d.org) library
   * If --enable-vulkan, need to install [Mesa3D](https://www.mesa3d.org) library
-  * If --enable-dnn, need to install OpenVino SDK
+  * If --enable-dnn, need to compile [OpenVino](https://github.com/opencv/dldt) [inference-engine](https://github.com/opencv/dldt/blob/2018/inference-engine)
 
 #### Building and installing:
   * Environment variable settings<BR>
