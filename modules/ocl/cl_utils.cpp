@@ -129,6 +129,10 @@ convert_to_climage (
             uint32_t size = row_pitch * desc.height;
 
             cl_buf = new CLSubBuffer (context, cl_video_buf, flags, offset, size);
+            if (!cl_buf->is_valid ()) {
+                XCAM_LOG_ERROR (
+                   "create CLSubBuffer failed, row_pitch:%d offset:%d size:%d", row_pitch, offset, size);
+            }
         }
 
         cl_image = new CLImage2D (context, desc, flags, cl_buf);
@@ -143,7 +147,13 @@ convert_to_climage (
     }
 #endif
 
-    XCAM_FAIL_RETURN (WARNING, cl_image.ptr (), NULL, "convert to climage failed");
+    XCAM_FAIL_RETURN (
+        ERROR,
+        cl_image->is_valid (),
+        NULL,
+        "convert to climage failed, image desc width:%d height:%d row_pitch:%d slice_pitch:%d array_size:%d size:%d",
+        desc.width, desc.height, desc.row_pitch, desc.slice_pitch, desc.array_size, desc.size);
+
     return cl_image;
 }
 

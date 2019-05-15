@@ -20,6 +20,7 @@
 
 #include "cl_utils.h"
 #include "cl_memory.h"
+#include "cl_error.h"
 #if HAVE_LIBDRM
 #include "intel/cl_va_memory.h"
 #endif
@@ -125,16 +126,16 @@ bool CLMemory::get_cl_mem_info (
     void *param, size_t *param_size_ret)
 {
     cl_mem mem_id = get_mem_id ();
-    cl_int error_code = CL_SUCCESS;
     if (!mem_id)
         return false;
 
-    error_code = clGetMemObjectInfo (mem_id, param_name, param_size, param, param_size_ret);
+    cl_int error_code = clGetMemObjectInfo (mem_id, param_name, param_size, param, param_size_ret);
     XCAM_FAIL_RETURN(
         WARNING,
         error_code == CL_SUCCESS,
         false,
-        "clGetMemObjectInfo failed on param:%d, errno:%d", param_name, error_code);
+        "clGetMemObjectInfo failed on param:%d, errno:%s", param_name, error_string (error_code));
+
     return true;
 }
 
@@ -199,7 +200,9 @@ CLSubBuffer::init_sub_buffer (
 
     sub_mem = context->create_sub_buffer (main_mem, region, flags);
     if (sub_mem == NULL) {
-        XCAM_LOG_WARNING ("CLBuffer create sub buffer failed");
+        XCAM_LOG_ERROR (
+            "CLBuffer create sub buffer failed, region offset:%d size:%d",
+            region.origin, region.size);
         return false;
     }
 
@@ -280,16 +283,16 @@ bool
 CLImage::get_cl_image_info (cl_image_info param_name, size_t param_size, void *param, size_t *param_size_ret)
 {
     cl_mem mem_id = get_mem_id ();
-    cl_int error_code = CL_SUCCESS;
     if (!mem_id)
         return false;
 
-    error_code = clGetImageInfo (mem_id, param_name, param_size, param, param_size_ret);
+    cl_int error_code = clGetImageInfo (mem_id, param_name, param_size, param, param_size_ret);
     XCAM_FAIL_RETURN(
         WARNING,
         error_code == CL_SUCCESS,
         false,
-        "clGetImageInfo failed on param:%d, errno:%d", param_name, error_code);
+        "clGetImageInfo failed on param:%d, errno:%s", param_name, error_string (error_code));
+
     return true;
 }
 
@@ -588,18 +591,26 @@ bool CLImage2D::init_image_2d (
         else {
             cl_desc.image_row_pitch = calculate_pixel_bytes(desc.format) * desc.width;
         }
-        XCAM_ASSERT (cl_desc.image_row_pitch);
+        XCAM_FAIL_RETURN (
+            ERROR, cl_desc.image_row_pitch, false, "invalid row pitch:%d", cl_desc.image_row_pitch);
+
         cl_desc.buffer = _bind_buf->get_mem_id ();
-        XCAM_ASSERT (cl_desc.buffer);
+        XCAM_FAIL_RETURN (
+            ERROR, cl_desc.buffer, false, "memory object is NULL");
     }
 
     mem_id = context->create_image (flags, desc.format, cl_desc);
     if (mem_id == NULL) {
-        XCAM_LOG_WARNING ("CLImage2D create image 2d failed");
+        XCAM_LOG_ERROR (
+            "CLImage2D create image 2d failed, image desc width:%d height:%d row_pitch:%d slice_pitch:%d array_size:%d",
+            cl_desc.image_width, cl_desc.image_height, cl_desc.image_row_pitch,
+            cl_desc.image_slice_pitch, cl_desc.image_array_size);
         return false;
     }
+
     set_mem_id (mem_id);
     init_desc_by_image ();
+
     return true;
 }
 
