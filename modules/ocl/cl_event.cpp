@@ -19,6 +19,7 @@
  */
 
 #include "cl_event.h"
+#include "cl_error.h"
 
 namespace XCam {
 
@@ -40,21 +41,19 @@ CLEvent::~CLEvent ()
 XCamReturn
 CLEvent::wait ()
 {
-    cl_int error_code = CL_SUCCESS;
-
     XCAM_FAIL_RETURN (
         DEBUG,
         _event_id,
         XCAM_RETURN_ERROR_PARAM,
         "cl event wait failed, there's no event id");
 
-    error_code = clWaitForEvents (1, &_event_id);
+    cl_int error_code = clWaitForEvents (1, &_event_id);
 
     XCAM_FAIL_RETURN (
         WARNING,
         error_code == CL_SUCCESS,
         XCAM_RETURN_ERROR_CL,
-        "cl event wait failed with error cod:%d", error_code);
+        "cl event wait failed with %s", error_string (error_code));
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -64,21 +63,20 @@ CLEvent::get_cl_event_info (
     cl_event_info param_name, size_t param_size,
     void *param, size_t *param_size_ret)
 {
-    cl_int error_code = CL_SUCCESS;
-
     XCAM_FAIL_RETURN (
         DEBUG,
         _event_id,
         false,
         "cl event wait failed, there's no event id");
 
-    clGetEventInfo (_event_id, param_name, param_size, param, param_size_ret);
+    cl_int error_code = clGetEventInfo (_event_id, param_name, param_size, param, param_size_ret);
 
     XCAM_FAIL_RETURN(
         WARNING,
         error_code == CL_SUCCESS,
         false,
-        "clGetEventInfo failed on param:%d, errno:%d", param_name, error_code);
+        "clGetEventInfo failed on param:%d, errno:%s", param_name, error_string (error_code));
+
     return true;
 }
 
@@ -89,7 +87,6 @@ cl_events_wait (CLEventList &event_list)
 
     cl_event event_ids [XCAM_MAX_CL_EVENT_COUNT];
     uint32_t event_count = 0;
-    cl_int error_code = CL_SUCCESS;
 
     if (event_list.empty ())
         return XCAM_RETURN_NO_ERROR;
@@ -106,13 +103,13 @@ cl_events_wait (CLEventList &event_list)
 
     XCAM_ASSERT (event_count > 0);
 
-    error_code = clWaitForEvents (event_count, event_ids);
+    cl_int error_code = clWaitForEvents (event_count, event_ids);
 
     XCAM_FAIL_RETURN (
         WARNING,
         error_code == CL_SUCCESS,
         XCAM_RETURN_ERROR_CL,
-        "cl events wait failed with error cod:%d", error_code);
+        "cl events wait failed with %s", error_string (error_code));
 
     return XCAM_RETURN_NO_ERROR;
 }

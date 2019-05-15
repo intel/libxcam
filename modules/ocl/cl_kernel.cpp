@@ -19,6 +19,7 @@
  */
 
 #include "cl_kernel.h"
+#include "cl_error.h"
 #include "cl_context.h"
 #include "cl_device.h"
 #include "file_handle.h"
@@ -365,9 +366,10 @@ CLKernel::set_argument (uint32_t arg_i, void *arg_addr, uint32_t arg_size)
 {
     cl_int error_code = clSetKernelArg (_kernel_id, arg_i, arg_size, arg_addr);
     if (error_code != CL_SUCCESS) {
-        XCAM_LOG_DEBUG ("kernel(%s) set arg_i(%d) failed", _name, arg_i);
+        XCAM_LOG_ERROR ("kernel(%s) set arg_index(%d) failed with %s", _name, arg_i, error_string (error_code));
         return XCAM_RETURN_ERROR_CL;
     }
+
     return XCAM_RETURN_NO_ERROR;
 }
 

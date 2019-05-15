@@ -19,6 +19,7 @@
  */
 
 
+#include "cl_error.h"
 #include "cl_context.h"
 #include "cl_kernel.h"
 #include "cl_device.h"
@@ -116,19 +117,18 @@ CLContext::terminate ()
 XCamReturn
 CLContext::flush ()
 {
-    cl_int error_code = CL_SUCCESS;
     cl_command_queue cmd_queue_id = NULL;
     SmartPtr<CLCommandQueue> cmd_queue = get_default_cmd_queue ();
 
     XCAM_ASSERT (cmd_queue.ptr ());
     cmd_queue_id = cmd_queue->get_cmd_queue_id ();
-    error_code = clFlush (cmd_queue_id);
+    cl_int error_code = clFlush (cmd_queue_id);
 
     XCAM_FAIL_RETURN (
         WARNING,
         error_code == CL_SUCCESS,
         XCAM_RETURN_ERROR_CL,
-        "CL flush cmdqueue failed with error_code:%d", error_code);
+        "CL flush cmdqueue failed with %s", error_string (error_code));
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -137,19 +137,18 @@ CLContext::flush ()
 XCamReturn
 CLContext::finish ()
 {
-    cl_int error_code = CL_SUCCESS;
     cl_command_queue cmd_queue_id = NULL;
     SmartPtr<CLCommandQueue> cmd_queue = get_default_cmd_queue ();
 
     XCAM_ASSERT (cmd_queue.ptr ());
     cmd_queue_id = cmd_queue->get_cmd_queue_id ();
-    error_code = clFinish (cmd_queue_id);
+    cl_int error_code = clFinish (cmd_queue_id);
 
     XCAM_FAIL_RETURN (
         WARNING,
         error_code == CL_SUCCESS,
         XCAM_RETURN_ERROR_CL,
-        "CL finish cmdqueue failed with error_code:%d", error_code);
+        "CL finish cmdqueue failed with %d", error_string (error_code));
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -158,7 +157,7 @@ bool
 CLContext::init_context ()
 {
     cl_context context_id = NULL;
-    cl_int err_code = 0;
+    cl_int error_code = CL_SUCCESS;
     cl_device_id device_id = _device->get_device_id ();
 
     XCAM_ASSERT (_context_id == NULL);
@@ -171,10 +170,10 @@ CLContext::init_context ()
     context_id =
         clCreateContext (NULL, 1, &device_id,
                          CLContext::context_pfn_notify, this,
-                         &err_code);
-    if (err_code != CL_SUCCESS)
+                         &error_code);
+    if (error_code != CL_SUCCESS)
     {
-        XCAM_LOG_WARNING ("create cl context failed, error:%d", err_code);
+        XCAM_LOG_WARNING ("create cl context failed with %s", error_string (error_code));
         return false;
     }
     _context_id = context_id;
@@ -224,7 +223,6 @@ CLContext::execute_kernel (
 {
     XCAM_ASSERT (kernel.ptr ());
 
-    cl_int error_code = CL_SUCCESS;
     cl_command_queue cmd_queue_id = NULL;
     cl_event *event_out_id = NULL;
     cl_event events_id_wait[XCAM_CL_MAX_EVENT_SIZE];
@@ -253,7 +251,7 @@ CLContext::execute_kernel (
     else
         local_sizes = NULL;
 
-    error_code =
+    cl_int error_code =
         clEnqueueNDRangeKernel (
             cmd_queue_id, kernel_id,
             work_size.dim, NULL, work_size.global, local_sizes,
@@ -264,8 +262,8 @@ CLContext::execute_kernel (
         WARNING,
         error_code == CL_SUCCESS,
         XCAM_RETURN_ERROR_CL,
-        "execute kernel(%s) failed with error_code:%d",
-        kernel->get_kernel_name (), error_code);
+        "execute kernel(%s) failed with %s",
+        kernel->get_kernel_name (), error_string (error_code));
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -286,18 +284,18 @@ CLContext::create_cmd_queue (SmartPtr<CLContext> &self)
 {
     cl_device_id device_id = _device->get_device_id ();
     cl_command_queue cmd_queue_id = NULL;
-    cl_int err_code = 0;
+    cl_int error_code = CL_SUCCESS;
     SmartPtr<CLCommandQueue> result;
 
     XCAM_ASSERT (self.ptr() == this);
 
 #if defined (CL_VERSION_2_0) && (CL_VERSION_2_0 == 1)
-    cmd_queue_id = clCreateCommandQueueWithProperties (_context_id, device_id, 0, &err_code);
+    cmd_queue_id = clCreateCommandQueueWithProperties (_context_id, device_id, 0, &error_code);
 #else
-    cmd_queue_id = clCreateCommandQueue (_context_id, device_id, 0, &err_code);
+    cmd_queue_id = clCreateCommandQueue (_context_id, device_id, 0, &error_code);
 #endif
-    if (err_code != CL_SUCCESS) {
-        XCAM_LOG_WARNING ("create CL command queue failed, errcode:%d", err_code);
+    if (error_code != CL_SUCCESS) {
+        XCAM_LOG_WARNING ("create CL command queue failed with %s", error_string (error_code));
         return NULL;
     }
 
@@ -355,7 +353,7 @@ CLContext::generate_kernel_id (
         WARNING,
         error_code == CL_SUCCESS,
         NULL,
-        "cl create program failed with error_cod:%d", error_code);
+        "cl create program failed with %d", error_string (error_code));
     XCAM_ASSERT (program.id);
 
     error_code = clBuildProgram (program.id, 1, &device_id, build_option, CLContext::program_pfn_notify, this);
@@ -371,14 +369,14 @@ CLContext::generate_kernel_id (
     if (gen_binary != NULL && binary_size != NULL) {
         error_code = clGetProgramInfo (program.id, CL_PROGRAM_BINARY_SIZES, sizeof (size_t) * 1, binary_size, NULL);
         if (error_code != CL_SUCCESS) {
-            XCAM_LOG_WARNING ("CL query binary sizes failed on %s, errcode:%d", name, error_code);
+            XCAM_LOG_WARNING ("CL query binary sizes failed on %s with %s", name, error_string (error_code));
         }
 
         *gen_binary = (uint8_t *) xcam_malloc0 (sizeof (uint8_t) * (*binary_size));
 
         error_code = clGetProgramInfo (program.id, CL_PROGRAM_BINARIES, sizeof (uint8_t *) * 1, gen_binary, NULL);
         if (error_code != CL_SUCCESS) {
-            XCAM_LOG_WARNING ("CL query program binaries failed on %s, errcode:%d", name, error_code);
+            XCAM_LOG_WARNING ("CL query program binaries failed on %s with %s", name, error_string (error_code));
         }
     }
 
@@ -387,7 +385,7 @@ CLContext::generate_kernel_id (
         WARNING,
         error_code == CL_SUCCESS,
         NULL,
-        "cl create kernel(%s) failed with error_cod:%d", name, error_code);
+        "cl create kernel(%s) failed with %s", name, error_string (error_code));
 
     return kernel_id;
 }
@@ -427,18 +425,18 @@ CLContext::create_image (
     const cl_image_desc &image_info, void *host_ptr)
 {
     cl_mem mem_id = NULL;
-    cl_int errcode = CL_SUCCESS;
+    cl_int error_code = CL_SUCCESS;
 
     mem_id = clCreateImage (
                  _context_id, flags,
                  &format, &image_info,
-                 host_ptr, &errcode);
+                 host_ptr, &error_code);
 
     XCAM_FAIL_RETURN (
         WARNING,
-        errcode == CL_SUCCESS,
+        error_code == CL_SUCCESS,
         NULL,
-        "create cl image failed, errcode:%d", errcode);
+        "create cl image failed with %s", error_string (error_code));
     return mem_id;
 }
 
@@ -453,20 +451,20 @@ cl_mem
 CLContext::create_buffer (uint32_t size, cl_mem_flags flags, void *host_ptr)
 {
     cl_mem mem_id = NULL;
-    cl_int errcode = CL_SUCCESS;
+    cl_int error_code = CL_SUCCESS;
 
     XCAM_ASSERT (_context_id);
 
     mem_id = clCreateBuffer (
                  _context_id, flags,
                  size, host_ptr,
-                 &errcode);
+                 &error_code);
 
     XCAM_FAIL_RETURN (
         WARNING,
-        errcode == CL_SUCCESS,
+        error_code == CL_SUCCESS,
         NULL,
-        "create cl buffer failed, errcode:%d", errcode);
+        "create cl buffer failed with %s", error_string (error_code));
     return mem_id;
 }
 
@@ -477,14 +475,14 @@ CLContext::create_sub_buffer (
     cl_mem_flags flags)
 {
     cl_mem sub_mem = NULL;
-    cl_int errcode = CL_SUCCESS;
+    cl_int error_code = CL_SUCCESS;
 
-    sub_mem = clCreateSubBuffer (main_mem, flags, CL_BUFFER_CREATE_TYPE_REGION, &region, &errcode);
+    sub_mem = clCreateSubBuffer (main_mem, flags, CL_BUFFER_CREATE_TYPE_REGION, &region, &error_code);
     XCAM_FAIL_RETURN (
         WARNING,
-        errcode == CL_SUCCESS,
+        error_code == CL_SUCCESS,
         NULL,
-        "create sub buffer failed, errcode:%d", errcode);
+        "create sub buffer failed with %s", error_string (error_code));
 
     return sub_mem;
 }
@@ -502,7 +500,7 @@ CLContext::enqueue_read_buffer (
     cl_event *event_out_id = NULL;
     cl_event events_id_wait[XCAM_CL_MAX_EVENT_SIZE];
     uint32_t num_of_events_wait = 0;
-    cl_int errcode = CL_SUCCESS;
+    cl_int error_code = CL_SUCCESS;
 
     cmd_queue = get_default_cmd_queue ();
     cmd_queue_id = cmd_queue->get_cmd_queue_id ();
@@ -512,7 +510,7 @@ CLContext::enqueue_read_buffer (
 
     XCAM_ASSERT (_context_id);
     XCAM_ASSERT (cmd_queue_id);
-    errcode = clEnqueueReadBuffer (
+    error_code = clEnqueueReadBuffer (
                   cmd_queue_id, buf_id,
                   (block ? CL_BLOCKING : CL_NON_BLOCKING),
                   offset, size, ptr,
@@ -521,9 +519,9 @@ CLContext::enqueue_read_buffer (
 
     XCAM_FAIL_RETURN (
         WARNING,
-        errcode == CL_SUCCESS,
+        error_code == CL_SUCCESS,
         XCAM_RETURN_ERROR_CL,
-        "cl enqueue read buffer failed with error_code:%d", errcode);
+        "cl enqueue read buffer failed with %s", error_string (error_code));
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -541,7 +539,7 @@ CLContext::enqueue_write_buffer (
     cl_event *event_out_id = NULL;
     cl_event events_id_wait[XCAM_CL_MAX_EVENT_SIZE];
     uint32_t num_of_events_wait = 0;
-    cl_int errcode = CL_SUCCESS;
+    cl_int error_code = CL_SUCCESS;
 
     cmd_queue = get_default_cmd_queue ();
     cmd_queue_id = cmd_queue->get_cmd_queue_id ();
@@ -551,7 +549,7 @@ CLContext::enqueue_write_buffer (
 
     XCAM_ASSERT (_context_id);
     XCAM_ASSERT (cmd_queue_id);
-    errcode = clEnqueueWriteBuffer (
+    error_code = clEnqueueWriteBuffer (
                   cmd_queue_id, buf_id,
                   (block ? CL_BLOCKING : CL_NON_BLOCKING),
                   offset, size, ptr,
@@ -560,9 +558,9 @@ CLContext::enqueue_write_buffer (
 
     XCAM_FAIL_RETURN (
         WARNING,
-        errcode == CL_SUCCESS,
+        error_code == CL_SUCCESS,
         XCAM_RETURN_ERROR_CL,
-        "cl enqueue write buffer failed with error_code:%d", errcode);
+        "cl enqueue write buffer failed with %s", error_string (error_code));
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -581,7 +579,7 @@ CLContext::enqueue_map_buffer (
     cl_event *event_out_id = NULL;
     cl_event events_id_wait[XCAM_CL_MAX_EVENT_SIZE];
     uint32_t num_of_events_wait = 0;
-    cl_int errcode = CL_SUCCESS;
+    cl_int error_code = CL_SUCCESS;
     void *out_ptr = NULL;
 
     cmd_queue = get_default_cmd_queue ();
@@ -599,13 +597,13 @@ CLContext::enqueue_map_buffer (
                   offset, size,
                   num_of_events_wait, (num_of_events_wait ? events_id_wait : NULL),
                   event_out_id,
-                  &errcode);
+                  &error_code);
 
     XCAM_FAIL_RETURN (
         WARNING,
-        out_ptr && errcode == CL_SUCCESS,
+        out_ptr && error_code == CL_SUCCESS,
         XCAM_RETURN_ERROR_CL,
-        "cl enqueue map buffer failed with error_code:%d", errcode);
+        "cl enqueue map buffer failed with %s", error_string (error_code));
 
     ptr = out_ptr;
     return XCAM_RETURN_NO_ERROR;
@@ -629,7 +627,7 @@ CLContext::enqueue_map_image (
     cl_event *event_out_id = NULL;
     cl_event events_id_wait[XCAM_CL_MAX_EVENT_SIZE];
     uint32_t num_of_events_wait = 0;
-    cl_int errcode = CL_SUCCESS;
+    cl_int error_code = CL_SUCCESS;
     void *out_ptr = NULL;
 
     cmd_queue = get_default_cmd_queue ();
@@ -651,13 +649,13 @@ CLContext::enqueue_map_image (
                   image_slice_pitch,
                   num_of_events_wait, (num_of_events_wait ? events_id_wait : NULL),
                   event_out_id,
-                  &errcode);
+                  &error_code);
 
     XCAM_FAIL_RETURN (
         WARNING,
-        out_ptr && errcode == CL_SUCCESS,
+        out_ptr && error_code == CL_SUCCESS,
         XCAM_RETURN_ERROR_CL,
-        "cl enqueue map buffer failed with error_code:%d", errcode);
+        "cl enqueue map buffer failed with %s", error_string (error_code));
 
     ptr = out_ptr;
     return XCAM_RETURN_NO_ERROR;
@@ -675,7 +673,7 @@ CLContext::enqueue_unmap (
     cl_event *event_out_id = NULL;
     cl_event events_id_wait[XCAM_CL_MAX_EVENT_SIZE];
     uint32_t num_of_events_wait = 0;
-    cl_int errcode = CL_SUCCESS;
+    cl_int error_code = CL_SUCCESS;
 
     cmd_queue = get_default_cmd_queue ();
     cmd_queue_id = cmd_queue->get_cmd_queue_id ();
@@ -685,16 +683,16 @@ CLContext::enqueue_unmap (
 
     XCAM_ASSERT (_context_id);
     XCAM_ASSERT (cmd_queue_id);
-    errcode = clEnqueueUnmapMemObject (
+    error_code = clEnqueueUnmapMemObject (
                   cmd_queue_id, mem_id, ptr,
                   num_of_events_wait, (num_of_events_wait ? events_id_wait : NULL),
                   event_out_id);
 
     XCAM_FAIL_RETURN (
         WARNING,
-        errcode == CL_SUCCESS,
+        error_code == CL_SUCCESS,
         XCAM_RETURN_ERROR_CL,
-        "cl enqueue unmap buffer failed with error_code:%d", errcode);
+        "cl enqueue unmap buffer failed with %s", error_string (error_code));
 
     return XCAM_RETURN_NO_ERROR;
 }
