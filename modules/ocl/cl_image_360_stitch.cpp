@@ -476,27 +476,30 @@ CLImage360Stitch::calc_fisheye_initial_info (SmartPtr<VideoBuffer> &output)
     const VideoBufferInfo &out_info = output->get_video_info ();
 
     if(_surround_mode == SphereView) {
-        uint32_t fisheye_width_sum = out_info.width;
-        for (int i = 0; i < _fisheye_num; i++) {
-            fisheye_width_sum += _stitch_info.merge_width[i] + _stitch_info.crop[i].left + _stitch_info.crop[i].right;
+        if (_res_mode == StitchRes8K6 && _scale_mode == CLBlenderScaleGlobal) {
+            _fisheye[0].width = out_info.width / _fisheye_num * 2;
+        } else {
+            uint32_t fisheye_width_sum = out_info.width;
+            for (int i = 0; i < _fisheye_num; i++) {
+                fisheye_width_sum += _stitch_info.merge_width[i] +
+                    _stitch_info.crop[i].left + _stitch_info.crop[i].right;
+            }
+            _fisheye[0].width = fisheye_width_sum / _fisheye_num;
         }
-        _fisheye[0].width = fisheye_width_sum / _fisheye_num;
         _fisheye[0].width = XCAM_ALIGN_UP (_fisheye[0].width, 16);
-        _fisheye[0].height = out_info.height + _stitch_info.crop[0].top + _stitch_info.crop[0].bottom;
-        XCAM_LOG_INFO (
-            "fisheye correction output size width:%d height:%d",
-            _fisheye[0].width, _fisheye[0].height);
 
-        for (int i = 1; i < _fisheye_num; i++) {
+        _fisheye[0].height = out_info.height + _stitch_info.crop[0].top + _stitch_info.crop[0].bottom;
+        _fisheye[0].height = XCAM_ALIGN_UP (_fisheye[0].height, 16);
+        XCAM_LOG_INFO (
+            "fisheye correction output size width:%d height:%d", _fisheye[0].width, _fisheye[0].height);
+
+        for (int i = 0; i < _fisheye_num; ++i) {
             _fisheye[i].width = _fisheye[0].width;
             _fisheye[i].height = _fisheye[0].height;
-        }
 
-        float max_dst_longitude, max_dst_latitude;
-        for (int i = 0; i < _fisheye_num; ++i) {
-            max_dst_latitude = (_stitch_info.fisheye_info[i].wide_angle > 180.0f) ?
+            float max_dst_latitude = (_stitch_info.fisheye_info[i].wide_angle > 180.0f) ?
                                180.0f : _stitch_info.fisheye_info[i].wide_angle;
-            max_dst_longitude = max_dst_latitude * _fisheye[i].width / _fisheye[i].height;
+            float max_dst_longitude = max_dst_latitude * _fisheye[i].width / _fisheye[i].height;
 
             _fisheye[i].handler->set_dst_range (max_dst_longitude, max_dst_latitude);
             _fisheye[i].handler->set_output_size (_fisheye[i].width, _fisheye[i].height);
@@ -617,8 +620,11 @@ CLImage360Stitch::ensure_fisheye_parameters (
     SmartPtr<VideoBuffer> pre_buf;
     SmartPtr<VideoBuffer> cur_buf = input;
     for (int i = 0; i < _fisheye_num; i++) {
-        if (!_fisheye[i].pool.ptr ())
-            create_buffer_pool (_fisheye[i].pool, _fisheye[i].width, _fisheye[i].height);
+
+        if (!_fisheye[i].pool.ptr ()) {
+            create_buffer_pool (_fisheye[i].pool, _fisheye[i].width, _fisheye[i].height,
+                                  XCAM_ALIGN_UP (_fisheye[i].width, 16), XCAM_ALIGN_UP (_fisheye[i].height, 16));
+        }
 
         _fisheye[i].buf = _fisheye[i].pool->get_buffer (_fisheye[i].pool);
         XCAM_ASSERT (_fisheye[i].buf.ptr ());
@@ -748,17 +754,19 @@ CLImage360Stitch::prepare_local_scale_blender_parameters (
 }
 
 bool
-CLImage360Stitch::create_buffer_pool (SmartPtr<BufferPool> &buf_pool, uint32_t width, uint32_t height)
+CLImage360Stitch::create_buffer_pool (
+    SmartPtr<BufferPool> &buf_pool,
+    uint32_t width, uint32_t height,
+    uint32_t aligned_width, uint32_t aligned_height)
 {
     VideoBufferInfo buf_info;
-    width = XCAM_ALIGN_UP (width, 16);
     buf_info.init (V4L2_PIX_FMT_NV12, width, height,
-                   XCAM_ALIGN_UP (width, 16), XCAM_ALIGN_UP (height, 16));
+                   aligned_width, aligned_height);
 
     SmartPtr<BufferPool> pool = new CLVideoBufferPool ();
     XCAM_ASSERT (pool.ptr ());
     pool->set_video_info (buf_info);
-    if (!pool->reserve (6)) {
+    if (!pool->reserve (4)) {
         XCAM_LOG_ERROR ("CLImage360Stitch init buffer pool failed");
         return false;
     }
@@ -768,24 +776,51 @@ CLImage360Stitch::create_buffer_pool (SmartPtr<BufferPool> &buf_pool, uint32_t w
 }
 
 XCamReturn
-CLImage360Stitch::reset_buffer_info (SmartPtr<VideoBuffer> &input)
+CLImage360Stitch::get_global_scale_inbuf (const SmartPtr<VideoBuffer> &output, SmartPtr<VideoBuffer> &scale_input)
 {
-    VideoBufferInfo reset_info;
-    const VideoBufferInfo &buf_info = input->get_video_info ();
-
-    uint32_t reset_width = 0;
+    uint32_t scale_width = 0;
     for (int i = 0; i < _fisheye_num; i++) {
         Rect img_left = get_image_overlap (i, 0);
         Rect img_right = get_image_overlap (i, 1);
 
-        reset_width += img_right.pos_x - img_left.pos_x;
+        scale_width += img_right.pos_x - img_left.pos_x;
+    }
+    scale_width = XCAM_ALIGN_UP (scale_width, XCAM_CL_BLENDER_ALIGNMENT_X);
+
+    const VideoBufferInfo &out_info = output->get_video_info ();
+    VideoBufferInfo scale_info;
+    if (!_scale_global_input.ptr ()) {
+        uint32_t aligned_width =
+            XCAM_ALIGN_UP (scale_width + XCAM_BLENDER_GLOBAL_SCALE_EXT_WIDTH, XCAM_CL_BLENDER_ALIGNMENT_X);
+        scale_info.init (out_info.format, scale_width, out_info.height, aligned_width, out_info.aligned_height);
+
+        create_buffer_pool (_scale_buf_pool, scale_info.width, scale_info.height,
+                            scale_info.aligned_width, scale_info.aligned_height);
+
+        scale_input = _scale_buf_pool->get_buffer (_scale_buf_pool);
+    } else {
+        scale_info = _scale_global_input->get_video_info ();
+
+        uint32_t aligned_width = XCAM_ALIGN_UP (scale_width, XCAM_CL_BLENDER_ALIGNMENT_X);
+        uint32_t pre_aligned_width = scale_info.aligned_width;
+        if (aligned_width > pre_aligned_width) {
+            aligned_width =
+                XCAM_ALIGN_UP (scale_width + XCAM_BLENDER_GLOBAL_SCALE_EXT_WIDTH, XCAM_CL_BLENDER_ALIGNMENT_X);
+
+            create_buffer_pool (_scale_buf_pool, scale_width, scale_info.height,
+                                aligned_width, scale_info.aligned_height);
+
+            scale_input = _scale_buf_pool->get_buffer (_scale_buf_pool);
+        } else {
+            scale_input = _scale_buf_pool->get_buffer (_scale_buf_pool);
+
+            scale_info.init (out_info.format, scale_width, scale_info.height,
+                             scale_info.aligned_width, scale_info.aligned_height);
+            scale_input->set_video_info (scale_info);
+        }
     }
 
-    reset_width = XCAM_ALIGN_UP (reset_width, XCAM_CL_BLENDER_ALIGNMENT_X);
-    reset_info.init (buf_info.format, reset_width, buf_info.height,
-                     buf_info.aligned_width, buf_info.aligned_height);
-
-    input->set_video_info (reset_info);
+    XCAM_ASSERT (scale_input.ptr ());
     return XCAM_RETURN_NO_ERROR;
 }
 
@@ -845,11 +880,8 @@ CLImage360Stitch::prepare_parameters (SmartPtr<VideoBuffer> &input, SmartPtr<Vid
             _fisheye[i].buf->detach_buffer (_fisheye[idx_next].buf);
         }
     } else { //global scale
-        const VideoBufferInfo &buf_info = output->get_video_info ();
-        if (!_scale_buf_pool.ptr ())
-            create_buffer_pool (_scale_buf_pool, buf_info.width + XCAM_BLENDER_GLOBAL_SCALE_EXT_WIDTH, buf_info.height);
-        SmartPtr<VideoBuffer> scale_input = _scale_buf_pool->get_buffer (_scale_buf_pool);
-        XCAM_ASSERT (scale_input.ptr ());
+        SmartPtr<VideoBuffer> scale_input;
+        get_global_scale_inbuf (output, scale_input);
 
         int idx_next = 1;
         int cur_start_pos = 0;
@@ -866,7 +898,6 @@ CLImage360Stitch::prepare_parameters (SmartPtr<VideoBuffer> &input, SmartPtr<Vid
             _fisheye[i].buf->detach_buffer (_fisheye[idx_next].buf);
         }
 
-        reset_buffer_info (scale_input);
         _scale_global_input = scale_input;
         _scale_global_output = output;
     }
