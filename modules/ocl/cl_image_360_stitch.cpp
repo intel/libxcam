@@ -123,7 +123,6 @@ get_fm_sphere_config (StitchResMode res_mode)
         config.max_adjusted_offset = 12.0f;
         config.max_valid_offset_y = 8.0f;
         config.max_track_error = 24.0f;
-
         break;
     }
     case StitchRes1080P4: {
@@ -135,7 +134,6 @@ get_fm_sphere_config (StitchResMode res_mode)
         config.max_adjusted_offset = 24.0f;
         config.max_valid_offset_y = 64.0f;
         config.max_track_error = 32.0f;
-
         break;
     }
     case StitchRes4K: {
@@ -147,19 +145,17 @@ get_fm_sphere_config (StitchResMode res_mode)
         config.max_adjusted_offset = 12.0f;
         config.max_valid_offset_y = 8.0f;
         config.max_track_error = 24.0f;
-
         break;
     }
     case StitchRes8K6: {
-        config.sitch_min_width = 160;
+        config.sitch_min_width = 320;
         config.min_corners = 8;
         config.offset_factor = 0.8f;
-        config.delta_mean_offset = 5.0f;
+        config.delta_mean_offset = 24.0f;
         config.recur_offset_error = 8.0f;
-        config.max_adjusted_offset = 12.0f;
-        config.max_valid_offset_y = 8.0f;
-        config.max_track_error = 24.0f;
-
+        config.max_adjusted_offset = 32.0f;
+        config.max_valid_offset_y = 16.0f;
+        config.max_track_error = 32.0f;
         break;
     }
     default:
@@ -281,7 +277,6 @@ get_default_stitch_info (StitchResMode res_mode)
         stitch_info.fisheye_info[0].wide_angle = 195.0f;
         stitch_info.fisheye_info[0].radius = 1040.0f;
         stitch_info.fisheye_info[0].rotate_angle = 0.0f;
-
         stitch_info.fisheye_info[1].center_x = 3072.0f;
         stitch_info.fisheye_info[1].center_y = 1016.0f;
         stitch_info.fisheye_info[1].wide_angle = 192.0f;
@@ -290,35 +285,35 @@ get_default_stitch_info (StitchResMode res_mode)
         break;
     }
     case StitchRes8K6: {
-        stitch_info.merge_width[0] = 160;
-        stitch_info.merge_width[1] = 160;
-        stitch_info.merge_width[2] = 160;
-        stitch_info.merge_width[3] = 160;
-        stitch_info.merge_width[4] = 160;
-        stitch_info.merge_width[5] = 160;
+        stitch_info.merge_width[0] = 320;
+        stitch_info.merge_width[1] = 320;
+        stitch_info.merge_width[2] = 320;
+        stitch_info.merge_width[3] = 320;
+        stitch_info.merge_width[4] = 320;
+        stitch_info.merge_width[5] = 320;
 
-        stitch_info.crop[0].left = 0;
-        stitch_info.crop[0].right = 0;
+        stitch_info.crop[0].left = 336;
+        stitch_info.crop[0].right = 384;
         stitch_info.crop[0].top = 0;
         stitch_info.crop[0].bottom = 0;
-        stitch_info.crop[1].left = 0;
-        stitch_info.crop[1].right = 0;
+        stitch_info.crop[1].left = 384;
+        stitch_info.crop[1].right = 416;
         stitch_info.crop[1].top = 0;
         stitch_info.crop[1].bottom = 0;
-        stitch_info.crop[2].left = 0;
-        stitch_info.crop[2].right = 0;
+        stitch_info.crop[2].left = 416;
+        stitch_info.crop[2].right = 288;
         stitch_info.crop[2].top = 0;
         stitch_info.crop[2].bottom = 0;
-        stitch_info.crop[3].left = 0;
-        stitch_info.crop[3].right = 0;
+        stitch_info.crop[3].left = 288;
+        stitch_info.crop[3].right = 400;
         stitch_info.crop[3].top = 0;
         stitch_info.crop[3].bottom = 0;
-        stitch_info.crop[4].left = 0;
-        stitch_info.crop[4].right = 0;
+        stitch_info.crop[4].left = 400;
+        stitch_info.crop[4].right = 384;
         stitch_info.crop[4].top = 0;
         stitch_info.crop[4].bottom = 0;
-        stitch_info.crop[5].left = 0;
-        stitch_info.crop[5].right = 0;
+        stitch_info.crop[5].left = 384;
+        stitch_info.crop[5].right = 336;
         stitch_info.crop[5].top = 0;
         stitch_info.crop[5].bottom = 0;
 
@@ -331,27 +326,27 @@ get_default_stitch_info (StitchResMode res_mode)
         stitch_info.fisheye_info[1].center_y = 1440.0f;
         stitch_info.fisheye_info[1].wide_angle = 200.0f;
         stitch_info.fisheye_info[1].radius = 1920.0f;
-        stitch_info.fisheye_info[1].rotate_angle = 90.0f;
+        stitch_info.fisheye_info[1].rotate_angle = 89.9f;
         stitch_info.fisheye_info[2].center_x = 1920.0f;
         stitch_info.fisheye_info[2].center_y = 1440.0f;
         stitch_info.fisheye_info[2].wide_angle = 200.0f;
-        stitch_info.fisheye_info[2].radius = 1920.0f;
+        stitch_info.fisheye_info[2].radius = 1960.0f;
         stitch_info.fisheye_info[2].rotate_angle = 90.0f;
         stitch_info.fisheye_info[3].center_x = 1920.0f;
         stitch_info.fisheye_info[3].center_y = 1440.0f;
         stitch_info.fisheye_info[3].wide_angle = 200.0f;
-        stitch_info.fisheye_info[3].radius = 1920.0f;
+        stitch_info.fisheye_info[3].radius = 2020.0f;
         stitch_info.fisheye_info[3].rotate_angle = 90.0f;
         stitch_info.fisheye_info[4].center_x = 1920.0f;
         stitch_info.fisheye_info[4].center_y = 1440.0f;
         stitch_info.fisheye_info[4].wide_angle = 200.0f;
-        stitch_info.fisheye_info[4].radius = 1920.0f;
+        stitch_info.fisheye_info[4].radius = 2020.0f;
         stitch_info.fisheye_info[4].rotate_angle = 90.0f;
         stitch_info.fisheye_info[5].center_x = 1920.0f;
         stitch_info.fisheye_info[5].center_y = 1440.0f;
         stitch_info.fisheye_info[5].wide_angle = 200.0f;
         stitch_info.fisheye_info[5].radius = 1920.0f;
-        stitch_info.fisheye_info[5].rotate_angle = 90.0f;
+        stitch_info.fisheye_info[5].rotate_angle = 90.4f;
         break;
     }
     default:
