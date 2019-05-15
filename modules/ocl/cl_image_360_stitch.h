@@ -112,8 +112,9 @@ protected:
         SmartPtr<VideoBuffer> &input0, SmartPtr<VideoBuffer> &input1, SmartPtr<VideoBuffer> &output,
         int idx, int idx_next, int &cur_start_pos);
 
-    bool create_buffer_pool (SmartPtr<BufferPool> &buf_pool, uint32_t width, uint32_t height);
-    XCamReturn reset_buffer_info (SmartPtr<VideoBuffer> &input);
+    bool create_buffer_pool (SmartPtr<BufferPool> &buf_pool, uint32_t width, uint32_t height,
+                             uint32_t aligned_width, uint32_t aligned_height);
+    XCamReturn get_global_scale_inbuf (const SmartPtr<VideoBuffer> &output, SmartPtr<VideoBuffer> &scale_input);
 
     virtual XCamReturn sub_handler_execute_done (SmartPtr<CLImageHandler> &handler);
 
