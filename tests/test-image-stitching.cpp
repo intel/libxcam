@@ -157,36 +157,40 @@ write_in_image (
 #if (XCAM_TEST_STREAM_DEBUG) && (XCAM_TEST_OPENCV)
     char img_name[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
     char frame_str[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
-    char idx_str[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
     std::snprintf (frame_str, XCAM_TEST_MAX_STR_SIZE, "frame:%d", frame_num);
 
-    bool all_in_one = (ins.size () == 1) ? true : false;
-    int fisheye_per_frame = all_in_one ? stitcher->get_fisheye_num () : 1;
     StitchInfo info = stitcher->get_stitch_info ();
 
     cv::Mat mat;
-    for (uint32_t i = 0; i < ins.size (); i++) {
-        convert_to_mat (ins[i]->get_buf (), mat);
+    if (ins.size () == 1) {
+        convert_to_mat (ins[0]->get_buf (), mat);
 
-        for (int j = 0; j < fisheye_per_frame; j++) {
-            cv::circle (mat, cv::Point (info.fisheye_info[j].center_x, info.fisheye_info[j].center_y),
-                        info.fisheye_info[j].radius, cv::Scalar(0, 0, 255), 2);
+        for (int i = 0; i < stitcher->get_fisheye_num (); i++) {
+            cv::circle (mat, cv::Point (info.fisheye_info[i].center_x, info.fisheye_info[i].center_y),
+                        info.fisheye_info[i].radius, cv::Scalar(0, 0, 255), 2);
         }
-
         cv::putText (mat, frame_str, cv::Point(20, 50), cv::FONT_HERSHEY_COMPLEX, 2.0,
                      cv::Scalar(0, 0, 255), 2, 8, false);
-        if (!all_in_one) {
+
+        std::snprintf (img_name, XCAM_TEST_MAX_STR_SIZE, "orig_fisheye_%d.jpg", frame_num);
+        cv::imwrite (img_name, mat);
+    } else {
+        char idx_str[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
+        for (uint32_t i = 0; i < ins.size (); i++) {
+            convert_to_mat (ins[i]->get_buf (), mat);
+
+            cv::circle (mat, cv::Point (info.fisheye_info[i].center_x, info.fisheye_info[i].center_y),
+                        info.fisheye_info[i].radius, cv::Scalar(0, 0, 255), 2);
+            cv::putText (mat, frame_str, cv::Point(20, 50), cv::FONT_HERSHEY_COMPLEX, 2.0,
+                         cv::Scalar(0, 0, 255), 2, 8, false);
+
             std::snprintf (idx_str, XCAM_TEST_MAX_STR_SIZE, "idx:%d", i);
             cv::putText (mat, idx_str, cv::Point (20, 110), cv::FONT_HERSHEY_COMPLEX, 2.0,
                          cv::Scalar (0, 0, 255), 2, 8, false);
-        }
 
-        if (all_in_one)
-            std::snprintf (img_name, XCAM_TEST_MAX_STR_SIZE, "orig_fisheye_%d.jpg", frame_num);
-        else
             std::snprintf (img_name, XCAM_TEST_MAX_STR_SIZE, "orig_fisheye_%d_%d.jpg", frame_num, i);
-
-        cv::imwrite (img_name, mat);
+            cv::imwrite (img_name, mat);
+        }
     }
 #else
     XCAM_UNUSED (stitcher);
