@@ -52,8 +52,8 @@ public:
     void add_model (SmartPtr<RenderOsgModel> &model);
     void validate_model_groups ();
 
-    void start_render ();
-    void stop_render ();
+    bool start_render ();
+    bool stop_render ();
 
 protected:
     virtual bool loop ();

@@ -713,7 +713,7 @@ template<class T, uint32_t N> inline
 MatrixN<T, N> MatrixN<T, N>::transpose () {
     MatrixN<T, N> result;
     for (uint32_t i = 0; i < N; i++) {
-        for (uint32_t j = 0; j <= N; j++) {
+        for (uint32_t j = 0; j < N; j++) {
             result.data[i * N + j] = data[j * N + i];
         }
     }

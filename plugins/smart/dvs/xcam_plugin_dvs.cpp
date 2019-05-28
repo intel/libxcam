@@ -42,7 +42,7 @@
 
 struct DvsBuffer : public DvsData
 {
-    XCamVideoBuffer* buffer;
+    XCamVideoBuffer* buffer = NULL;
 
     DvsBuffer () { }
 

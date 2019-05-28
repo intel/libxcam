@@ -34,7 +34,7 @@ Worker::Worker (const char *name, const SmartPtr<Callback> &cb)
 
 Worker::~Worker ()
 {
-    xcam_mem_clear (_name);
+    xcam_free (_name);
 }
 
 bool

@@ -222,7 +222,10 @@ CLImageScaler::prepare_scaler_buf (const VideoBufferInfo &video_info, SmartPtr<V
         SmartPtr<BufferPool> pool = new CLVideoBufferPool ();
         XCAM_ASSERT (pool.ptr ());
         pool->set_video_info (scaler_video_info);
-        pool->reserve (6);
+        if (!pool->reserve (6)) {
+            XCAM_LOG_ERROR ("init buffer pool failed");
+            return XCAM_RETURN_ERROR_MEM;
+        }
         _scaler_buf_pool = pool;
     }
 

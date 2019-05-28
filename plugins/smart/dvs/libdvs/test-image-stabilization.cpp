@@ -67,10 +67,12 @@ int main(int argc, char *argv[])
     while ((opt = getopt_long(argc, argv, "", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'i':
-            strncpy (inputPath, optarg, XCAM_MAX_STR_SIZE);
+            XCAM_ASSERT (optarg);
+            strncpy (inputPath, optarg, XCAM_MAX_STR_SIZE - 1);
             break;
         case 'o':
-            strncpy (outputPath, optarg, XCAM_MAX_STR_SIZE);
+            XCAM_ASSERT (optarg);
+            strncpy (outputPath, optarg, XCAM_MAX_STR_SIZE - 1);
             break;
         case 'p':
             enableTwoPass = (strcasecmp (optarg, "false") == 0 ? false : true);;

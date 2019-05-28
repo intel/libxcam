@@ -115,7 +115,7 @@ ThreadPool::~ThreadPool ()
 {
     stop ();
 
-    xcam_mem_clear (_name);
+    xcam_free (_name);
 }
 
 bool
