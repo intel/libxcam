@@ -510,6 +510,63 @@ DnnInferenceEngine::set_inference_data (std::vector<std::string> images)
     return XCAM_RETURN_NO_ERROR;
 }
 
+XCamReturn
+DnnInferenceEngine::set_inference_data (const VideoBufferList& images)
+{
+    if (!_model_created) {
+        XCAM_LOG_ERROR ("Please create the model firstly!");
+        return XCAM_RETURN_ERROR_ORDER;
+    }
+
+    uint32_t idx = 0;
+    InputsDataMap inputs_info (_network.getInputsInfo ());
+
+    for (VideoBufferList::const_iterator iter = images.begin(); iter != images.end (); ++iter) {
+        SmartPtr<VideoBuffer> buf = *iter;
+
+        VideoBufferInfo buf_info = buf->get_video_info ();
+        _input_image_width.push_back (buf_info.width);
+        _input_image_height.push_back (buf_info.height);
+
+        uint32_t image_width = 0;
+        uint32_t image_height = 0;
+
+        for (auto & in : inputs_info) {
+            image_width = inputs_info[in.first]->getDims()[0];
+            image_height = inputs_info[in.first]->getDims()[1];
+        }
+
+        float x_ratio = float(image_width) / float(buf_info.width);
+        float y_ratio = float(image_height) / float(buf_info.height);
+        uint8_t* data = XCamDNN::convert_NV12_to_BGR (buf, x_ratio, y_ratio);
+
+        if (data != NULL) {
+            DnnInferData image;
+            image.width = image_width;
+            image.height = image_height;
+            image.width_stride = image_width;
+            image.height_stride = image_height;
+            image.buffer = data;
+            image.channel_num = 3;
+            image.batch_idx = idx;
+            image.image_format = DnnInferImageFormatBGRPacked;
+
+            // set precision & data type
+            image.precision = get_input_precision (idx);
+            image.data_type = DnnInferDataTypeImage;
+
+            set_input_blob (idx, image);
+            idx ++;
+        } else {
+            XCAM_LOG_WARNING ("Valid input images were not found!");
+            continue;
+        }
+    }
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+
 std::shared_ptr<uint8_t>
 DnnInferenceEngine::read_input_image (std::string& image)
 {

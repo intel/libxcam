@@ -32,6 +32,12 @@
 #include <vulkan/vk_device.h>
 #endif
 
+#if ENABLE_DNN
+#include "dnn/dnn_inference_utils.h"
+#include "dnn/dnn_inference_engine.h"
+#include "dnn/dnn_object_detection.h"
+#endif
+
 #include <render/render_osg_viewer.h>
 #include <render/render_osg_model.h>
 #include <render/render_osg_shader.h>
@@ -39,6 +45,10 @@
 using namespace XCam;
 
 #define CAR_MODEL_NAME  "Suv.osgb"
+
+#if ENABLE_DNN
+#define DNN_MODEL_NAME "pedestrian-and-vehicle-detector-adas-0001.xml"
+#endif
 
 enum SVModule {
     SVModuleNone    = 0,
@@ -354,6 +364,9 @@ create_car_model (const char *name)
 static int
 run_stitcher (
     const SmartPtr<Stitcher> &stitcher,
+#if ENABLE_DNN
+    const SmartPtr<DnnInferenceEngine> &infer_engine,
+#endif
     const SmartPtr<RenderOsgModel> &model,
     const SVStreams &ins,
     const SVStreams &outs)
@@ -389,6 +402,61 @@ run_stitcher (
                 "stitch buffer failed.");
         }
 
+#if ENABLE_DNN
+        if (infer_engine.ptr ()) {
+
+            VideoBufferList detect_buffers;
+            detect_buffers.clear ();
+            detect_buffers.push_back (outs[0]->get_buf ());
+
+            infer_engine->set_inference_data (detect_buffers);
+
+            if (infer_engine->ready_to_start ()) {
+                CHECK (
+                    infer_engine->start (),
+                    "inference failed!");
+            }
+
+            size_t batch_size = infer_engine->get_output_size ();
+            if (batch_size != detect_buffers.size ()) {
+                XCAM_LOG_DEBUG ( "Number of images: %d ", detect_buffers.size ());
+                batch_size = std::min(batch_size, detect_buffers.size ());
+                XCAM_LOG_DEBUG ( "Number of images to be processed is: %d ", batch_size);
+            }
+
+            uint32_t blob_size = 0;
+            float* result_ptr = NULL;
+
+            for (uint32_t batch_idx = 0; batch_idx < batch_size; batch_idx ++) {
+                result_ptr = (float*)infer_engine->get_inference_results (batch_idx, blob_size);
+                if (NULL == result_ptr) {
+                    continue;
+                }
+
+                std::vector<Vec4i> boxes;
+                std::vector<int32_t> classes;
+                uint32_t image_width = infer_engine->get_input_image_width (batch_idx);
+                uint32_t image_height = infer_engine->get_input_image_height (batch_idx);
+
+                SmartPtr<DnnObjectDetection> object_detector = infer_engine.dynamic_cast_ptr<DnnObjectDetection> ();
+                CHECK (
+                    object_detector->get_bounding_boxes (result_ptr, batch_idx, boxes, classes),
+                    "get bounding box failed!");
+
+                SmartPtr<VideoBuffer> render_image = detect_buffers.front ();
+                uint8_t* detect_image = render_image->map ();
+
+                CHECK (
+                    XCamDNN::draw_bounding_boxes (detect_image,
+                                                  image_width, image_height, DnnInferImageFormatNV12,
+                                                  boxes, classes, 2),
+                    "Draw bounding boxes failed!" );
+
+                render_image->unmap ();
+            }
+        }
+#endif
+
         model->update_texture (outs[0]->get_buf ());
 
         FPS_CALCULATION (render surround view, XCAM_OBJ_DUR_FRAME_NUM);
@@ -396,6 +464,69 @@ run_stitcher (
 
     return 0;
 }
+
+#if ENABLE_DNN
+static SmartPtr<DnnInferenceEngine>
+create_dnn_inference_engine ()
+{
+    XCAM_LOG_DEBUG ("0. Get inference engine configurations");
+
+    std::string dnn_model_name = std::string (DNN_MODEL_NAME);
+    std::string dnn_model_path = FISHEYE_CONFIG_PATH + dnn_model_name;
+
+    const char *env_path = std::getenv (FISHEYE_CONFIG_ENV_VAR);
+    if (env_path) {
+        dnn_model_path.clear ();
+        dnn_model_path = std::string (env_path) + dnn_model_name;
+    }
+
+    DnnInferConfig infer_config;
+    infer_config.target_id = DnnInferDeviceCPU;
+    infer_config.model_type = DnnInferObjectDetection;
+    infer_config.model_filename = dnn_model_path.c_str ();
+
+    SmartPtr<DnnInferenceEngine> infer_engine;
+    infer_engine = new DnnObjectDetection (infer_config);
+    if (NULL == infer_engine.ptr ()) {
+        XCAM_LOG_ERROR ("create dnn object detection inference engine failed!");
+        return NULL;
+    }
+
+    infer_engine->get_model_input_info (infer_config.input_infos);
+    for (uint32_t i = 0; i < infer_config.input_infos.numbers; i++) {
+        infer_config.input_infos.data_type[i] = DnnInferDataTypeImage;
+        infer_engine->set_input_precision (i, DnnInferPrecisionU8);
+        XCAM_LOG_DEBUG ("Idx %d : [%d X %d X %d] , [%d %d %d], batch size = %d", i,
+                        infer_config.input_infos.width[i], infer_config.input_infos.height[i], infer_config.input_infos.channels[i],
+                        infer_config.input_infos.precision[i], infer_config.input_infos.layout[i], infer_config.input_infos.data_type[i],
+                        infer_config.input_infos.batch_size);
+    }
+
+    infer_engine->get_model_output_info (infer_config.output_infos);
+    XCAM_LOG_DEBUG ("Output info (numbers %d) :", infer_config.output_infos.numbers);
+
+    for (uint32_t i = 0; i < infer_config.output_infos.numbers; i++) {
+        infer_engine->set_output_precision (i, DnnInferPrecisionFP32);
+        XCAM_LOG_DEBUG ("Idx %d : [%d X %d X %d] , [%d %d %d], batch size = %d", i,
+                        infer_config.output_infos.width[i],
+                        infer_config.output_infos.height[i],
+                        infer_config.output_infos.channels[i],
+                        infer_config.output_infos.precision[i],
+                        infer_config.output_infos.layout[i],
+                        infer_config.output_infos.data_type[i],
+                        infer_config.output_infos.batch_size);
+    }
+
+    if (XCAM_RETURN_NO_ERROR != infer_engine->load_model (infer_config)) {
+        XCAM_LOG_ERROR ("load model failed!");
+        return NULL;
+    }
+
+    return infer_engine;
+}
+
+
+#endif
 
 static void usage(const char* arg0)
 {
@@ -420,6 +551,7 @@ static void usage(const char* arg0)
             "\t                    select from [none], default: none\n"
 #endif
             "\t--car               optional, car model name\n"
+            "\t--detect            optional, pedestrian & vehicle detection, default: disable"
             "\t--loop              optional, how many loops need to run, default: 1\n"
             "\t--help              usage\n",
             arg0);
@@ -442,6 +574,8 @@ int main (int argc, char *argv[])
     GeoMapScaleMode scale_mode = ScaleSingleConst;
     FeatureMatchMode fm_mode = FMNone;
 
+    bool enable_detect = false;
+
     int loop = 1;
 
     const struct option long_opts[] = {
@@ -457,6 +591,7 @@ int main (int argc, char *argv[])
         {"scale-mode", required_argument, NULL, 'S'},
         {"fm-mode", required_argument, NULL, 'F'},
         {"car", required_argument, NULL, 'c'},
+        {"detect", required_argument, NULL, 'd'},
         {"loop", required_argument, NULL, 'L'},
         {"help", no_argument, NULL, 'e'},
         {NULL, 0, NULL, 0},
@@ -542,6 +677,10 @@ int main (int argc, char *argv[])
         case 'c':
             XCAM_ASSERT (optarg);
             car_name = optarg;
+            break;
+        case 'd':
+            XCAM_ASSERT (optarg);
+            enable_detect = (strcasecmp (optarg, "true") == 0 ? true : false);
             break;
         case 'L':
             loop = atoi(optarg);
@@ -678,10 +817,29 @@ int main (int argc, char *argv[])
 
     render->start_render ();
 
+#if ENABLE_DNN
+    SmartPtr<DnnInferenceEngine> infer_engine;
+    if (enable_detect) {
+        infer_engine = create_dnn_inference_engine ();
+    }
+#endif
+
     while (loop--) {
+#if ENABLE_DNN
+        if (enable_detect) {
+            CHECK_EXP (
+                run_stitcher (stitcher, infer_engine, sv_model, ins, outs) == 0,
+                "run stitcher failed");
+        } else {
+            CHECK_EXP (
+                run_stitcher (stitcher, NULL, sv_model, ins, outs) == 0,
+                "run stitcher failed");
+        }
+#else
         CHECK_EXP (
             run_stitcher (stitcher, sv_model, ins, outs) == 0,
             "run stitcher failed");
+#endif
     }
 
     render->stop_render ();

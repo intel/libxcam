@@ -193,10 +193,21 @@ test_gles_handler_LDADD = \
 endif
 
 if ENABLE_RENDER
-TEST_RENDER_LA = $(top_builddir)/modules/render/libxcam_render.la
+TEST_RENDER_LA = $(top_builddir)/modules/render/libxcam_render.la \
+                 $(NULL)
+if ENABLE_DNN
+TEST_RENDER_LA += $(top_builddir)/modules/dnn/libxcam_dnn.la
+endif
 
 test_render_surround_view_SOURCES = test-render-surround-view.cpp
-test_render_surround_view_CXXFLAGS = $(TEST_BASE_CXXFLAGS)
+test_render_surround_view_CXXFLAGS = $(TEST_BASE_CXXFLAGS) \
+                                     $(NULL)
+if ENABLE_DNN
+test_render_surround_view_CXXFLAGS += -I$(OPENVINO_IE_INC_PATH)/include       \
+                                      -I$(OPENVINO_IE_INC_PATH)/src/extension \
+                                      $(NULL)
+endif
+
 test_render_surround_view_LDADD = \
     $(TEST_CORE_LA)   \
     $(TEST_OCV_LA)    \

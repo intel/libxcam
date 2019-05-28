@@ -22,10 +22,11 @@
 #include <fstream>
 #include <limits>
 
-#include <xcam_std.h>
-#include <vec_mat.h>
-
 #include "dnn_inference_utils.h"
+
+#if HAVE_OPENCV
+#include "ocv/cv_std.h"
+#endif
 
 using namespace std;
 using namespace XCam;
@@ -71,6 +72,31 @@ static std::vector<Color> colors = {
     {81,  0,   81}
 };
 
+static std::vector<Color> colors_yuv = {
+    {117, 199, 209},
+    {90, 149, 154},
+    {76, 84, 255},
+    {113, 122, 155},
+    {156, 147, 126},
+    {146, 184, 54},
+    {173, 153, 18},
+    {117, 123, 76},
+    {223, 90, 83},
+    {136, 92, 156},
+    {43, 223, 139},
+    {18, 255, 116},
+    {153, 128, 128},
+    {30, 112, 199},
+    {15, 120, 163},
+    {64, 93, 151},
+    {70, 128, 128},
+    {19, 118, 173},
+    {49, 102, 243},
+    {23, 180, 133},
+    {61, 155, 89},
+    {23, 159, 165}
+};
+
 static unsigned char file_header[14] = {
     'B', 'M',           // magic
     0, 0, 0, 0,         // size in bytes
@@ -101,7 +127,7 @@ clamp (float &value, float min, float max)
 
 XCamReturn
 draw_bounding_boxes (
-    uint8_t *data, uint32_t width, uint32_t height,
+    uint8_t *data, uint32_t width, uint32_t height, DnnInferImageFormatType format,
     std::vector<Vec4i> rectangles, std::vector<int32_t> classes, int32_t thickness)
 {
     if (rectangles.size() != classes.size()) {
@@ -144,29 +170,70 @@ draw_bounding_boxes (
 
         size_t shift_first;
         size_t shift_second;
-        for (int32_t t = 0; t < thickness; t++) {
-            shift_first = (y + t) * width * 3;
-            shift_second = (y + h - t) * width * 3;
-            for (int32_t ii = x; ii < x + w + 1; ii++) {
-                data[shift_first + ii * 3] = colors.at(cls)._red;
-                data[shift_first + ii * 3 + 1] = colors.at(cls)._green;
-                data[shift_first + ii * 3 + 2] = colors.at(cls)._blue;
-                data[shift_second + ii * 3] = colors.at(cls)._red;
-                data[shift_second + ii * 3 + 1] = colors.at(cls)._green;
-                data[shift_second + ii * 3 + 2] = colors.at(cls)._blue;
-            }
-        }
 
-        for (int32_t t = 0; t < thickness; t++) {
-            shift_first = (x + t) * 3;
-            shift_second = (x + w - t) * 3;
-            for (int32_t ii = y; ii < y + h + 1; ii++) {
-                data[shift_first + ii * width * 3] = colors.at(cls)._red;
-                data[shift_first + ii * width * 3 + 1] = colors.at(cls)._green;
-                data[shift_first + ii * width * 3 + 2] = colors.at(cls)._blue;
-                data[shift_second + ii * width * 3] = colors.at(cls)._red;
-                data[shift_second + ii * width * 3 + 1] = colors.at(cls)._green;
-                data[shift_second + ii * width * 3 + 2] = colors.at(cls)._blue;
+        if (DnnInferImageFormatRGBPacked == format) {
+            for (int32_t t = 0; t < thickness; t++) {
+                shift_first = (y + t) * width * 3;
+                shift_second = (y + h - t) * width * 3;
+                for (int32_t ii = x; ii < x + w + 1; ii++) {
+                    data[shift_first + ii * 3] = colors.at(cls)._red;
+                    data[shift_first + ii * 3 + 1] = colors.at(cls)._green;
+                    data[shift_first + ii * 3 + 2] = colors.at(cls)._blue;
+                    data[shift_second + ii * 3] = colors.at(cls)._red;
+                    data[shift_second + ii * 3 + 1] = colors.at(cls)._green;
+                    data[shift_second + ii * 3 + 2] = colors.at(cls)._blue;
+                }
+            }
+
+            for (int32_t t = 0; t < thickness; t++) {
+                shift_first = (x + t) * 3;
+                shift_second = (x + w - t) * 3;
+                for (int32_t ii = y; ii < y + h + 1; ii++) {
+                    data[shift_first + ii * width * 3] = colors.at(cls)._red;
+                    data[shift_first + ii * width * 3 + 1] = colors.at(cls)._green;
+                    data[shift_first + ii * width * 3 + 2] = colors.at(cls)._blue;
+                    data[shift_second + ii * width * 3] = colors.at(cls)._red;
+                    data[shift_second + ii * width * 3 + 1] = colors.at(cls)._green;
+                    data[shift_second + ii * width * 3 + 2] = colors.at(cls)._blue;
+                }
+            }
+        } else if (DnnInferImageFormatNV12 == format) {
+            for (int32_t t = 0; t < thickness; t++) {
+                shift_first = (y + t) * width;
+                shift_second = (y + h - t) * width;
+                for (int32_t ii = x; ii < x + w + 1; ii++) {
+                    data[shift_first + ii] = colors_yuv.at(cls)._red;
+                    data[shift_second + ii] = colors_yuv.at(cls)._red;
+                }
+            }
+            for (int32_t t = 0; t < thickness; t++) {
+                shift_first = (x + t);
+                shift_second = (x + w - t);
+                for (int32_t ii = y; ii < y + h + 1; ii++) {
+                    data[shift_first + ii * width] = colors_yuv.at(cls)._red;
+                    data[shift_second + ii * width] = colors_yuv.at(cls)._red;
+                }
+            }
+
+            for (int32_t t = 0; t < thickness; t++) {
+                shift_first = (height + y + t) * width;
+                shift_second = (height + y + h - t) * width;
+                for (int32_t ii = x; ii < x + w + 1; ii++) {
+                    data[shift_first + ii * 2] = colors_yuv.at(cls)._green;
+                    data[shift_first + ii * 2 + 1] = colors_yuv.at(cls)._blue;
+                    data[shift_second + ii * 2] = colors_yuv.at(cls)._green;
+                    data[shift_second + ii * 2 + 1] = colors_yuv.at(cls)._blue;
+                }
+            }
+            for (int32_t t = 0; t < thickness; t++) {
+                shift_first = (width * height + x + t);
+                shift_second = (width * height + x + w - t);
+                for (int32_t ii = y; ii < y + h + 1; ii++) {
+                    data[shift_first + ii * 2] = colors_yuv.at(cls)._green;
+                    data[shift_first + ii * 2 + 1] = colors_yuv.at(cls)._blue;
+                    data[shift_second + ii * 2] = colors_yuv.at(cls)._green;
+                    data[shift_second + ii * 2 + 1] = colors_yuv.at(cls)._blue;
+                }
             }
         }
     }
@@ -325,6 +392,33 @@ save_bmp_file (const std::string name, void* data, DnnInferImageFormatType forma
     }
 
     return XCAM_RETURN_NO_ERROR;
+}
+
+//std::shared_ptr<uint8_t>
+uint8_t*
+convert_NV12_to_BGR (SmartPtr<VideoBuffer>& nv12, float x_ratio, float y_ratio)
+{
+    XCAM_ASSERT (x_ratio > 0 && y_ratio);
+
+    VideoBufferInfo nv12_buf_info = nv12->get_video_info ();
+
+#if HAVE_OPENCV
+    const auto src = nv12->map ();
+    cv::Mat nv12_image (nv12_buf_info.height * 3 / 2, nv12_buf_info.width, CV_8UC1, src);
+    cv::Mat temp_image;
+    cv::cvtColor (nv12_image, temp_image, cv::COLOR_YUV2BGR_NV12);
+    nv12->unmap ();
+
+    cv::Mat bgr_image;
+    cv::Size image_size (round (x_ratio * nv12_buf_info.width), round (y_ratio * nv12_buf_info.height));
+    cv::resize (temp_image, bgr_image, image_size);
+
+    //std::shared_ptr<uint8_t> bgr_ptr (bgr_image.data);
+    //return bgr_ptr;
+    return bgr_image.data;
+#else
+    return NULL;
+#endif
 }
 
 }  // namespace XCam

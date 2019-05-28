@@ -303,7 +303,7 @@ int main (int argc, char *argv[])
 
                 CHECK (
                     XCamDNN::draw_bounding_boxes (input_image.get (),
-                                                  image_width, image_height,
+                                                  image_width, image_height, DnnInferImageFormatRGBPacked,
                                                   boxes, classes),
                     "Draw bounding boxes failed!" );
 
