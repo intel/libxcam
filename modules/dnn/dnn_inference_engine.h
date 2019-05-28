@@ -28,6 +28,7 @@
 #include <inference_engine.hpp>
 
 #include <xcam_std.h>
+#include <video_buffer.h>
 
 namespace XCam {
 
@@ -91,6 +92,7 @@ enum DnnInferImageFormatType {
     DnnInferImageFormatBGRPlanar,
     DnnInferImageFormatRGBPacked,
     DnnInferImageFormatRGBPlanar,
+    DnnInferImageFormatNV12,
     DnnInferImageFormatGrayPlanar,
     DnnInferImageFormatGeneric1D,
     DnnInferImageFormatGeneric2D,
@@ -249,6 +251,7 @@ public:
     virtual XCamReturn get_model_output_info (DnnInferInputOutputInfo& info) = 0;
 
     virtual XCamReturn set_inference_data (std::vector<std::string> images);
+    virtual XCamReturn set_inference_data (const VideoBufferList& images);
 
     void* get_inference_results (uint32_t idx, uint32_t& size);
     std::shared_ptr<uint8_t> read_input_image (std::string& image);

@@ -21,6 +21,8 @@
 #ifndef XCAM_DNN_INFERENCE_UTILS_H
 #define XCAM_DNN_INFERENCE_UTILS_H
 
+#include <xcam_std.h>
+#include <video_buffer.h>
 #include <vec_mat.h>
 
 #include "dnn_inference_engine.h"
@@ -29,7 +31,7 @@ namespace XCamDNN {
 
 XCamReturn
 draw_bounding_boxes (
-    uint8_t *data,  uint32_t width, uint32_t height,
+    uint8_t *data,  uint32_t width, uint32_t height, XCam::DnnInferImageFormatType format,
     std::vector<XCam::Vec4i> rectangles, std::vector<int32_t> classes, int32_t thickness = 1);
 
 XCamReturn
@@ -42,6 +44,10 @@ save_bmp_file (const std::string name,
                XCam::DnnInferPrecisionType precision,
                uint32_t width,
                uint32_t height);
+
+//std::shared_ptr<uint8_t>
+uint8_t*
+convert_NV12_to_BGR (XCam::SmartPtr<XCam::VideoBuffer>& nv12, float x_ratio, float y_ratio);
 
 }  // namespace XCamDNN
 
