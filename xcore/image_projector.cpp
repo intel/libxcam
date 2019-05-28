@@ -79,7 +79,7 @@ ImageProjector::interp_orientation (
 
     index = i;
 
-    double weight_start = (orient_ts[i + 1] - frame_ts) / (orient_ts[i + 1] - orient_ts[i]);
+    double weight_start = (double)(orient_ts[i + 1] - frame_ts) / (double)(orient_ts[i + 1] - orient_ts[i]);
     double weight_end = 1.0f - weight_start;
     XCAM_ASSERT (weight_start >= 0 && weight_start <= 1.0);
     XCAM_ASSERT (weight_end >= 0 && weight_end <= 1.0);

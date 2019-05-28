@@ -34,7 +34,7 @@ ImageHandler::ImageHandler (const char* name)
 
 ImageHandler::~ImageHandler()
 {
-    xcam_mem_clear (_name);
+    xcam_free (_name);
 }
 
 bool

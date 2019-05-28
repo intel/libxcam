@@ -379,10 +379,6 @@ private:
     SmartPtr<CLPyramidBlender>         _blender;
     bool                               _is_uv;
     int                                _buf_index;
-
-    // parameters
-    int                                _max_g_x;
-    int                                _max_g_y;
 };
 
 };

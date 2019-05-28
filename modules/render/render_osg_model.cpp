@@ -238,8 +238,6 @@ RenderOsgModel::update_texture (SmartPtr<VideoBuffer> &buffer)
 {
     XCamReturn result = XCAM_RETURN_NO_ERROR;
 
-    XCAM_LOG_DEBUG ("RenderOsgModel::update_texture ");
-
     if (NULL == _texture.get ()) {
         return XCAM_RETURN_ERROR_PARAM;
     }

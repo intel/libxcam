@@ -114,7 +114,7 @@ void xcam_print_log (const char* format, ...) {
 void xcam_set_log (const char* file_name) {
     if (NULL != file_name) {
         memset (log_file_name, 0, XCAM_MAX_STR_SIZE);
-        strncpy (log_file_name, file_name, XCAM_MAX_STR_SIZE);
+        strncpy (log_file_name, file_name, XCAM_MAX_STR_SIZE - 1);
     }
 }
 

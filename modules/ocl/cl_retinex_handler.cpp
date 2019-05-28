@@ -237,7 +237,10 @@ CLRetinexImageHandler::prepare_scaler_buf (const VideoBufferInfo &video_info)
         SmartPtr<BufferPool> pool = new CLVideoBufferPool ();
         XCAM_ASSERT (pool.ptr ());
         pool->set_video_info (scaler_video_info);
-        pool->reserve (XCAM_RETINEX_MAX_SCALE + 1);
+        if (!pool->reserve (XCAM_RETINEX_MAX_SCALE + 1)) {
+            XCAM_LOG_ERROR ("init buffer pool failed");
+            return XCAM_RETURN_ERROR_MEM;
+        }
         _scaler_buf_pool = pool;
 
         _scaler_buf1 = _scaler_buf_pool->get_buffer (_scaler_buf_pool);

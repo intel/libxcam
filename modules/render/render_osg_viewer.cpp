@@ -81,16 +81,16 @@ RenderOsgViewer::initialize ()
     return result;
 }
 
-void
+bool
 RenderOsgViewer::start_render ()
 {
-    Thread::start ();
+    return Thread::start ();
 }
 
-void
+bool
 RenderOsgViewer::stop_render ()
 {
-    Thread::stop ();
+    return Thread::stop ();
 }
 
 bool

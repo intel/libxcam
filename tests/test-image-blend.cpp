@@ -193,13 +193,13 @@ int main (int argc, char *argv[])
     while ((opt = getopt_long(argc, argv, "", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'i':
-            strncpy (file_in0_name, optarg, XCAM_MAX_STR_SIZE);
+            strncpy (file_in0_name, optarg, XCAM_MAX_STR_SIZE - 1);
             break;
         case 'I':
-            strncpy (file_in1_name, optarg, XCAM_MAX_STR_SIZE);
+            strncpy (file_in1_name, optarg, XCAM_MAX_STR_SIZE - 1);
             break;
         case 'o':
-            strncpy (file_out_name, optarg, XCAM_MAX_STR_SIZE);
+            strncpy (file_out_name, optarg, XCAM_MAX_STR_SIZE - 1);
             break;
         case 'w':
             input_width0 = atoi(optarg);

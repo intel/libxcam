@@ -250,7 +250,7 @@ linear_interpolate_p4(
     if (dist_rb == 0) {
         weight_rb = 10000000.0;
     } else {
-        weight_rb = (dist_sum / dist_rt);
+        weight_rb = (dist_sum / dist_rb);
     }
 
     value = floor ((value_lt * weight_lt + value_rt * weight_rt + value_lb * weight_lb + value_rb * weight_rb) /

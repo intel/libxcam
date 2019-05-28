@@ -58,16 +58,20 @@ CLTnrImageHandler::CLTnrHistogram::CLTnrHistogram() {
 CLTnrImageHandler::CLTnrHistogram::CLTnrHistogram(uint32_t width, uint32_t height) {
     hor_hist_bin = width;
     ver_hist_bin = height;
-    if ((NULL == hor_hist_current) && (hor_hist_bin != 0)) {
+    hor_hist_current = NULL;
+    ver_hist_current = NULL;
+    hor_hist_reference = NULL;
+    ver_hist_reference = NULL;
+    if (hor_hist_bin != 0) {
         hor_hist_current = (float*)xcam_malloc0(hor_hist_bin * sizeof(float));
     }
-    if ((NULL == ver_hist_current) && (ver_hist_bin != 0)) {
+    if (ver_hist_bin != 0) {
         ver_hist_current = (float*)xcam_malloc0(ver_hist_bin * sizeof(float));
     }
-    if ((NULL == hor_hist_reference) && (hor_hist_bin != 0)) {
+    if (hor_hist_bin != 0) {
         hor_hist_reference = (float*)xcam_malloc0(hor_hist_bin * sizeof(float));
     }
-    if ((NULL == ver_hist_reference) && (ver_hist_bin != 0)) {
+    if (ver_hist_bin != 0) {
         ver_hist_reference = (float*)xcam_malloc0(ver_hist_bin * sizeof(float));
     }
 };
