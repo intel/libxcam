@@ -230,6 +230,8 @@ test_dnn_inference_CXXFLAGS = \
 
 test_dnn_inference_LDADD = \
     $(TEST_CORE_LA) \
+    $(TEST_OCV_LA)    \
+    $(TEST_SOFT_LA) \
     $(TEST_DNN_LA)  \
     $(NULL)
 endif

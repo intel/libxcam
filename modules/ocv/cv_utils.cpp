@@ -28,13 +28,24 @@ namespace XCam {
 bool convert_to_mat (const SmartPtr<VideoBuffer> &buffer, cv::Mat &img)
 {
     VideoBufferInfo info = buffer->get_video_info ();
-    XCAM_FAIL_RETURN (ERROR, info.format == V4L2_PIX_FMT_NV12, false, "convert_to_mat only support NV12 format");
+    XCAM_FAIL_RETURN (
+        ERROR,
+        (info.format == V4L2_PIX_FMT_NV12) ||
+        (info.format == V4L2_PIX_FMT_BGR24) ||
+        (info.format == V4L2_PIX_FMT_RGB24),
+        false,
+        "convert_to_mat only support NV12 & BGR24 & RGB24 format");
 
     uint8_t *mem = buffer->map ();
     XCAM_FAIL_RETURN (ERROR, mem, false, "convert_to_mat buffer map failed");
 
-    cv::Mat mat = cv::Mat (info.aligned_height * 3 / 2, info.width, CV_8UC1, mem, info.strides[0]);
-    cv::cvtColor (mat, img, cv::COLOR_YUV2BGR_NV12);
+    if (info.format == V4L2_PIX_FMT_NV12) {
+        cv::Mat mat = cv::Mat (info.aligned_height * 3 / 2, info.width, CV_8UC1, mem, info.strides[0]);
+        cv::cvtColor (mat, img, cv::COLOR_YUV2BGR_NV12);
+    } else if ((info.format == V4L2_PIX_FMT_BGR24) || (info.format == V4L2_PIX_FMT_RGB24)) {
+        img = cv::Mat (info.aligned_height, info.width, CV_8UC3, mem);
+    }
+
     buffer->unmap ();
 
     return true;
