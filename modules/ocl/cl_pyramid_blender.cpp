@@ -728,14 +728,14 @@ CLPyramidBlender::init_seam_buffers (SmartPtr<CLContext> context)
 static void
 assign_mask_line (SEAM_MASK_TYPE *mask_ptr, int line, int stride, int delimiter)
 {
-#define MASK_1 0xFFFF
+#define MASK_1 0xFF
 #define MASK_0 0x00
 
     SEAM_MASK_TYPE *line_ptr = mask_ptr + line * stride;
     int mask_1_len = delimiter + 1;
 
     memset (line_ptr, MASK_1, sizeof (SEAM_MASK_TYPE) * mask_1_len);
-    memset (line_ptr + mask_1_len, MASK_0, sizeof (SEAM_MASK_TYPE) * (stride - mask_1_len));
+    memset (line_ptr + sizeof (SEAM_MASK_TYPE) * mask_1_len, MASK_0, sizeof (SEAM_MASK_TYPE) * (stride - mask_1_len));
 }
 
 XCamReturn
