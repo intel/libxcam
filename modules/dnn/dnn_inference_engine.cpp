@@ -523,6 +523,7 @@ DnnInferenceEngine::set_inference_data (const VideoBufferList& images)
 
     for (VideoBufferList::const_iterator iter = images.begin(); iter != images.end (); ++iter) {
         SmartPtr<VideoBuffer> buf = *iter;
+        XCAM_ASSERT (buf.ptr ());
 
         VideoBufferInfo buf_info = buf->get_video_info ();
         _input_image_width.push_back (buf_info.width);
@@ -538,7 +539,13 @@ DnnInferenceEngine::set_inference_data (const VideoBufferList& images)
 
         float x_ratio = float(image_width) / float(buf_info.width);
         float y_ratio = float(image_height) / float(buf_info.height);
-        uint8_t* data = XCamDNN::convert_NV12_to_BGR (buf, x_ratio, y_ratio);
+
+        uint8_t* data = NULL;
+        if (buf_info.format == V4L2_PIX_FMT_NV12) {
+            data = XCamDNN::convert_NV12_to_BGR (buf, x_ratio, y_ratio);
+        } else if (buf_info.format == V4L2_PIX_FMT_BGR24) {
+            data = buf->map ();
+        }
 
         if (data != NULL) {
             DnnInferData image;
@@ -560,6 +567,10 @@ DnnInferenceEngine::set_inference_data (const VideoBufferList& images)
         } else {
             XCAM_LOG_WARNING ("Valid input images were not found!");
             continue;
+        }
+
+        if (buf_info.format != V4L2_PIX_FMT_NV12) {
+            buf->unmap ();
         }
     }
 

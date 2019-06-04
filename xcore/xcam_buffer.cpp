@@ -77,19 +77,20 @@ xcam_video_buffer_info_reset (
         image_size = info->strides [0] * aligned_height;
         break;
     case V4L2_PIX_FMT_RGB24:
+    case V4L2_PIX_FMT_BGR24:
         info->color_bits = 8;
         info->components = 1;
         info->strides [0] = aligned_width * 3;
         info->offsets [0] = 0;
         image_size = info->strides [0] * aligned_height;
         break;
-        // memory order RGBA 8-8-8-8
+    // memory order RGBA 8-8-8-8
     case V4L2_PIX_FMT_RGBA32:
-        // memory order: BGRA 8-8-8-8
+    // memory order: BGRA 8-8-8-8
     case V4L2_PIX_FMT_XBGR32:
     case V4L2_PIX_FMT_ABGR32:
     case V4L2_PIX_FMT_BGR32:
-        // memory order: ARGB 8-8-8-8
+    // memory order: ARGB 8-8-8-8
     case V4L2_PIX_FMT_RGB32:
     case V4L2_PIX_FMT_ARGB32:
     case V4L2_PIX_FMT_XRGB32:
@@ -250,6 +251,7 @@ xcam_video_buffer_get_planar_info (
         break;
 
     case V4L2_PIX_FMT_RGB24:
+    case V4L2_PIX_FMT_BGR24:
         XCAM_ASSERT (index <= 0);
         planar_info->pixel_bytes = 3;
         break;
