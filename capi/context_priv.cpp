@@ -212,9 +212,9 @@ StitchContext::create_handler (SmartPtr<CLContext> &context)
     }
 
     SurroundMode surround_mode = SphereView;
-    StitchResMode res_mode = StitchRes1080P;
-    if (_res_mode == StitchRes4K)
-        res_mode = StitchRes4K;
+    StitchResMode res_mode = StitchRes1080P2Cams;
+    if (_res_mode == StitchRes4K2Cams)
+        res_mode = StitchRes4K2Cams;
 
     SmartPtr<CLImage360Stitch> image_360 =
         create_image_360_stitch (context, _need_seam, _scale_mode,

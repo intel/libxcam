@@ -62,8 +62,8 @@ typedef enum {
 } Denoise3DModeType;
 
 enum StitchResMode {
-    StitchRes1080P = 0,
-    StitchRes4K = 2
+    StitchRes1080P2Cams = 0,
+    StitchRes4K2Cams = 2
 };
 
 typedef struct _GstXCamFilter      GstXCamFilter;

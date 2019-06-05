@@ -36,10 +36,10 @@
 namespace XCam {
 
 enum StitchResMode {
-    StitchRes1080P,
-    StitchRes1080P4,
-    StitchRes4K,
-    StitchRes8K6
+    StitchRes1080P2Cams,
+    StitchRes1080P4Cams,
+    StitchRes4K2Cams,
+    StitchRes8K6Cams
 };
 
 struct StitchInfo {

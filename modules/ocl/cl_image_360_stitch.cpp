@@ -114,7 +114,7 @@ get_fm_sphere_config (StitchResMode res_mode)
     FMConfig config;
 
     switch (res_mode) {
-    case StitchRes1080P: {
+    case StitchRes1080P2Cams: {
         config.sitch_min_width = 56;
         config.min_corners = 8;
         config.offset_factor = 0.8f;
@@ -125,7 +125,7 @@ get_fm_sphere_config (StitchResMode res_mode)
         config.max_track_error = 24.0f;
         break;
     }
-    case StitchRes1080P4: {
+    case StitchRes1080P4Cams: {
         config.sitch_min_width = 128;
         config.min_corners = 4;
         config.offset_factor = 0.8f;
@@ -136,7 +136,7 @@ get_fm_sphere_config (StitchResMode res_mode)
         config.max_track_error = 32.0f;
         break;
     }
-    case StitchRes4K: {
+    case StitchRes4K2Cams: {
         config.sitch_min_width = 160;
         config.min_corners = 8;
         config.offset_factor = 0.8f;
@@ -147,7 +147,7 @@ get_fm_sphere_config (StitchResMode res_mode)
         config.max_track_error = 24.0f;
         break;
     }
-    case StitchRes8K6: {
+    case StitchRes8K6Cams: {
         config.sitch_min_width = 320;
         config.min_corners = 8;
         config.offset_factor = 0.8f;
@@ -189,7 +189,7 @@ get_default_stitch_info (StitchResMode res_mode)
     StitchInfo stitch_info;
 
     switch (res_mode) {
-    case StitchRes1080P: {
+    case StitchRes1080P2Cams: {
         stitch_info.merge_width[0] = 56;
         stitch_info.merge_width[1] = 56;
 
@@ -214,7 +214,7 @@ get_default_stitch_info (StitchResMode res_mode)
         stitch_info.fisheye_info[1].rotate_angle = 89.4f;
         break;
     }
-    case StitchRes1080P4: {
+    case StitchRes1080P4Cams: {
         stitch_info.merge_width[0] = 288;
         stitch_info.merge_width[1] = 288;
         stitch_info.merge_width[2] = 288;
@@ -259,7 +259,7 @@ get_default_stitch_info (StitchResMode res_mode)
         stitch_info.fisheye_info[3].rotate_angle = 0.0f;
         break;
     }
-    case StitchRes4K: {
+    case StitchRes4K2Cams: {
         stitch_info.merge_width[0] = 160;
         stitch_info.merge_width[1] = 160;
 
@@ -284,7 +284,7 @@ get_default_stitch_info (StitchResMode res_mode)
         stitch_info.fisheye_info[1].rotate_angle = 0.4f;
         break;
     }
-    case StitchRes8K6: {
+    case StitchRes8K6Cams: {
         stitch_info.merge_width[0] = 320;
         stitch_info.merge_width[1] = 320;
         stitch_info.merge_width[2] = 320;
@@ -471,7 +471,7 @@ CLImage360Stitch::calc_fisheye_initial_info (SmartPtr<VideoBuffer> &output)
     const VideoBufferInfo &out_info = output->get_video_info ();
 
     if(_surround_mode == SphereView) {
-        if (_res_mode == StitchRes8K6 && _scale_mode == CLBlenderScaleGlobal) {
+        if (_res_mode == StitchRes8K6Cams && _scale_mode == CLBlenderScaleGlobal) {
             _fisheye[0].width = out_info.width / _fisheye_num * 2;
         } else {
             uint32_t fisheye_width_sum = out_info.width;

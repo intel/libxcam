@@ -163,7 +163,7 @@ create_image_360_stitch (
     bool fisheye_map = false,
     bool need_lsc = false,
     SurroundMode surround_mode = SphereView,
-    StitchResMode res_mode = StitchRes1080P,
+    StitchResMode res_mode = StitchRes1080P2Cams,
     int fisheye_num = 2,
     bool all_in_one_img = true);
 

@@ -166,7 +166,7 @@ public:
         , _fisheye_map (false)
         , _need_lsc (false)
         , _scale_mode (CLBlenderScaleLocal)
-        , _res_mode (StitchRes1080P)
+        , _res_mode (StitchRes1080P2Cams)
     {}
 
     virtual SmartPtr<CLImageHandler> create_handler (SmartPtr<CLContext> &context);
