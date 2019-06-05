@@ -311,7 +311,8 @@ void usage(const char* arg0)
             "\t--input-h           optional, input height, default: 1080\n"
             "\t--output-w          optional, output width, default: 1920\n"
             "\t--output-h          optional, output width, default: 960\n"
-            "\t--res-mode          optional, image resolution mode, select from [1080p/1080p4/4k/8k6], default: 1080p\n"
+            "\t--res-mode          optional, image resolution mode\n"
+            "\t                    select from [1080p2cams/1080p4cams/4k2cams/8k6cams], default: 1080p2cams\n"
             "\t--surround-mode     optional, stitching surround mode, select from [sphere, bowl], default: sphere\n"
             "\t--scale-mode        optional, image scaling mode, select from [local/global], default: local\n"
             "\t--enable-seam       optional, enable seam finder in blending area, default: no\n"
@@ -352,7 +353,7 @@ int main (int argc, char *argv[])
     bool need_fm = true;
 #endif
     CLBlenderScaleMode scale_mode = CLBlenderScaleLocal;
-    StitchResMode res_mode = StitchRes1080P;
+    StitchResMode res_mode = StitchRes1080P2Cams;
     SurroundMode surround_mode = SphereView;
 
     int fisheye_num = 2;
@@ -411,14 +412,14 @@ int main (int argc, char *argv[])
             output_height = atoi(optarg);
             break;
         case 'R':
-            if (!strcasecmp (optarg, "1080p"))
-                res_mode = StitchRes1080P;
-            else if (!strcasecmp (optarg, "1080p4"))
-                res_mode = StitchRes1080P4;
-            else if (!strcasecmp (optarg, "4k"))
-                res_mode = StitchRes4K;
-            else if (!strcasecmp (optarg, "8k6"))
-                res_mode = StitchRes8K6;
+            if (!strcasecmp (optarg, "1080p2cams"))
+                res_mode = StitchRes1080P2Cams;
+            else if (!strcasecmp (optarg, "1080p4cams"))
+                res_mode = StitchRes1080P4Cams;
+            else if (!strcasecmp (optarg, "4k2cams"))
+                res_mode = StitchRes4K2Cams;
+            else if (!strcasecmp (optarg, "8k6cams"))
+                res_mode = StitchRes8K6Cams;
             else {
                 XCAM_LOG_ERROR ("incorrect resolution mode");
                 return -1;
@@ -522,8 +523,8 @@ int main (int argc, char *argv[])
     printf ("input height:\t\t%d\n", input_height);
     printf ("output width:\t\t%d\n", output_width);
     printf ("output height:\t\t%d\n", output_height);
-    printf ("resolution mode:\t%s\n", res_mode == StitchRes1080P ? "1080P" :
-             (res_mode == StitchRes1080P4 ? "1080P4" : (res_mode == StitchRes4K ? "4K" : "8K6")));
+    printf ("resolution mode:\t%s\n", res_mode == StitchRes1080P2Cams ? "1080p2cams" :
+             (res_mode == StitchRes1080P4Cams ? "1080p4cams" : (res_mode == StitchRes4K2Cams ? "4k2cams" : "8k6cams")));
     printf ("surround mode: \t\t%s\n",
             surround_mode == SphereView ? "sphere view" : "bowl view");
     printf ("scale mode:\t\t%s\n", scale_mode == CLBlenderScaleLocal ? "local" : "global");

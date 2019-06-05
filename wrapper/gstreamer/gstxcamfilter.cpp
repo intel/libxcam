@@ -45,7 +45,7 @@ using namespace GstXCam;
 #define DEFAULT_PROP_STITCH_SCALE_MODE      CLBlenderScaleLocal
 #define DEFAULT_PROP_STITCH_FISHEYE_MAP     FALSE
 #define DEFAULT_PROP_STITCH_LSC             FALSE
-#define DEFAULT_PROP_STITCH_RES_MODE        StitchRes1080P
+#define DEFAULT_PROP_STITCH_RES_MODE        StitchRes1080P2Cams
 
 XCAM_BEGIN_DECLARE
 
@@ -179,8 +179,8 @@ gst_xcam_filter_stitch_res_mode_get_type (void)
 {
     static GType g_type = 0;
     static const GEnumValue stitch_res_mode_types [] = {
-        {StitchRes1080P, "Image stitch 1080P mode", "1080p"},
-        {StitchRes4K, "Image stitch 4K mode", "4k"},
+        {StitchRes1080P2Cams, "Image stitch 1080p-2cameras mode", "1080p2cams"},
+        {StitchRes4K2Cams, "Image stitch 4k-2cameras mode", "4k2cams"},
         {0, NULL, NULL}
     };
 
