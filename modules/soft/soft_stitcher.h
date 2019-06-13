@@ -75,7 +75,7 @@ private:
     // handler done, call back functions
     XCamReturn start_task_count (
         const SmartPtr<SoftStitcher::StitcherParam> &param);
-    void dewarp_done (
+    void geomap_done (
         const SmartPtr<ImageHandler> &handler,
         const SmartPtr<ImageHandler::Parameters> &param, const XCamReturn error);
     void blender_done (
