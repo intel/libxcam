@@ -398,16 +398,19 @@ CLFisheyeHandler::generate_fisheye_table (
         XCAM_RETURN_ERROR_MEM, "[%s] check geo map buffer failed", get_name ());
 
     if(_surround_mode == BowlView) {
-        BowlDataConfig bowl_data_config = get_bowl_config();
-        IntrinsicParameter intrinsic_param = get_intrinsic_param();
-        ExtrinsicParameter extrinsic_param = get_extrinsic_param();
+        BowlDataConfig bowl_config = get_bowl_config ();
+        IntrinsicParameter intr_param = get_intrinsic_param ();
+        ExtrinsicParameter extr_param = get_extrinsic_param ();
 
-        SurViewFisheyeDewarp::MapTable map_table(table_width * table_height * 2);
-        PolyFisheyeDewarp fd;
-        fd.set_intrinsic_param(intrinsic_param);
-        fd.set_extrinsic_param(extrinsic_param);
+        PolyBowlFisheyeDewarp fd;
+        fd.set_img_size (output_width, output_height);
+        fd.set_table_size (table_width, table_height);
+        fd.set_intr_param (intr_param);
+        fd.set_extr_param (extr_param);
+        fd.set_bowl_config (bowl_config);
 
-        fd.fisheye_dewarp(map_table, table_width, table_height, output_width, output_height, bowl_data_config);
+        FisheyeDewarp::MapTable map_table (table_width * table_height * 2);
+        fd.gen_table (map_table);
 
         float *map_ptr = NULL;
         size_t origin[3] = {0, 0, 0};

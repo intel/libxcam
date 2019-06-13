@@ -22,10 +22,10 @@
 #define XCAM_CL_FISHEYE_HANDLER_H
 
 #include <xcam_std.h>
+#include <fisheye_dewarp.h>
 #include <interface/data_types.h>
 #include <ocl/cl_image_handler.h>
 #include <ocl/cl_geo_map_handler.h>
-#include <surview_fisheye_dewarp.h>
 
 namespace XCam {
 

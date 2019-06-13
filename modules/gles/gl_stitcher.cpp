@@ -19,7 +19,7 @@
  * Author: Yinhang Liu <yinhangx.liu@intel.com>
  */
 
-#include "surview_fisheye_dewarp.h"
+#include "fisheye_dewarp.h"
 #include "gl_video_buffer.h"
 #include "gl_geomap_handler.h"
 #include "gl_blender.h"
@@ -171,6 +171,33 @@ private:
     SmartPtr<GLComputeProgram>    _sync_prog;
 };
 
+XCamReturn
+FisheyeMap::set_map_table (
+    const SmartPtr<GLGeoMapHandler> &mapper, const CameraInfo &cam_info,
+    const Stitcher::RoundViewSlice &view_slice, const BowlDataConfig &bowl)
+{
+    uint32_t table_width = view_slice.width / MAP_FACTOR_X;
+    uint32_t table_height = view_slice.height / MAP_FACTOR_Y;
+
+    PolyBowlFisheyeDewarp fd;
+    fd.set_img_size (view_slice.width, view_slice.height);
+    fd.set_table_size (table_width, table_height);
+    fd.set_intr_param (cam_info.calibration.intrinsic);
+    fd.set_extr_param (cam_info.calibration.extrinsic);
+    fd.set_bowl_config (bowl);
+
+    FisheyeDewarp::MapTable map_table (table_width * table_height);
+    fd.gen_table (map_table);
+
+    XCAM_FAIL_RETURN (
+        ERROR,
+        mapper->set_lookup_table (map_table.data (), table_width, table_height),
+        XCAM_RETURN_ERROR_UNKNOWN,
+        "set fisheye geomap lookup table failed");
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
 const SmartPtr<GLComputeProgram> &
 StitcherImpl::get_sync_prog ()
 {
@@ -260,33 +287,6 @@ StitcherImpl::init_geomap_factors (uint32_t idx)
     }
 
     return true;
-}
-
-XCamReturn
-FisheyeMap::set_map_table (
-    const SmartPtr<GLGeoMapHandler> &mapper, const CameraInfo &cam_info,
-    const Stitcher::RoundViewSlice &view_slice, const BowlDataConfig &bowl)
-{
-    PolyFisheyeDewarp fd;
-    fd.set_intrinsic_param (cam_info.calibration.intrinsic);
-    fd.set_extrinsic_param (cam_info.calibration.extrinsic);
-
-    uint32_t table_width, table_height;
-    table_width = view_slice.width / MAP_FACTOR_X;
-    table_height = view_slice.height / MAP_FACTOR_Y;
-
-    SurViewFisheyeDewarp::MapTable map_table(table_width * table_height);
-    fd.fisheye_dewarp (
-        map_table, table_width, table_height,
-        view_slice.width, view_slice.height, bowl);
-
-    XCAM_FAIL_RETURN (
-        ERROR,
-        mapper->set_lookup_table (map_table.data (), table_width, table_height),
-        XCAM_RETURN_ERROR_UNKNOWN,
-        "set fisheye dewarp lookup table failed");
-
-    return XCAM_RETURN_NO_ERROR;
 }
 
 SmartPtr<GLGeoMapHandler>
