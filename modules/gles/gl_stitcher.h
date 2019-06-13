@@ -73,7 +73,7 @@ protected:
     XCamReturn start_work (const SmartPtr<Parameters> &param);
 
 private:
-    void dewarp_done (
+    void geomap_done (
         const SmartPtr<ImageHandler> &handler,
         const SmartPtr<ImageHandler::Parameters> &param, const XCamReturn error);
     void blender_done (
