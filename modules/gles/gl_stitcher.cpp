@@ -57,7 +57,7 @@ dump_buf (const SmartPtr<VideoBuffer> buf, ...) {
 
 namespace GLSitcherPriv {
 
-DECLARE_HANDLER_CALLBACK (CbGeoMap, GLStitcher, dewarp_done);
+DECLARE_HANDLER_CALLBACK (CbGeoMap, GLStitcher, geomap_done);
 DECLARE_HANDLER_CALLBACK (CbBlender, GLStitcher, blender_done);
 DECLARE_HANDLER_CALLBACK (CbCopier, GLStitcher, copier_done);
 
@@ -109,14 +109,13 @@ struct Overlap {
         const uint32_t idx);
 };
 
-struct FisheyeDewarp {
-    SmartPtr<GLGeoMapHandler>    dewarp;
+struct FisheyeMap {
+    SmartPtr<GLGeoMapHandler>    mapper;
     SmartPtr<BufferPool>         buf_pool;
     Factor                       left_match_factor;
     Factor                       right_match_factor;
 
-    bool set_dewarp_factor ();
-    XCamReturn set_dewarp_geo_table (
+    XCamReturn set_map_table (
         const SmartPtr<GLGeoMapHandler> &mapper, const CameraInfo &cam_info,
         const Stitcher::RoundViewSlice &view_slice, const BowlDataConfig &bowl);
 };
@@ -132,7 +131,7 @@ public:
     {}
 
     XCamReturn init_config (uint32_t count);
-    XCamReturn start_dewarps (const SmartPtr<GLStitcher::StitcherParam> &param);
+    XCamReturn start_geomaps (const SmartPtr<GLStitcher::StitcherParam> &param);
     XCamReturn start_blenders (
         const SmartPtr<GLStitcher::StitcherParam> &param,
         uint32_t idx, const SmartPtr<VideoBuffer> &buf);
@@ -143,7 +142,7 @@ public:
     XCamReturn start_single_blender (uint32_t idx, const SmartPtr<BlenderParam> &param);
     XCamReturn stop ();
 
-    XCamReturn fisheye_dewarp_to_table ();
+    XCamReturn gen_geomap_table ();
 
     XCamReturn start_feature_match (
         const SmartPtr<VideoBuffer> &left_buf, const SmartPtr<VideoBuffer> &right_buf, uint32_t idx);
@@ -154,9 +153,9 @@ private:
     SmartPtr<GLGeoMapHandler> create_geo_mapper (const Stitcher::RoundViewSlice &view_slice);
 
     XCamReturn init_fisheye (uint32_t idx);
-    bool init_dewarp_factors (uint32_t idx);
+    bool init_geomap_factors (uint32_t idx);
 
-    void calc_dewarp_factors (
+    void calc_geomap_factors (
         uint32_t idx, const Factor &last_left_factor, const Factor &last_right_factor,
         Factor &cur_left, Factor &cur_right);
 
@@ -164,7 +163,7 @@ private:
     bool get_and_reset_fm_factors (uint32_t idx, Factor &left, Factor &right);
 
 private:
-    FisheyeDewarp                 _fisheye[XCAM_STITCH_MAX_CAMERAS];
+    FisheyeMap                    _fisheye[XCAM_STITCH_MAX_CAMERAS];
     Overlap                       _overlaps[XCAM_STITCH_MAX_CAMERAS];
     Copiers                       _copiers;
 
@@ -206,7 +205,7 @@ StitcherImpl::get_and_reset_fm_factors (uint32_t idx, Factor &left, Factor &righ
 }
 
 void
-StitcherImpl::calc_dewarp_factors (
+StitcherImpl::calc_geomap_factors (
     uint32_t idx, const Factor &last_left_factor, const Factor &last_right_factor,
     Factor &cur_left, Factor &cur_right)
 {
@@ -220,34 +219,34 @@ StitcherImpl::calc_dewarp_factors (
 }
 
 bool
-StitcherImpl::init_dewarp_factors (uint32_t idx)
+StitcherImpl::init_geomap_factors (uint32_t idx)
 {
     XCAM_FAIL_RETURN (
-        ERROR, _fisheye[idx].dewarp.ptr (), false,
-        "gl-stitcher(%s) dewarp handler is empty",
+        ERROR, _fisheye[idx].mapper.ptr (), false,
+        "gl-stitcher(%s) geomap handler is empty",
         XCAM_STR (_stitcher->get_name ()));
 
     Factor last_left_factor, last_right_factor, cur_left, cur_right;
     if (_stitcher->get_scale_mode () == ScaleSingleConst) {
         Factor unify_factor;
-        _fisheye[idx].dewarp->get_factors (unify_factor.x, unify_factor.y);
+        _fisheye[idx].mapper->get_factors (unify_factor.x, unify_factor.y);
         if (XCAM_DOUBLE_EQUAL_AROUND (unify_factor.x, 0.0f) ||
                 XCAM_DOUBLE_EQUAL_AROUND (unify_factor.y, 0.0f)) { // not started.
             return true;
         }
         last_left_factor = last_right_factor = unify_factor;
 
-        calc_dewarp_factors (idx, last_left_factor, last_right_factor, cur_left, cur_right);
+        calc_geomap_factors (idx, last_left_factor, last_right_factor, cur_left, cur_right);
         unify_factor.x = (cur_left.x + cur_right.x) / 2.0f;
         unify_factor.y = (cur_left.y + cur_right.y) / 2.0f;
 
-        _fisheye[idx].dewarp->set_factors (unify_factor.x, unify_factor.y);
+        _fisheye[idx].mapper->set_factors (unify_factor.x, unify_factor.y);
     } else {
-        SmartPtr<GLDualConstGeoMapHandler> dewarp = _fisheye[idx].dewarp.dynamic_cast_ptr<GLDualConstGeoMapHandler> ();
-        XCAM_ASSERT (dewarp.ptr ());
+        SmartPtr<GLDualConstGeoMapHandler> mapper = _fisheye[idx].mapper.dynamic_cast_ptr<GLDualConstGeoMapHandler> ();
+        XCAM_ASSERT (mapper.ptr ());
 
-        dewarp->get_left_factors (last_left_factor.x, last_left_factor.y);
-        dewarp->get_right_factors (last_right_factor.x, last_right_factor.y);
+        mapper->get_left_factors (last_left_factor.x, last_left_factor.y);
+        mapper->get_right_factors (last_right_factor.x, last_right_factor.y);
         if (XCAM_DOUBLE_EQUAL_AROUND (last_left_factor.x, 0.0f) ||
                 XCAM_DOUBLE_EQUAL_AROUND (last_left_factor.y, 0.0f) ||
                 XCAM_DOUBLE_EQUAL_AROUND (last_right_factor.y, 0.0f) ||
@@ -255,17 +254,16 @@ StitcherImpl::init_dewarp_factors (uint32_t idx)
             return true;
         }
 
-        calc_dewarp_factors (idx, last_left_factor, last_right_factor, cur_left, cur_right);
-        dewarp->set_left_factors (cur_left.x, cur_left.y);
-        dewarp->set_right_factors (cur_right.x, cur_right.y);
+        calc_geomap_factors (idx, last_left_factor, last_right_factor, cur_left, cur_right);
+        mapper->set_left_factors (cur_left.x, cur_left.y);
+        mapper->set_right_factors (cur_right.x, cur_right.y);
     }
 
     return true;
 }
 
-
 XCamReturn
-FisheyeDewarp::set_dewarp_geo_table (
+FisheyeMap::set_map_table (
     const SmartPtr<GLGeoMapHandler> &mapper, const CameraInfo &cam_info,
     const Stitcher::RoundViewSlice &view_slice, const BowlDataConfig &bowl)
 {
@@ -296,31 +294,31 @@ StitcherImpl::create_geo_mapper (const Stitcher::RoundViewSlice &view_slice)
 {
     XCAM_UNUSED (view_slice);
 
-    SmartPtr<GLGeoMapHandler> dewarp;
+    SmartPtr<GLGeoMapHandler> mapper;
     GeoMapScaleMode scale_mode = _stitcher->get_scale_mode ();
     if (scale_mode == ScaleSingleConst)
-        dewarp = new GLGeoMapHandler ("sitcher_singleconst_remapper");
+        mapper = new GLGeoMapHandler ("sitcher_singleconst_remapper");
     else if (scale_mode == ScaleDualConst) {
-        dewarp = new GLDualConstGeoMapHandler ("sitcher_dualconst_remapper");
+        mapper = new GLDualConstGeoMapHandler ("sitcher_dualconst_remapper");
     } else {
         XCAM_LOG_ERROR (
             "gl-stitcher(%s) unsupported GeoMapScaleMode: %d",
             XCAM_STR (_stitcher->get_name ()), scale_mode);
     }
-    XCAM_ASSERT (dewarp.ptr ());
+    XCAM_ASSERT (mapper.ptr ());
 
-    return dewarp;
+    return mapper;
 }
 
 XCamReturn
 StitcherImpl::init_fisheye (uint32_t idx)
 {
-    FisheyeDewarp &fisheye = _fisheye[idx];
+    FisheyeMap &fisheye = _fisheye[idx];
     Stitcher::RoundViewSlice view_slice = _stitcher->get_round_view_slice (idx);
 
-    SmartPtr<ImageHandler::Callback> dewarp_cb = new CbGeoMap (_stitcher);
-    fisheye.dewarp = create_geo_mapper (view_slice);
-    fisheye.dewarp->set_callback (dewarp_cb);
+    SmartPtr<ImageHandler::Callback> geomap_cb = new CbGeoMap (_stitcher);
+    fisheye.mapper = create_geo_mapper (view_slice);
+    fisheye.mapper->set_callback (geomap_cb);
 
     VideoBufferInfo buf_info;
     buf_info.init (
@@ -332,7 +330,7 @@ StitcherImpl::init_fisheye (uint32_t idx)
     XCAM_ASSERT (pool.ptr ());
     XCAM_FAIL_RETURN (
         ERROR, pool->reserve (XCAM_GL_RESERVED_BUF_COUNT), XCAM_RETURN_ERROR_MEM,
-        "gl-stitcher(%s) reserve dewarp buffer pool failed, width:%d, height:%d",
+        "gl-stitcher(%s) reserve geomap buffer pool failed, width:%d, height:%d",
         XCAM_STR (_stitcher->get_name ()), buf_info.width, buf_info.height);
     fisheye.buf_pool = pool;
 
@@ -434,7 +432,7 @@ StitcherImpl::init_config (uint32_t count)
 }
 
 XCamReturn
-StitcherImpl::fisheye_dewarp_to_table ()
+StitcherImpl::gen_geomap_table ()
 {
     uint32_t camera_num = _stitcher->get_camera_num ();
     for (uint32_t i = 0; i < camera_num; ++i) {
@@ -449,8 +447,8 @@ StitcherImpl::fisheye_dewarp_to_table ()
         uint32_t out_width, out_height;
         _stitcher->get_output_size (out_width, out_height);
 
-        XCAM_ASSERT (_fisheye[i].dewarp.ptr ());
-        _fisheye[i].dewarp->set_output_size (view_slice.width, view_slice.height);
+        XCAM_ASSERT (_fisheye[i].mapper.ptr ());
+        _fisheye[i].mapper->set_output_size (view_slice.width, view_slice.height);
 
         if (bowl.angle_end < bowl.angle_start)
             bowl.angle_start -= 360.0f;
@@ -461,33 +459,33 @@ StitcherImpl::fisheye_dewarp_to_table ()
             view_slice.hori_angle_start, view_slice.hori_angle_range,
             bowl.angle_start, bowl.angle_end);
 
-        XCamReturn ret = _fisheye[i].set_dewarp_geo_table (_fisheye[i].dewarp, cam_info, view_slice, bowl);
+        XCamReturn ret = _fisheye[i].set_map_table (_fisheye[i].mapper, cam_info, view_slice, bowl);
 
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,
-            "gl-stitcher(%s) set dewarp geo table failed, idx:%d", XCAM_STR (_stitcher->get_name ()), i);
+            "gl-stitcher(%s) generate geomap table failed, idx:%d", XCAM_STR (_stitcher->get_name ()), i);
     }
 
     return XCAM_RETURN_NO_ERROR;
 }
 
 XCamReturn
-StitcherImpl::start_dewarps (const SmartPtr<GLStitcher::StitcherParam> &param)
+StitcherImpl::start_geomaps (const SmartPtr<GLStitcher::StitcherParam> &param)
 {
     uint32_t camera_num = _stitcher->get_camera_num ();
 
     for (uint32_t i = 0; i < camera_num; ++i) {
         SmartPtr<VideoBuffer> out_buf = _fisheye[i].buf_pool->get_buffer ();
-        SmartPtr<HandlerParam> dewarp_params = new HandlerParam (i);
-        dewarp_params->in_buf = param->in_bufs[i];
-        dewarp_params->out_buf = out_buf;
-        dewarp_params->stitch_param = param;
+        SmartPtr<HandlerParam> geomap_params = new HandlerParam (i);
+        geomap_params->in_buf = param->in_bufs[i];
+        geomap_params->out_buf = out_buf;
+        geomap_params->stitch_param = param;
 
-        init_dewarp_factors (i);
-        XCamReturn ret = _fisheye[i].dewarp->execute_buffer (dewarp_params, false);
+        init_geomap_factors (i);
+        XCamReturn ret = _fisheye[i].mapper->execute_buffer (geomap_params, false);
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,
-            "gl-stitcher(%s) fisheye dewarp buffer failed, idx:%d",
+            "gl-stitcher(%s) fisheye geomap buffer failed, idx:%d",
             XCAM_STR (_stitcher->get_name ()), i);
     }
 
@@ -670,9 +668,9 @@ StitcherImpl::stop ()
 {
     uint32_t cam_num = _stitcher->get_camera_num ();
     for (uint32_t i = 0; i < cam_num; ++i) {
-        if (_fisheye[i].dewarp.ptr ()) {
-            _fisheye[i].dewarp->terminate ();
-            _fisheye[i].dewarp.release ();
+        if (_fisheye[i].mapper.ptr ()) {
+            _fisheye[i].mapper->terminate ();
+            _fisheye[i].mapper.release ();
         }
         if (_fisheye[i].buf_pool.ptr ()) {
             _fisheye[i].buf_pool->stop ();
@@ -781,10 +779,10 @@ GLStitcher::configure_resource (const SmartPtr<Parameters> &param)
         ERROR, xcam_ret_is_ok (ret), ret,
         "gl-stitcher(%s) initialize private config failed", XCAM_STR (get_name ()));
 
-    ret = _impl->fisheye_dewarp_to_table ();
+    ret = _impl->gen_geomap_table ();
     XCAM_FAIL_RETURN (
         ERROR, xcam_ret_is_ok (ret), ret,
-        "gl-stitcher(%s) fisheye_dewarp_to_table failed", XCAM_STR (get_name ()));
+        "gl-stitcher(%s) gen_geomap_table failed", XCAM_STR (get_name ()));
 
     VideoBufferInfo out_info;
     uint32_t out_width, out_height;
@@ -812,10 +810,10 @@ GLStitcher::start_work (const SmartPtr<Parameters> &base)
         ERROR, param.ptr () && param->in_buf_num > 0 && param->in_bufs[0].ptr (), XCAM_RETURN_ERROR_PARAM,
         "gl-stitcher(%s) start work failed, invalid parameters", XCAM_STR (get_name ()));
 
-    XCamReturn ret = _impl->start_dewarps (param);
+    XCamReturn ret = _impl->start_geomaps (param);
     XCAM_FAIL_RETURN (
         ERROR, xcam_ret_is_ok (ret), XCAM_RETURN_ERROR_PARAM,
-        "gl_stitcher(%s) start dewarps failed", XCAM_STR (get_name ()));
+        "gl_stitcher(%s) start geomaps failed", XCAM_STR (get_name ()));
 
     const SmartPtr<GLComputeProgram> prog = _impl->get_sync_prog ();
     XCAM_ASSERT (prog.ptr ());
@@ -825,27 +823,27 @@ GLStitcher::start_work (const SmartPtr<Parameters> &base)
 }
 
 void
-GLStitcher::dewarp_done (
+GLStitcher::geomap_done (
     const SmartPtr<ImageHandler> &handler,
     const SmartPtr<ImageHandler::Parameters> &base, const XCamReturn error)
 {
     XCAM_UNUSED (handler);
 
-    SmartPtr<GLSitcherPriv::HandlerParam> dewarp_param = base.dynamic_cast_ptr<GLSitcherPriv::HandlerParam> ();
-    XCAM_ASSERT (dewarp_param.ptr ());
-    SmartPtr<GLStitcher::StitcherParam> param = dewarp_param->stitch_param;
+    SmartPtr<GLSitcherPriv::HandlerParam> geomap_param = base.dynamic_cast_ptr<GLSitcherPriv::HandlerParam> ();
+    XCAM_ASSERT (geomap_param.ptr ());
+    SmartPtr<GLStitcher::StitcherParam> param = geomap_param->stitch_param;
     XCAM_ASSERT (param.ptr ());
 
     execute_done (param, error);
 
-    XCAM_LOG_DEBUG ("gl-stitcher(%s) camera(idx:%d) dewarp done", XCAM_STR (get_name ()), dewarp_param->idx);
-    dump_buf (dewarp_param->out_buf, dewarp_param->idx, "stitcher-dewarp");
+    XCAM_LOG_DEBUG ("gl-stitcher(%s) camera(idx:%d) geomap done", XCAM_STR (get_name ()), geomap_param->idx);
+    dump_buf (geomap_param->out_buf, geomap_param->idx, "stitcher-geomap");
 
-    XCamReturn ret = _impl->start_blenders (param, dewarp_param->idx, dewarp_param->out_buf);
+    XCamReturn ret = _impl->start_blenders (param, geomap_param->idx, geomap_param->out_buf);
     if (!xcam_ret_is_ok (ret))
         XCAM_LOG_ERROR ("start_blenders failed");
 
-    ret = _impl->start_copier (param, dewarp_param->idx, dewarp_param->out_buf);
+    ret = _impl->start_copier (param, geomap_param->idx, geomap_param->out_buf);
     if (!xcam_ret_is_ok (ret))
         XCAM_LOG_ERROR ("start_copier failed");
 }
