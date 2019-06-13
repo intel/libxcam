@@ -18,12 +18,12 @@
  * Author: Wind Yuan <feng.yuan@intel.com>
  */
 
+#include "fisheye_dewarp.h"
 #include "soft_stitcher.h"
 #include "soft_blender.h"
 #include "soft_geo_mapper.h"
 #include "soft_video_buf_allocator.h"
 #include "interface/feature_match.h"
-#include "surview_fisheye_dewarp.h"
 #include "soft_copy_task.h"
 #include "xcam_utils.h"
 #include <map>
@@ -210,6 +210,35 @@ private:
     SoftStitcher           *_stitcher;
 };
 
+XCamReturn
+FisheyeMap::set_map_table (
+    SmartPtr<SoftGeoMapper> mapper,
+    const CameraInfo &cam_info,
+    const Stitcher::RoundViewSlice &view_slice,
+    const BowlDataConfig &bowl)
+{
+    uint32_t table_width = view_slice.width / MAP_FACTOR_X;
+    table_width = XCAM_ALIGN_UP (table_width, 4);
+
+    uint32_t table_height = view_slice.height / MAP_FACTOR_Y;
+    table_height = XCAM_ALIGN_UP (table_height, 2);
+
+    PolyBowlFisheyeDewarp fd;
+    fd.set_img_size (view_slice.width, view_slice.height);
+    fd.set_table_size (table_width, table_height);
+    fd.set_intr_param (cam_info.calibration.intrinsic);
+    fd.set_extr_param (cam_info.calibration.extrinsic);
+    fd.set_bowl_config (bowl);
+
+    FisheyeDewarp::MapTable map_table (table_width * table_height);
+    fd.gen_table (map_table);
+
+    XCAM_FAIL_RETURN (
+        ERROR, mapper->set_lookup_table (map_table.data (), table_width, table_height),
+        XCAM_RETURN_ERROR_UNKNOWN, "set fisheye geomap lookup table failed");
+
+    return XCAM_RETURN_NO_ERROR;
+}
 
 void
 StitcherImpl::calc_factors (
@@ -266,33 +295,6 @@ StitcherImpl::init_geomap_factors (uint32_t idx)
     }
 
     return true;
-}
-
-XCamReturn
-FisheyeMap::set_map_table (
-    SmartPtr<SoftGeoMapper> mapper,
-    const CameraInfo &cam_info,
-    const Stitcher::RoundViewSlice &view_slice,
-    const BowlDataConfig &bowl)
-{
-    PolyFisheyeDewarp fd;
-    fd.set_intrinsic_param (cam_info.calibration.intrinsic);
-    fd.set_extrinsic_param (cam_info.calibration.extrinsic);
-
-    uint32_t table_width, table_height;
-    table_width = view_slice.width / MAP_FACTOR_X;
-    table_width = XCAM_ALIGN_UP (table_width, 4);
-    table_height = view_slice.height / MAP_FACTOR_Y;
-    table_height = XCAM_ALIGN_UP (table_height, 2);
-    SurViewFisheyeDewarp::MapTable map_table(table_width * table_height);
-    fd.fisheye_dewarp (
-        map_table, table_width, table_height,
-        view_slice.width, view_slice.height, bowl);
-
-    XCAM_FAIL_RETURN (
-        ERROR, mapper->set_lookup_table (map_table.data (), table_width, table_height),
-        XCAM_RETURN_ERROR_UNKNOWN, "set fisheye dewarp lookup table failed");
-    return XCAM_RETURN_NO_ERROR;
 }
 
 bool
