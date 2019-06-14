@@ -28,7 +28,7 @@
 
 namespace XCam {
 
-namespace GLSitcherPriv {
+namespace GLStitcherPriv {
 class StitcherImpl;
 class CbGeoMap;
 class CbBlender;
@@ -39,10 +39,10 @@ class GLStitcher
     : public GLImageHandler
     , public Stitcher
 {
-    friend class GLSitcherPriv::StitcherImpl;
-    friend class GLSitcherPriv::CbGeoMap;
-    friend class GLSitcherPriv::CbBlender;
-    friend class GLSitcherPriv::CbCopier;
+    friend class GLStitcherPriv::StitcherImpl;
+    friend class GLStitcherPriv::CbGeoMap;
+    friend class GLStitcherPriv::CbBlender;
+    friend class GLStitcherPriv::CbCopier;
 
 public:
     struct StitcherParam
@@ -84,7 +84,7 @@ private:
         const SmartPtr<ImageHandler::Parameters> &param, const XCamReturn error);
 
 private:
-    SmartPtr<GLSitcherPriv::StitcherImpl>    _impl;
+    SmartPtr<GLStitcherPriv::StitcherImpl>    _impl;
 };
 
 }

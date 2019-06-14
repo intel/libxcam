@@ -31,7 +31,7 @@ enum BoundState {
 };
 
 inline void check_bound (const uint32_t &img_w, const uint32_t &img_h, Float2 *in_pos,
-    const uint32_t &max_idx, BoundState &bound)
+                         const uint32_t &max_idx, BoundState &bound)
 {
     if (in_pos[0].x >= 0.0f && in_pos[max_idx].x >= 0.0f && in_pos[0].x < img_w && in_pos[max_idx].x < img_w &&
             in_pos[0].y >= 0.0f && in_pos[max_idx].y >= 0.0f && in_pos[0].y < img_h && in_pos[max_idx].y < img_h)
@@ -45,7 +45,7 @@ inline void check_bound (const uint32_t &img_w, const uint32_t &img_h, Float2 *i
 
 template <typename TypeT>
 inline void calc_critical_pixels (const uint32_t &img_w, const uint32_t &img_h, Float2 *in_pos,
-    const uint32_t &max_idx, const TypeT &zero_byte, TypeT *luma)
+                                  const uint32_t &max_idx, const TypeT &zero_byte, TypeT *luma)
 {
     for (uint32_t idx = 0; idx < max_idx; ++idx) {
         if (in_pos[idx].x < 0.0f || in_pos[idx].x >= img_w || in_pos[idx].y < 0.0f || in_pos[idx].y >= img_h)
@@ -104,7 +104,7 @@ static void map_image (
 
     //2nd-line luma
     lut_pos[0].y = lut_pos[1].y = lut_pos[2].y = lut_pos[3].y = lut_pos[4].y = lut_pos[5].y =
-                                  lut_pos[6].y = lut_pos[7].y = first.y + step.y;
+                                      lut_pos[6].y = lut_pos[7].y = first.y + step.y;
     lut->read_interpolate_array<Float2, 8> (lut_pos, in_pos);
     check_bound (luma_w, luma_h, in_pos, 7, bound);
     if (bound == BoundExternal)
@@ -226,7 +226,7 @@ GeoMapDualCurveTask::GeoMapDualCurveTask (const SmartPtr<Worker::Callback> &cb)
     , _left_steps (NULL)
     , _right_steps (NULL)
 {
-    set_work_uint (8, 2);
+    set_work_unit (8, 2);
 }
 
 GeoMapDualCurveTask::~GeoMapDualCurveTask () {

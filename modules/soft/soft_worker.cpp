@@ -112,7 +112,7 @@ SoftWorker::~SoftWorker ()
 }
 
 bool
-SoftWorker::set_work_uint (uint32_t x, uint32_t y, uint32_t z)
+SoftWorker::set_work_unit (uint32_t x, uint32_t y, uint32_t z)
 {
     XCAM_FAIL_RETURN (
         ERROR, x && y && z, false,

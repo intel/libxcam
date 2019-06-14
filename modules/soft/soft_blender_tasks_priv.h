@@ -48,7 +48,7 @@ public:
     explicit GaussScaleGray (const char *name = "GaussScaleGray", const SmartPtr<Worker::Callback> &cb = NULL)
         : SoftWorker (name, cb)
     {
-        set_work_uint (2, 2);
+        set_work_unit (2, 2);
     }
 
 private:
@@ -147,7 +147,7 @@ public:
     explicit BlendTask (const SmartPtr<Worker::Callback> &cb)
         : SoftWorker ("SoftBlendTask", cb)
     {
-        set_work_uint (8, 2);
+        set_work_unit (8, 2);
     }
 
 private:
@@ -181,7 +181,7 @@ public:
     explicit LaplaceTask (const SmartPtr<Worker::Callback> &cb)
         : SoftWorker ("SoftLaplaceTask", cb)
     {
-        set_work_uint (8, 4);
+        set_work_unit (8, 4);
     }
 
 private:
@@ -218,7 +218,7 @@ public:
     explicit ReconstructTask (const SmartPtr<Worker::Callback> &cb)
         : SoftWorker ("SoftReconstructTask", cb)
     {
-        set_work_uint (8, 4);
+        set_work_unit (8, 4);
     }
 
 private:

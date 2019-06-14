@@ -55,7 +55,7 @@ dump_buf (const SmartPtr<VideoBuffer> &buf, uint32_t idx, const char *prefix)
 }
 #endif
 
-namespace VKSitcherPriv {
+namespace VKStitcherPriv {
 
 DECLARE_HANDLER_CALLBACK (CbGeoMap, VKStitcher, geomap_done);
 
@@ -162,7 +162,7 @@ StitcherImpl::create_geo_mapper (
 
     SmartPtr<VKGeoMapHandler> mapper;
     if (_stitcher->get_scale_mode () == ScaleSingleConst) {
-        mapper = new VKGeoMapHandler (dev, "sitcher_singleconst_remapper");
+        mapper = new VKGeoMapHandler (dev, "stitcher_singleconst_remapper");
     } else {
         XCAM_LOG_ERROR (
             "vk-stitcher(%s) unsupported scale mode:%d",
@@ -436,7 +436,7 @@ StitcherImpl::init_feature_matchers ()
         XCAM_ASSERT (matcher.ptr ());
 
         FMConfig config;
-        config.sitch_min_width = 136;
+        config.stitch_min_width = 136;
         config.min_corners = 4;
         config.offset_factor = 0.8f;
         config.delta_mean_offset = 120.0f;
@@ -580,7 +580,7 @@ StitcherImpl::start_blender (
         "vk-stitcher(%s) execute blender failed, idx:%d", XCAM_STR (_stitcher->get_name ()), idx);
 
 #if DUMP_BUFFER
-        dump_buf (param->out_buf, idx, "stitcher-blend");
+    dump_buf (param->out_buf, idx, "stitcher-blend");
 #endif
 
 #if HAVE_OPENCV
@@ -677,7 +677,7 @@ VKStitcher::VKStitcher (const SmartPtr<VKDevice> &dev, const char *name)
     : VKHandler (dev, name)
     , Stitcher (VK_STITCHER_ALIGNMENT_X, VK_STITCHER_ALIGNMENT_X)
 {
-    SmartPtr<VKSitcherPriv::StitcherImpl> impl = new VKSitcherPriv::StitcherImpl (this);
+    SmartPtr<VKStitcherPriv::StitcherImpl> impl = new VKStitcherPriv::StitcherImpl (this);
     XCAM_ASSERT (impl.ptr ());
     _impl = impl;
 }
@@ -801,7 +801,7 @@ VKStitcher::geomap_done (
     XCAM_UNUSED (handler);
     XCAM_UNUSED (error);
 
-    SmartPtr<VKSitcherPriv::GeoMapParam> param = base.dynamic_cast_ptr<VKSitcherPriv::GeoMapParam> ();
+    SmartPtr<VKStitcherPriv::GeoMapParam> param = base.dynamic_cast_ptr<VKStitcherPriv::GeoMapParam> ();
     XCAM_ASSERT (param.ptr ());
     SmartPtr<VKStitcher::StitcherParam> &stitch_param = param->stitch_param;
     XCAM_ASSERT (stitch_param.ptr ());

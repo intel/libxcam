@@ -169,21 +169,21 @@ CVFeatureMatch::adjust_crop_area ()
     XCAM_ASSERT (_dst_width);
 
     int last_overlap_width = _right_rect.pos_x + _right_rect.width +
-                              (_dst_width - (_left_rect.pos_x + _left_rect.width));
+                             (_dst_width - (_left_rect.pos_x + _left_rect.width));
     // int final_overlap_width = _right_rect.pos_x + _right_rect.width +
     //                           (dst_width - (_left_rect.pos_x - x_offset + _left_rect.width));
     if ((_left_rect.pos_x - _x_offset + _left_rect.width) > _dst_width)
         _x_offset = _dst_width - (_left_rect.pos_x + _left_rect.width);
     int final_overlap_width = last_overlap_width + _x_offset;
     final_overlap_width = XCAM_ALIGN_AROUND (final_overlap_width, 8);
-    XCAM_ASSERT (final_overlap_width >= _config.sitch_min_width);
+    XCAM_ASSERT (final_overlap_width >= _config.stitch_min_width);
     int center = final_overlap_width / 2;
-    XCAM_ASSERT (center >= _config.sitch_min_width / 2);
+    XCAM_ASSERT (center >= _config.stitch_min_width / 2);
 
-    _right_rect.pos_x = XCAM_ALIGN_AROUND (center - _config.sitch_min_width / 2, 8);
-    _right_rect.width = _config.sitch_min_width;
+    _right_rect.pos_x = XCAM_ALIGN_AROUND (center - _config.stitch_min_width / 2, 8);
+    _right_rect.width = _config.stitch_min_width;
     _left_rect.pos_x = _dst_width - final_overlap_width + _right_rect.pos_x;
-    _left_rect.width = _config.sitch_min_width;
+    _left_rect.width = _config.stitch_min_width;
 
     float delta_offset = final_overlap_width - last_overlap_width;
     _x_offset -= delta_offset;

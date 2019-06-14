@@ -115,7 +115,7 @@ get_fm_sphere_config (StitchResMode res_mode)
 
     switch (res_mode) {
     case StitchRes1080P2Cams: {
-        config.sitch_min_width = 56;
+        config.stitch_min_width = 56;
         config.min_corners = 8;
         config.offset_factor = 0.8f;
         config.delta_mean_offset = 5.0f;
@@ -126,7 +126,7 @@ get_fm_sphere_config (StitchResMode res_mode)
         break;
     }
     case StitchRes1080P4Cams: {
-        config.sitch_min_width = 128;
+        config.stitch_min_width = 128;
         config.min_corners = 4;
         config.offset_factor = 0.8f;
         config.delta_mean_offset = 24.0f;
@@ -137,7 +137,7 @@ get_fm_sphere_config (StitchResMode res_mode)
         break;
     }
     case StitchRes4K2Cams: {
-        config.sitch_min_width = 160;
+        config.stitch_min_width = 160;
         config.min_corners = 8;
         config.offset_factor = 0.8f;
         config.delta_mean_offset = 5.0f;
@@ -148,7 +148,7 @@ get_fm_sphere_config (StitchResMode res_mode)
         break;
     }
     case StitchRes8K6Cams: {
-        config.sitch_min_width = 320;
+        config.stitch_min_width = 320;
         config.min_corners = 8;
         config.offset_factor = 0.8f;
         config.delta_mean_offset = 24.0f;
@@ -170,7 +170,7 @@ static FMConfig
 get_fm_bowl_config ()
 {
     FMConfig config;
-    config.sitch_min_width = 136;
+    config.stitch_min_width = 136;
     config.min_corners = 4;
     config.offset_factor = 0.95f;
     config.delta_mean_offset = 120.0f;
@@ -477,7 +477,7 @@ CLImage360Stitch::calc_fisheye_initial_info (SmartPtr<VideoBuffer> &output)
             uint32_t fisheye_width_sum = out_info.width;
             for (int i = 0; i < _fisheye_num; i++) {
                 fisheye_width_sum += _stitch_info.merge_width[i] +
-                    _stitch_info.crop[i].left + _stitch_info.crop[i].right;
+                                     _stitch_info.crop[i].left + _stitch_info.crop[i].right;
             }
             _fisheye[0].width = fisheye_width_sum / _fisheye_num;
         }
@@ -493,7 +493,7 @@ CLImage360Stitch::calc_fisheye_initial_info (SmartPtr<VideoBuffer> &output)
             _fisheye[i].height = _fisheye[0].height;
 
             float max_dst_latitude = (_stitch_info.fisheye_info[i].wide_angle > 180.0f) ?
-                               180.0f : _stitch_info.fisheye_info[i].wide_angle;
+                                     180.0f : _stitch_info.fisheye_info[i].wide_angle;
             float max_dst_longitude = max_dst_latitude * _fisheye[i].width / _fisheye[i].height;
 
             _fisheye[i].handler->set_dst_range (max_dst_longitude, max_dst_latitude);
@@ -618,7 +618,7 @@ CLImage360Stitch::ensure_fisheye_parameters (
 
         if (!_fisheye[i].pool.ptr ()) {
             create_buffer_pool (_fisheye[i].pool, _fisheye[i].width, _fisheye[i].height,
-                                  XCAM_ALIGN_UP (_fisheye[i].width, 16), XCAM_ALIGN_UP (_fisheye[i].height, 16));
+                                XCAM_ALIGN_UP (_fisheye[i].width, 16), XCAM_ALIGN_UP (_fisheye[i].height, 16));
         }
 
         _fisheye[i].buf = _fisheye[i].pool->get_buffer (_fisheye[i].pool);

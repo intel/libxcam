@@ -63,7 +63,7 @@ static void stitcher_dump_buf (const SmartPtr<VideoBuffer> buf, ...) {
 #endif
 
 
-namespace SoftSitcherPriv {
+namespace SoftStitcherPriv {
 
 DECLARE_HANDLER_CALLBACK (CbGeoMap, SoftStitcher, geomap_done);
 DECLARE_HANDLER_CALLBACK (CbBlender, SoftStitcher, blender_done);
@@ -319,11 +319,11 @@ StitcherImpl::create_geo_mapper (const Stitcher::RoundViewSlice &view_slice)
 {
     SmartPtr<SoftGeoMapper> mapper;
     if (_stitcher->get_scale_mode () == ScaleSingleConst)
-        mapper = new SoftGeoMapper ("sitcher_remapper");
+        mapper = new SoftGeoMapper ("stitcher_remapper");
     else if (_stitcher->get_scale_mode () == ScaleDualConst)
-        mapper = new SoftDualConstGeoMapper ("sitcher_dualconst_remapper");
+        mapper = new SoftDualConstGeoMapper ("stitcher_dualconst_remapper");
     else {
-        SmartPtr<SoftDualCurveGeoMapper> geomap = new SoftDualCurveGeoMapper ("sitcher_dualcurve_remapper");
+        SmartPtr<SoftDualCurveGeoMapper> geomap = new SoftDualCurveGeoMapper ("stitcher_dualcurve_remapper");
         XCAM_ASSERT (geomap.ptr ());
 
         BowlDataConfig bowl = _stitcher->get_bowl_config ();
@@ -412,7 +412,7 @@ StitcherImpl::init_feature_match (uint32_t idx)
     XCAM_ASSERT (_overlaps[idx].matcher.ptr ());
 
     FMConfig config;
-    config.sitch_min_width = 136;
+    config.stitch_min_width = 136;
     config.min_corners = 4;
     config.offset_factor = 0.8f;
     config.delta_mean_offset = 120.0f;
@@ -820,7 +820,7 @@ SoftStitcher::SoftStitcher (const char *name)
     : SoftHandler (name)
     , Stitcher (SOFT_STITCHER_ALIGNMENT_X, SOFT_STITCHER_ALIGNMENT_Y)
 {
-    SmartPtr<SoftSitcherPriv::StitcherImpl> impl = new SoftSitcherPriv::StitcherImpl (this);
+    SmartPtr<SoftStitcherPriv::StitcherImpl> impl = new SoftStitcherPriv::StitcherImpl (this);
     XCAM_ASSERT (impl.ptr ());
     _impl = impl;
 
@@ -900,7 +900,7 @@ SoftStitcher::geomap_done (
     const SmartPtr<ImageHandler::Parameters> &base,
     const XCamReturn error)
 {
-    SmartPtr<SoftSitcherPriv::HandlerParam> geomap_param = base.dynamic_cast_ptr<SoftSitcherPriv::HandlerParam> ();
+    SmartPtr<SoftStitcherPriv::HandlerParam> geomap_param = base.dynamic_cast_ptr<SoftStitcherPriv::HandlerParam> ();
     XCAM_ASSERT (geomap_param.ptr ());
     SmartPtr<SoftStitcher::StitcherParam> param = geomap_param->stitch_param;
     XCAM_ASSERT (param.ptr ());
@@ -930,7 +930,7 @@ SoftStitcher::blender_done (
     const SmartPtr<ImageHandler::Parameters> &base,
     const XCamReturn error)
 {
-    SmartPtr<SoftSitcherPriv::BlenderParam> blender_param = base.dynamic_cast_ptr<SoftSitcherPriv::BlenderParam> ();
+    SmartPtr<SoftStitcherPriv::BlenderParam> blender_param = base.dynamic_cast_ptr<SoftStitcherPriv::BlenderParam> ();
     XCAM_ASSERT (blender_param.ptr ());
     SmartPtr<SoftStitcher::StitcherParam> param = blender_param->stitch_param;
     XCAM_ASSERT (param.ptr ());
@@ -957,7 +957,7 @@ SoftStitcher::copy_task_done (
 {
     XCAM_UNUSED (worker);
     XCAM_ASSERT (worker.ptr ());
-    SmartPtr<SoftSitcherPriv::StitcherCopyArgs> args = base.dynamic_cast_ptr<SoftSitcherPriv::StitcherCopyArgs> ();
+    SmartPtr<SoftStitcherPriv::StitcherCopyArgs> args = base.dynamic_cast_ptr<SoftStitcherPriv::StitcherCopyArgs> ();
     XCAM_ASSERT (args.ptr ());
     const SmartPtr<SoftStitcher::StitcherParam> param =
         args->get_param ().dynamic_cast_ptr<SoftStitcher::StitcherParam> ();
