@@ -48,8 +48,8 @@ public:
     explicit SoftWorker (const char *name, const SmartPtr<Callback> &cb = NULL);
     virtual ~SoftWorker ();
 
-    bool set_work_uint (uint32_t x, uint32_t y, uint32_t z = 1);
-    const WorkSize &get_work_uint () const {
+    bool set_work_unit (uint32_t x, uint32_t y, uint32_t z = 1);
+    const WorkSize &get_work_unit () const {
         return _work_unit;
     }
 

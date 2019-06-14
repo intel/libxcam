@@ -27,7 +27,7 @@
 
 namespace XCam {
 
-namespace SoftSitcherPriv {
+namespace SoftStitcherPriv {
 class StitcherImpl;
 class CbGeoMap;
 class CbBlender;
@@ -38,10 +38,10 @@ class SoftStitcher
     : public SoftHandler
     , public Stitcher
 {
-    friend class SoftSitcherPriv::StitcherImpl;
-    friend class SoftSitcherPriv::CbGeoMap;
-    friend class SoftSitcherPriv::CbBlender;
-    friend class SoftSitcherPriv::CbCopyTask;
+    friend class SoftStitcherPriv::StitcherImpl;
+    friend class SoftStitcherPriv::CbGeoMap;
+    friend class SoftStitcherPriv::CbBlender;
+    friend class SoftStitcherPriv::CbCopyTask;
 
 public:
     struct StitcherParam
@@ -86,7 +86,7 @@ private:
         const SmartPtr<Worker::Arguments> &base, const XCamReturn error);
 
 private:
-    SmartPtr<SoftSitcherPriv::StitcherImpl> _impl;
+    SmartPtr<SoftStitcherPriv::StitcherImpl> _impl;
 };
 
 }

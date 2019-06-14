@@ -50,7 +50,7 @@ public:
     explicit GeoMapTask (const SmartPtr<Worker::Callback> &cb)
         : SoftWorker ("GeoMapTask", cb)
     {
-        set_work_uint (8, 2);
+        set_work_unit (8, 2);
     }
 
 private:
@@ -75,7 +75,7 @@ public:
     explicit GeoMapDualConstTask (const SmartPtr<Worker::Callback> &cb)
         : GeoMapTask (cb)
     {
-        set_work_uint (8, 2);
+        set_work_unit (8, 2);
     }
 
 private:

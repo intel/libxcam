@@ -55,7 +55,7 @@ dump_buf (const SmartPtr<VideoBuffer> buf, ...) {
 }
 #endif
 
-namespace GLSitcherPriv {
+namespace GLStitcherPriv {
 
 DECLARE_HANDLER_CALLBACK (CbGeoMap, GLStitcher, geomap_done);
 DECLARE_HANDLER_CALLBACK (CbBlender, GLStitcher, blender_done);
@@ -297,9 +297,9 @@ StitcherImpl::create_geo_mapper (const Stitcher::RoundViewSlice &view_slice)
     SmartPtr<GLGeoMapHandler> mapper;
     GeoMapScaleMode scale_mode = _stitcher->get_scale_mode ();
     if (scale_mode == ScaleSingleConst)
-        mapper = new GLGeoMapHandler ("sitcher_singleconst_remapper");
+        mapper = new GLGeoMapHandler ("stitcher_singleconst_remapper");
     else if (scale_mode == ScaleDualConst) {
-        mapper = new GLDualConstGeoMapHandler ("sitcher_dualconst_remapper");
+        mapper = new GLDualConstGeoMapHandler ("stitcher_dualconst_remapper");
     } else {
         XCAM_LOG_ERROR (
             "gl-stitcher(%s) unsupported GeoMapScaleMode: %d",
@@ -362,7 +362,7 @@ StitcherImpl::init_feature_match (uint32_t idx)
     XCAM_ASSERT (_overlaps[idx].matcher.ptr ());
 
     FMConfig config;
-    config.sitch_min_width = 136;
+    config.stitch_min_width = 136;
     config.min_corners = 4;
     config.offset_factor = 0.8f;
     config.delta_mean_offset = 120.0f;
@@ -699,7 +699,7 @@ GLStitcher::GLStitcher (const char *name)
     : GLImageHandler (name)
     , Stitcher (GL_STITCHER_ALIGNMENT_X, GL_STITCHER_ALIGNMENT_X)
 {
-    SmartPtr<GLSitcherPriv::StitcherImpl> impl = new GLSitcherPriv::StitcherImpl (this);
+    SmartPtr<GLStitcherPriv::StitcherImpl> impl = new GLStitcherPriv::StitcherImpl (this);
     XCAM_ASSERT (impl.ptr ());
     _impl = impl;
 }
@@ -829,7 +829,7 @@ GLStitcher::geomap_done (
 {
     XCAM_UNUSED (handler);
 
-    SmartPtr<GLSitcherPriv::HandlerParam> geomap_param = base.dynamic_cast_ptr<GLSitcherPriv::HandlerParam> ();
+    SmartPtr<GLStitcherPriv::HandlerParam> geomap_param = base.dynamic_cast_ptr<GLStitcherPriv::HandlerParam> ();
     XCAM_ASSERT (geomap_param.ptr ());
     SmartPtr<GLStitcher::StitcherParam> param = geomap_param->stitch_param;
     XCAM_ASSERT (param.ptr ());
@@ -855,7 +855,7 @@ GLStitcher::blender_done (
 {
     XCAM_UNUSED (handler);
 
-    SmartPtr<GLSitcherPriv::BlenderParam> blender_param = base.dynamic_cast_ptr<GLSitcherPriv::BlenderParam> ();
+    SmartPtr<GLStitcherPriv::BlenderParam> blender_param = base.dynamic_cast_ptr<GLStitcherPriv::BlenderParam> ();
     XCAM_ASSERT (blender_param.ptr ());
     SmartPtr<GLStitcher::StitcherParam> param = blender_param->stitch_param;
     XCAM_ASSERT (param.ptr ());
@@ -873,7 +873,7 @@ GLStitcher::copier_done (
 {
     XCAM_UNUSED (handler);
 
-    SmartPtr<GLSitcherPriv::HandlerParam> copy_param = base.dynamic_cast_ptr<GLSitcherPriv::HandlerParam> ();
+    SmartPtr<GLStitcherPriv::HandlerParam> copy_param = base.dynamic_cast_ptr<GLStitcherPriv::HandlerParam> ();
     XCAM_ASSERT (copy_param.ptr ());
     SmartPtr<GLStitcher::StitcherParam> param = copy_param->stitch_param;
     XCAM_ASSERT (param.ptr ());

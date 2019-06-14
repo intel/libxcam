@@ -27,7 +27,7 @@
 
 namespace XCam {
 
-namespace VKSitcherPriv {
+namespace VKStitcherPriv {
 class StitcherImpl;
 class CbGeoMap;
 };
@@ -36,8 +36,8 @@ class VKStitcher
     : public VKHandler
     , public Stitcher
 {
-    friend class VKSitcherPriv::StitcherImpl;
-    friend class VKSitcherPriv::CbGeoMap;
+    friend class VKStitcherPriv::StitcherImpl;
+    friend class VKStitcherPriv::CbGeoMap;
 
 public:
     struct StitcherParam
@@ -73,7 +73,7 @@ private:
         const SmartPtr<ImageHandler::Parameters> &param, const XCamReturn error);
 
 private:
-    SmartPtr<VKSitcherPriv::StitcherImpl>    _impl;
+    SmartPtr<VKStitcherPriv::StitcherImpl>    _impl;
 };
 
 }

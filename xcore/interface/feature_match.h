@@ -29,7 +29,7 @@
 namespace XCam {
 
 struct FMConfig {
-    int sitch_min_width;
+    int stitch_min_width;
     int min_corners;           // number of minimum efficient corners
     float offset_factor;       // last_offset * offset_factor + cur_offset * (1.0f - offset_factor)
     float delta_mean_offset;   // cur_mean_offset - last_mean_offset
@@ -39,7 +39,7 @@ struct FMConfig {
     float max_track_error;     // maximum track error
 
     FMConfig ()
-        : sitch_min_width (56)
+        : stitch_min_width (56)
         , min_corners (8)
         , offset_factor (0.8f)
         , delta_mean_offset (5.0f)

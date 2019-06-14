@@ -116,7 +116,7 @@ SoftGeoMapper::set_work_size (
     uint32_t thread_x, uint32_t thread_y,
     uint32_t luma_width, uint32_t luma_height)
 {
-    WorkSize work_unit = _map_task->get_work_uint ();
+    WorkSize work_unit = _map_task->get_work_unit ();
     WorkSize global_size (
         xcam_ceil (luma_width, work_unit.value[0]) / work_unit.value[0],
         xcam_ceil (luma_height, work_unit.value[1]) / work_unit.value[1]);
