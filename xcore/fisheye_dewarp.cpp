@@ -25,8 +25,10 @@
 namespace XCam {
 
 FisheyeDewarp::FisheyeDewarp ()
-    : _img_width (0)
-    , _img_height (0)
+    : _in_width (0)
+    , _in_height (0)
+    , _out_width (0)
+    , _out_height (0)
     , _tbl_width (0)
     , _tbl_height (0)
 {
@@ -37,10 +39,17 @@ FisheyeDewarp::~FisheyeDewarp ()
 }
 
 void
-FisheyeDewarp::set_img_size (uint32_t width, uint32_t height)
+FisheyeDewarp::set_in_size (uint32_t width, uint32_t height)
 {
-    _img_width = width;
-    _img_height = height;
+    _in_width = width;
+    _in_height = height;
+}
+
+void
+FisheyeDewarp::set_out_size (uint32_t width, uint32_t height)
+{
+    _out_width = width;
+    _out_height = height;
 }
 
 void
@@ -51,10 +60,17 @@ FisheyeDewarp::set_table_size (uint32_t width, uint32_t height)
 }
 
 void
-FisheyeDewarp::get_img_size (uint32_t &width, uint32_t &height)
+FisheyeDewarp::get_in_size (uint32_t &width, uint32_t &height)
 {
-    width = _img_width;
-    height = _img_height;
+    width = _in_width;
+    height = _in_height;
+}
+
+void
+FisheyeDewarp::get_out_size (uint32_t &width, uint32_t &height)
+{
+    width = _out_width;
+    height = _out_height;
 }
 
 void
@@ -91,19 +107,19 @@ BowlFisheyeDewarp::get_intr_param ()
 void
 BowlFisheyeDewarp::gen_table (FisheyeDewarp::MapTable &map_table)
 {
-    uint32_t img_w, img_h, tbl_w, tbl_h;
-    get_img_size (img_w, img_h);
+    uint32_t out_w, out_h, tbl_w, tbl_h;
+    get_out_size (out_w, out_h);
     get_table_size (tbl_w, tbl_h);
 
     XCAM_LOG_DEBUG ("fisheye-dewarp:\n table_size(%dx%d) out_size(%dx%d) "
                     "bowl(start:%.1f, end:%.1f, ground:%.2f, wall:%.2f, a:%.2f, b:%.2f, c:%.2f, center_z:%.2f)",
-                    tbl_w, tbl_h, img_w, img_h,
+                    tbl_w, tbl_h, out_w, out_h,
                     _bowl_cfg.angle_start, _bowl_cfg.angle_end,
                     _bowl_cfg.ground_length, _bowl_cfg.wall_height,
                     _bowl_cfg.a, _bowl_cfg.b, _bowl_cfg.c, _bowl_cfg.center_z);
 
-    float scale_factor_w = (float) img_w / tbl_w;
-    float scale_factor_h = (float) img_h / tbl_h;
+    float scale_factor_w = (float) out_w / tbl_w;
+    float scale_factor_h = (float) out_h / tbl_h;
 
     PointFloat2 img_coord, out_pos;
     PointFloat3 world_coord, cam_coord, cam_world_coord;
@@ -112,7 +128,7 @@ BowlFisheyeDewarp::gen_table (FisheyeDewarp::MapTable &map_table)
             out_pos.x = col * scale_factor_w;
             out_pos.y = row * scale_factor_h;
 
-            world_coord = bowl_view_image_to_world (_bowl_cfg, img_w, img_h, out_pos);
+            world_coord = bowl_view_image_to_world (_bowl_cfg, out_w, out_h, out_pos);
             cal_cam_world_coord (world_coord, cam_world_coord);
             world_coord2cam (cam_world_coord, cam_coord);
             cal_img_coord (cam_coord, img_coord);

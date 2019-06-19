@@ -266,7 +266,7 @@ StitcherImpl::set_geomap_table (
     uint32_t table_height = view_slice.height / MAP_FACTOR_Y;
 
     PolyBowlFisheyeDewarp fd;
-    fd.set_img_size (view_slice.width, view_slice.height);
+    fd.set_out_size (view_slice.width, view_slice.height);
     fd.set_table_size (table_width, table_height);
     fd.set_intr_param (cam_info.calibration.intrinsic);
     fd.set_extr_param (cam_info.calibration.extrinsic);
