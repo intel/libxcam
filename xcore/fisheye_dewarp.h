@@ -38,19 +38,23 @@ public:
 
     virtual void gen_table (MapTable &map_table) = 0;
 
-    void set_img_size (uint32_t width, uint32_t height);
+    void set_in_size (uint32_t width, uint32_t height);
+    void set_out_size (uint32_t width, uint32_t height);
     void set_table_size (uint32_t width, uint32_t height);
 
 protected:
-    void get_img_size (uint32_t &width, uint32_t &height);
+    void get_in_size (uint32_t &width, uint32_t &height);
+    void get_out_size (uint32_t &width, uint32_t &height);
     void get_table_size (uint32_t &width, uint32_t &height);
 
 private:
     XCAM_DEAD_COPY (FisheyeDewarp);
 
 private:
-    uint32_t        _img_width;
-    uint32_t        _img_height;
+    uint32_t        _in_width;
+    uint32_t        _in_height;
+    uint32_t        _out_width;
+    uint32_t        _out_height;
     uint32_t        _tbl_width;
     uint32_t        _tbl_height;
 };

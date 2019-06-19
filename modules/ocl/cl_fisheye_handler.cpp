@@ -403,7 +403,7 @@ CLFisheyeHandler::generate_fisheye_table (
         ExtrinsicParameter extr_param = get_extrinsic_param ();
 
         PolyBowlFisheyeDewarp fd;
-        fd.set_img_size (output_width, output_height);
+        fd.set_out_size (output_width, output_height);
         fd.set_table_size (table_width, table_height);
         fd.set_intr_param (intr_param);
         fd.set_extr_param (extr_param);

@@ -224,7 +224,7 @@ FisheyeMap::set_map_table (
     table_height = XCAM_ALIGN_UP (table_height, 2);
 
     PolyBowlFisheyeDewarp fd;
-    fd.set_img_size (view_slice.width, view_slice.height);
+    fd.set_out_size (view_slice.width, view_slice.height);
     fd.set_table_size (table_width, table_height);
     fd.set_intr_param (cam_info.calibration.intrinsic);
     fd.set_extr_param (cam_info.calibration.extrinsic);
