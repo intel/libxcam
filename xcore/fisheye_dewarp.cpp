@@ -81,6 +81,74 @@ FisheyeDewarp::get_table_size (uint32_t &width, uint32_t &height)
 }
 
 void
+SphereFisheyeDewarp::set_fisheye_info (const FisheyeInfo &info)
+{
+    _info = info;
+}
+
+void
+SphereFisheyeDewarp::set_dst_range (float longitude, float latitude)
+{
+    _dst_longitude = longitude;
+    _dst_latitude = latitude;
+}
+
+void
+SphereFisheyeDewarp::gen_table (FisheyeDewarp::MapTable &map_table)
+{
+    uint32_t tbl_w, tbl_h;
+    get_table_size (tbl_w, tbl_h);
+
+    XCAM_LOG_DEBUG ("fisheye-dewarp:\n table_size(%dx%d) "
+                    "fisyeye_info(center_x:%.2f, center_y:%.2f, wide_angle:%.2f, radius:%.2f, rotate_angle:%.2f)",
+                    tbl_w, tbl_h,
+                    _info.center_x, _info.center_y, _info.wide_angle, _info.radius, _info.rotate_angle);
+
+    FisheyeInfo info = _info;
+    info.wide_angle = degree2radian (_info.wide_angle);
+    info.rotate_angle = degree2radian (_info.rotate_angle);
+
+    PointFloat2 radian_per_pixel;
+    radian_per_pixel.x = degree2radian (_dst_longitude / tbl_w);
+    radian_per_pixel.y = degree2radian (_dst_latitude / tbl_h);
+
+    PointFloat2 tbl_center (tbl_w / 2.0f, tbl_h / 2.0f);
+    PointFloat2 min_pos (info.center_x - info.radius, info.center_y - info.radius);
+    PointFloat2 max_pos (info.center_x + info.radius, info.center_y + info.radius);
+
+    float half_pi = XCAM_PI / 2.0f;
+    float double_radius = info.radius * 2.0f;
+
+    PointFloat2 *pos;
+    PointFloat2 gps_pos, dst;
+    for(uint32_t row = 0; row < tbl_h; ++row) {
+        for(uint32_t col = 0; col < tbl_w; ++col) {
+            pos = &map_table[row * tbl_w + col];
+
+            gps_pos.x = (col - tbl_center.x) * radian_per_pixel.x + half_pi;
+            gps_pos.y = (row - tbl_center.y) * radian_per_pixel.y + half_pi;
+
+            float z = cos (gps_pos.y);
+            float x = sin (gps_pos.y) * cos (gps_pos.x);
+            float y = sin (gps_pos.y) * sin (gps_pos.x);
+            float r_angle = acos (y);
+            float r = r_angle * double_radius / info.wide_angle;
+            float xz_size = sqrt (x * x + z * z);
+
+            dst.x = -r * x / xz_size;
+            dst.y = -r * z / xz_size;
+
+            pos->x = cos (info.rotate_angle) * dst.x - sin (info.rotate_angle) * dst.y;
+            pos->y = sin (info.rotate_angle) * dst.x + cos (info.rotate_angle) * dst.y;
+            pos->x += info.center_x;
+            pos->y += info.center_y;
+            pos->x = XCAM_CLAMP (pos->x, min_pos.x, max_pos.x);
+            pos->y = XCAM_CLAMP (pos->y, min_pos.y, max_pos.y);
+        }
+    }
+}
+
+void
 BowlFisheyeDewarp::set_intr_param (const IntrinsicParameter &intr_param)
 {
     _intr_param = intr_param;

@@ -59,6 +59,27 @@ private:
     uint32_t        _tbl_height;
 };
 
+class SphereFisheyeDewarp
+    : public FisheyeDewarp
+{
+public:
+    explicit SphereFisheyeDewarp () {}
+    virtual ~SphereFisheyeDewarp () {}
+
+    virtual void gen_table (FisheyeDewarp::MapTable &map_table);
+
+    void set_fisheye_info (const FisheyeInfo &info);
+    void set_dst_range (float longitude, float latitude);
+
+private:
+    XCAM_DEAD_COPY (SphereFisheyeDewarp);
+
+private:
+    FisheyeInfo        _info;
+    float              _dst_longitude;
+    float              _dst_latitude;
+};
+
 class BowlFisheyeDewarp
     : public FisheyeDewarp
 {
