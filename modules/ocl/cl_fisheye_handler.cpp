@@ -371,102 +371,67 @@ XCamReturn
 CLFisheyeHandler::generate_fisheye_table (
     uint32_t fisheye_width, uint32_t fisheye_height, const FisheyeInfo &fisheye_info)
 {
-    SmartPtr<CLContext> context = get_context ();
-    XCAM_ASSERT (context.ptr ());
-    SmartPtr<CLKernel> table_kernel = new CLKernel (context, "fisheye_table_temp");
-    XCAM_FAIL_RETURN (
-        ERROR, table_kernel->build_kernel (kernel_fisheye_info[KernelFisheyeTable], NULL) == XCAM_RETURN_NO_ERROR,
-        XCAM_RETURN_ERROR_CL, "[%s] build fisheye table kernel failed", get_name ());
-
-    float longitude, latitude;
-    get_dst_range (longitude, latitude);
-    XCAM_FAIL_RETURN (
-        ERROR, longitude > 0.0f && latitude > 0.0f,
-        XCAM_RETURN_ERROR_PARAM, "[%s] dest latitude and longitude were not set", get_name ());
-
-    uint32_t output_width, output_height;
-    get_output_size (output_width, output_height);
-
-    uint32_t table_width, table_height;
-    table_width = output_width / _map_factor;
-    table_width = XCAM_ALIGN_UP (table_width, 4);
-    table_height = output_height / _map_factor;
-    table_height = XCAM_ALIGN_UP (table_height, 2);
-    _geo_table = create_cl_image (table_width, table_height, CL_RGBA, CL_FLOAT);
-    XCAM_FAIL_RETURN (
-        ERROR, _geo_table.ptr () && _geo_table->is_valid (),
-        XCAM_RETURN_ERROR_MEM, "[%s] check geo map buffer failed", get_name ());
-
+    SmartPtr<FisheyeDewarp> dewarper;
     if(_surround_mode == BowlView) {
         BowlDataConfig bowl_config = get_bowl_config ();
         IntrinsicParameter intr_param = get_intrinsic_param ();
         ExtrinsicParameter extr_param = get_extrinsic_param ();
 
-        PolyBowlFisheyeDewarp fd;
-        fd.set_out_size (output_width, output_height);
-        fd.set_table_size (table_width, table_height);
-        fd.set_intr_param (intr_param);
-        fd.set_extr_param (extr_param);
-        fd.set_bowl_config (bowl_config);
-
-        FisheyeDewarp::MapTable map_table (table_width * table_height * 2);
-        fd.gen_table (map_table);
-
-        float *map_ptr = NULL;
-        size_t origin[3] = {0, 0, 0};
-        size_t region[3] = {table_width, table_height, 1};
-        size_t row_pitch;
-        size_t slice_pitch;
-        XCamReturn ret = _geo_table->enqueue_map ((void *&)map_ptr, origin, region, &row_pitch, &slice_pitch, CL_MAP_WRITE);
-        XCAM_FAIL_RETURN (ERROR, xcam_ret_is_ok (ret), ret, "CLFisheyeHandler mesh table failed in enqueue_map");
-
-        for (uint32_t row = 0; row < table_height; row++) {
-            for(uint32_t col = 0; col < table_width; col++) {
-                map_ptr[row * row_pitch / 4 + col * 4] = map_table[row * table_width + col].x / fisheye_width;
-                map_ptr[row * row_pitch / 4 + col * 4 + 1] = map_table[row * table_width + col].y / fisheye_height;
-            }
-        }
-        _geo_table->enqueue_unmap ((void *&)map_ptr);
+        SmartPtr<PolyBowlFisheyeDewarp> fd = new PolyBowlFisheyeDewarp ();
+        fd->set_intr_param (intr_param);
+        fd->set_extr_param (extr_param);
+        fd->set_bowl_config (bowl_config);
+        dewarper = fd;
     } else {
-        CLArgList args;
-        CLWorkSize work_size;
-
-        FisheyeInfo fisheye_arg1 = fisheye_info;
-        fisheye_arg1.wide_angle = degree2radian (fisheye_info.wide_angle);
-        fisheye_arg1.rotate_angle = degree2radian (fisheye_info.rotate_angle);
-        args.push_back (new CLArgumentT<FisheyeInfo> (fisheye_arg1));
-
-        float fisheye_image_size[2];
-        fisheye_image_size[0] = fisheye_width;
-        fisheye_image_size[1] = fisheye_height;
-        args.push_back (new CLArgumentTArray<float, 2> (fisheye_image_size));
-        args.push_back (new CLMemArgument (_geo_table));
-
-        float radian_per_pixel[2];
-        radian_per_pixel[0] = degree2radian (longitude / table_width);
-        radian_per_pixel[1] = degree2radian (latitude / table_height);
-        args.push_back (new CLArgumentTArray<float, 2> (radian_per_pixel));
-
-        float table_center[2];
-        table_center[0] = table_width / 2.0f;
-        table_center[1] = table_height / 2.0f;
-        args.push_back (new CLArgumentTArray<float, 2> (table_center));
-
-        work_size.dim = 2;
-        work_size.local[0] = 8;
-        work_size.local[1] = 4;
-        work_size.global[0] = XCAM_ALIGN_UP (table_width, work_size.local[0]);
-        work_size.global[1] = XCAM_ALIGN_UP (table_height, work_size.local[1]);
-
+        float longitude, latitude;
+        get_dst_range (longitude, latitude);
         XCAM_FAIL_RETURN (
-            ERROR, table_kernel->set_arguments (args, work_size) == XCAM_RETURN_NO_ERROR,
-            XCAM_RETURN_ERROR_CL, "kernel_fisheye_table set arguments failed");
+            ERROR, longitude > 0.0f && latitude > 0.0f,
+            XCAM_RETURN_ERROR_PARAM, "[%s] dest latitude and longitude were not set", get_name ());
 
-        XCAM_FAIL_RETURN (
-            ERROR, table_kernel->execute (table_kernel, true) == XCAM_RETURN_NO_ERROR,
-            XCAM_RETURN_ERROR_CL, "[%s] execute kernel_fisheye_table failed", get_name ());
+        SmartPtr<SphereFisheyeDewarp> fd = new SphereFisheyeDewarp ();
+        fd->set_fisheye_info (fisheye_info);
+        fd->set_dst_range (longitude, latitude);
+        dewarper = fd;
     }
-    //dump_geo_table (_geo_table);
+    XCAM_FAIL_RETURN (ERROR, dewarper.ptr (), XCAM_RETURN_ERROR_MEM, "CLFisheyeHandler fisheye dewarper is NULL");
+
+    uint32_t output_width, output_height;
+    get_output_size (output_width, output_height);
+    dewarper->set_out_size (output_width, output_height);
+
+    uint32_t table_width = XCAM_ALIGN_UP (uint32_t (output_width / _map_factor), 4);
+    uint32_t table_height = XCAM_ALIGN_UP (uint32_t (output_height / _map_factor), 2);
+    dewarper->set_table_size (table_width, table_height);
+
+    FisheyeDewarp::MapTable map_table (table_width * table_height * 2);
+    dewarper->gen_table (map_table);
+
+    _geo_table = create_cl_image (table_width, table_height, CL_RGBA, CL_FLOAT);
+    XCAM_FAIL_RETURN (
+        ERROR, _geo_table.ptr () && _geo_table->is_valid (),
+        XCAM_RETURN_ERROR_MEM, "[%s] check geo map buffer failed", get_name ());
+
+    float *map_ptr = NULL;
+    size_t origin[3] = {0, 0, 0};
+    size_t region[3] = {table_width, table_height, 1};
+    size_t row_pitch;
+
+    XCamReturn ret = _geo_table->enqueue_map ((void *&) map_ptr, origin, region, &row_pitch, NULL, CL_MAP_WRITE);
+    XCAM_FAIL_RETURN (ERROR, xcam_ret_is_ok (ret), ret, "CLFisheyeHandler mesh table failed in enqueue_map");
+
+    row_pitch /= 4;
+    uint32_t ptr_idx, tbl_idx;
+    for (uint32_t row = 0; row < table_height; row++) {
+        for(uint32_t col = 0; col < table_width; col++) {
+            ptr_idx = row * row_pitch + col * 4;
+            tbl_idx = row * table_width + col;
+
+            map_ptr[ptr_idx] = map_table[tbl_idx].x / fisheye_width;
+            map_ptr[ptr_idx + 1] = map_table[tbl_idx].y / fisheye_height;
+        }
+    }
+    _geo_table->enqueue_unmap ((void *&) map_ptr);
 
     return XCAM_RETURN_NO_ERROR;
 }
