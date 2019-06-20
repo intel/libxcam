@@ -26,9 +26,9 @@
 
 namespace XCam {
 
-enum SurroundMode {
-    SphereView = 0,
-    BowlView = 1
+enum FisheyeDewarpMode {
+    DewarpSphere = 0,
+    DewarpBowl
 };
 
 enum FeatureMatchMode {
