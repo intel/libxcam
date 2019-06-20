@@ -358,14 +358,14 @@ get_default_stitch_info (StitchResMode res_mode)
 }
 
 CLImage360Stitch::CLImage360Stitch (
-    const SmartPtr<CLContext> &context, CLBlenderScaleMode scale_mode, SurroundMode surround_mode,
+    const SmartPtr<CLContext> &context, CLBlenderScaleMode scale_mode, FisheyeDewarpMode dewarp_mode,
     StitchResMode res_mode, int fisheye_num, bool all_in_one_img)
     : CLMultiImageHandler (context, "CLImage360Stitch")
     , _context (context)
     , _output_width (0)
     , _output_height (0)
     , _scale_mode (scale_mode)
-    , _surround_mode (surround_mode)
+    , _dewarp_mode (dewarp_mode)
     , _res_mode (res_mode)
     , _enable_fm (true)
     , _is_stitch_inited (false)
@@ -470,7 +470,7 @@ CLImage360Stitch::calc_fisheye_initial_info (SmartPtr<VideoBuffer> &output)
 {
     const VideoBufferInfo &out_info = output->get_video_info ();
 
-    if(_surround_mode == SphereView) {
+    if(_dewarp_mode == DewarpSphere) {
         if (_res_mode == StitchRes8K6Cams && _scale_mode == CLBlenderScaleGlobal) {
             _fisheye[0].width = out_info.width / _fisheye_num * 2;
         } else {
@@ -823,7 +823,7 @@ void
 CLImage360Stitch::init_feature_match ()
 {
 #if HAVE_OPENCV
-    bool is_sphere = (_surround_mode == SphereView);
+    bool is_sphere = (_dewarp_mode == DewarpSphere);
     const FMConfig &config = is_sphere ? get_fm_sphere_config (_res_mode) : get_fm_bowl_config ();
 
     for (int i = 0; i < _fisheye_num; i++) {
@@ -953,11 +953,11 @@ CLImage360Stitch::update_scale_factors (uint32_t fm_idx, const Rect &crop_left, 
 
 #if HAVE_OPENCV
 static void
-convert_to_stitch_rect (const Rect &xcam_rect, Rect &stitch_rect, SurroundMode surround_mode)
+convert_to_stitch_rect (const Rect &xcam_rect, Rect &stitch_rect, FisheyeDewarpMode dewarp_mode)
 {
     stitch_rect.pos_x = xcam_rect.pos_x;
     stitch_rect.width = xcam_rect.width;
-    if (surround_mode == SphereView) {
+    if (dewarp_mode == DewarpSphere) {
         stitch_rect.pos_y = xcam_rect.pos_y + xcam_rect.height / 3;
         stitch_rect.height = xcam_rect.height / 3;
     } else {
@@ -989,9 +989,9 @@ CLImage360Stitch::sub_handler_execute_done (SmartPtr<CLImageHandler> &handler)
         for (int i = 0; i < _fisheye_num; i++) {
             idx_next = (i == (_fisheye_num - 1)) ? 0 : (i + 1);
 
-            convert_to_stitch_rect (_img_merge_info[i].right, crop_left, _surround_mode);
-            convert_to_stitch_rect (_img_merge_info[idx_next].left, crop_right, _surround_mode);
-            if (_surround_mode == SphereView) {
+            convert_to_stitch_rect (_img_merge_info[i].right, crop_left, _dewarp_mode);
+            convert_to_stitch_rect (_img_merge_info[idx_next].left, crop_right, _dewarp_mode);
+            if (_dewarp_mode == DewarpSphere) {
                 _feature_match[i]->set_dst_width (_fisheye[i].width);
                 _feature_match[i]->set_crop_rect (crop_left, crop_right);
                 _feature_match[i]->feature_match (_fisheye[i].buf, _fisheye[idx_next].buf);
@@ -1045,7 +1045,7 @@ create_blender_global_scale_kernel (
 SmartPtr<CLImageHandler>
 create_image_360_stitch (
     const SmartPtr<CLContext> &context, bool need_seam,
-    CLBlenderScaleMode scale_mode, bool fisheye_map, bool need_lsc, SurroundMode surround_mode,
+    CLBlenderScaleMode scale_mode, bool fisheye_map, bool need_lsc, FisheyeDewarpMode dewarp_mode,
     StitchResMode res_mode, int fisheye_num, bool all_in_one_img)
 {
     const int layer = 2;
@@ -1053,13 +1053,13 @@ create_image_360_stitch (
     SmartPtr<CLFisheyeHandler> fisheye;
     SmartPtr<CLBlender> blender;
     SmartPtr<CLImage360Stitch> stitch = new CLImage360Stitch (
-        context, scale_mode, surround_mode, res_mode, fisheye_num, all_in_one_img);
+        context, scale_mode, dewarp_mode, res_mode, fisheye_num, all_in_one_img);
     XCAM_ASSERT (stitch.ptr ());
 
-    bool need_scale = (surround_mode == BowlView) ? true : false;
+    bool need_scale = (dewarp_mode == DewarpBowl) ? true : false;
 
     for (int index = 0; index < fisheye_num; ++index) {
-        fisheye = create_fisheye_handler (context, surround_mode, fisheye_map, need_lsc, need_scale).dynamic_cast_ptr<CLFisheyeHandler> ();
+        fisheye = create_fisheye_handler (context, dewarp_mode, fisheye_map, need_lsc, need_scale).dynamic_cast_ptr<CLFisheyeHandler> ();
         XCAM_FAIL_RETURN (ERROR, fisheye.ptr (), NULL, "image_360_stitch create fisheye handler failed");
         fisheye->disable_buf_pool (true);
         stitch->set_fisheye_handler (fisheye, index);

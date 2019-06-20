@@ -128,7 +128,8 @@ CLFisheye2GPSKernel::prepare_arguments (CLArgList &args, CLWorkSize &work_size)
     return XCAM_RETURN_NO_ERROR;
 }
 
-CLFisheyeHandler::CLFisheyeHandler (const SmartPtr<CLContext> &context, SurroundMode surround_mode, bool use_map, bool need_lsc, bool need_scale)
+CLFisheyeHandler::CLFisheyeHandler (
+    const SmartPtr<CLContext> &context, FisheyeDewarpMode dewarp_mode, bool use_map, bool need_lsc, bool need_scale)
     : CLImageHandler (context, "CLFisheyeHandler")
     , _output_width (0)
     , _output_height (0)
@@ -143,7 +144,7 @@ CLFisheyeHandler::CLFisheyeHandler (const SmartPtr<CLContext> &context, Surround
     , _stable_y_start (0.0f)
     , _left_scale_factor (1.0f, 1.0f)
     , _right_scale_factor (1.0f, 1.0f)
-    , _surround_mode (surround_mode)
+    , _dewarp_mode (dewarp_mode)
 {
     xcam_mem_clear (_gray_threshold);
 }
@@ -372,7 +373,7 @@ CLFisheyeHandler::generate_fisheye_table (
     uint32_t fisheye_width, uint32_t fisheye_height, const FisheyeInfo &fisheye_info)
 {
     SmartPtr<FisheyeDewarp> dewarper;
-    if(_surround_mode == BowlView) {
+    if(_dewarp_mode == DewarpBowl) {
         BowlDataConfig bowl_config = get_bowl_config ();
         IntrinsicParameter intr_param = get_intrinsic_param ();
         ExtrinsicParameter extr_param = get_extrinsic_param ();
@@ -575,12 +576,14 @@ create_fishey_gps_kernel (const SmartPtr<CLContext> &context, SmartPtr<CLFisheye
 }
 
 SmartPtr<CLImageHandler>
-create_fisheye_handler (const SmartPtr<CLContext> &context, SurroundMode surround_mode, bool use_map, bool need_lsc, bool need_scale)
+create_fisheye_handler (
+    const SmartPtr<CLContext> &context, FisheyeDewarpMode dewarp_mode,
+    bool use_map, bool need_lsc, bool need_scale)
 {
     SmartPtr<CLFisheyeHandler> handler;
     SmartPtr<CLImageKernel> kernel;
 
-    handler = new CLFisheyeHandler (context, surround_mode, use_map, need_lsc, need_scale);
+    handler = new CLFisheyeHandler (context, dewarp_mode, use_map, need_lsc, need_scale);
     XCAM_ASSERT (handler.ptr ());
 
     if (use_map) {

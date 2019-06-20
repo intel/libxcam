@@ -211,14 +211,14 @@ StitchContext::create_handler (SmartPtr<CLContext> &context)
         return NULL;
     }
 
-    SurroundMode surround_mode = SphereView;
+    FisheyeDewarpMode dewarp_mode = DewarpSphere;
     StitchResMode res_mode = StitchRes1080P2Cams;
     if (_res_mode == StitchRes4K2Cams)
         res_mode = StitchRes4K2Cams;
 
     SmartPtr<CLImage360Stitch> image_360 =
         create_image_360_stitch (context, _need_seam, _scale_mode,
-                                 _fisheye_map, _need_lsc, surround_mode, res_mode).dynamic_cast_ptr<CLImage360Stitch> ();
+                                 _fisheye_map, _need_lsc, dewarp_mode, res_mode).dynamic_cast_ptr<CLImage360Stitch> ();
     XCAM_FAIL_RETURN (ERROR, image_360.ptr (), NULL, "create image stitch handler failed");
     image_360->set_output_size (sttch_width, sttch_height);
     XCAM_LOG_INFO ("stitch output size width:%d height:%d", sttch_width, sttch_height);

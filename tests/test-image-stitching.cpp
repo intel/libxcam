@@ -313,7 +313,7 @@ void usage(const char* arg0)
             "\t--output-h          optional, output width, default: 960\n"
             "\t--res-mode          optional, image resolution mode\n"
             "\t                    select from [1080p2cams/1080p4cams/4k2cams/8k6cams], default: 1080p2cams\n"
-            "\t--surround-mode     optional, stitching surround mode, select from [sphere, bowl], default: sphere\n"
+            "\t--dewarp-mode       optional, fisheye dewarp mode, select from [sphere, bowl], default: sphere\n"
             "\t--scale-mode        optional, image scaling mode, select from [local/global], default: local\n"
             "\t--enable-seam       optional, enable seam finder in blending area, default: no\n"
             "\t--enable-fisheyemap optional, enable fisheye map, default: no\n"
@@ -354,7 +354,7 @@ int main (int argc, char *argv[])
 #endif
     CLBlenderScaleMode scale_mode = CLBlenderScaleLocal;
     StitchResMode res_mode = StitchRes1080P2Cams;
-    SurroundMode surround_mode = SphereView;
+    FisheyeDewarpMode dewarp_mode = DewarpSphere;
 
     int fisheye_num = 2;
     bool save_output = true;
@@ -370,7 +370,7 @@ int main (int argc, char *argv[])
         {"output-w", required_argument, NULL, 'W'},
         {"output-h", required_argument, NULL, 'H'},
         {"res-mode", required_argument, NULL, 'R'},
-        {"surround-mode", required_argument, NULL, 'r'},
+        {"dewarp-mode", required_argument, NULL, 'r'},
         {"scale-mode", required_argument, NULL, 'c'},
         {"enable-seam", no_argument, NULL, 'S'},
         {"enable-fisheyemap", no_argument, NULL, 'F'},
@@ -427,11 +427,11 @@ int main (int argc, char *argv[])
             break;
         case 'r':
             if (!strcasecmp (optarg, "sphere"))
-                surround_mode = SphereView;
+                dewarp_mode = DewarpSphere;
             else if(!strcasecmp (optarg, "bowl"))
-                surround_mode = BowlView;
+                dewarp_mode = DewarpBowl;
             else {
-                XCAM_LOG_ERROR ("incorrect surround mode");
+                XCAM_LOG_ERROR ("incorrect fisheye dewarp mode");
                 return -1;
             }
             break;
@@ -525,8 +525,7 @@ int main (int argc, char *argv[])
     printf ("output height:\t\t%d\n", output_height);
     printf ("resolution mode:\t%s\n", res_mode == StitchRes1080P2Cams ? "1080p2cams" :
              (res_mode == StitchRes1080P4Cams ? "1080p4cams" : (res_mode == StitchRes4K2Cams ? "4k2cams" : "8k6cams")));
-    printf ("surround mode: \t\t%s\n",
-            surround_mode == SphereView ? "sphere view" : "bowl view");
+    printf ("fisheye dewarp mode: \t%s\n", dewarp_mode == DewarpSphere ? "sphere" : "bowl");
     printf ("scale mode:\t\t%s\n", scale_mode == CLBlenderScaleLocal ? "local" : "global");
     printf ("seam mask:\t\t%s\n", enable_seam ? "true" : "false");
     printf ("fisheye map:\t\t%s\n", enable_fisheye_map ? "true" : "false");
@@ -557,7 +556,7 @@ int main (int argc, char *argv[])
 
     SmartPtr<CLContext> context = CLDevice::instance ()->get_context ();
     SmartPtr<CLImage360Stitch> stitcher = create_image_360_stitch (
-        context, enable_seam, scale_mode, enable_fisheye_map, enable_lsc, surround_mode,
+        context, enable_seam, scale_mode, enable_fisheye_map, enable_lsc, dewarp_mode,
         res_mode, fisheye_num, (ins.size () == 1)).dynamic_cast_ptr<CLImage360Stitch> ();
     XCAM_ASSERT (stitcher.ptr ());
     stitcher->set_output_size (output_width, output_height);
@@ -566,7 +565,7 @@ int main (int argc, char *argv[])
     stitcher->set_feature_match (need_fm);
 #endif
 
-    if (surround_mode == BowlView) {
+    if (dewarp_mode == DewarpBowl) {
         std::string fisheye_cfg_path = FISHEYE_CONFIG_PATH;
         const char *env = std::getenv (FISHEYE_CONFIG_ENV_VAR);
         if (env)
