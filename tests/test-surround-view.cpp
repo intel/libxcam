@@ -731,11 +731,9 @@ int main (int argc, char *argv[])
         }
     }
 
-    PointFloat3 bowl_coord_offset;
     centralize_bowl_coord_from_cameras (
         cam_info[0].calibration.extrinsic, cam_info[1].calibration.extrinsic,
-        cam_info[2].calibration.extrinsic, cam_info[3].calibration.extrinsic,
-        bowl_coord_offset);
+        cam_info[2].calibration.extrinsic, cam_info[3].calibration.extrinsic);
 
     stitcher->set_camera_num (camera_count);
     for (uint32_t i = 0; i < camera_count; ++i) {
