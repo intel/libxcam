@@ -308,7 +308,7 @@ create_car_model (const char *name)
     const char *env_path = std::getenv (FISHEYE_CONFIG_ENV_VAR);
     if (env_path) {
         car_model_path.clear ();
-        car_model_path = std::string (env_path) + car_name;
+        car_model_path = std::string (env_path) + std::string("/") + car_name;
     }
 
     SmartPtr<RenderOsgModel> car_model = new RenderOsgModel (car_model_path.c_str(), true);
@@ -509,10 +509,7 @@ static void usage(const char* arg0)
             "%s --module MODULE --input0 input.nv12 --input1 input1.nv12 --input2 input2.nv12 ...\n"
             "\t--module            processing module, selected from: soft, gles, vulkan\n"
             "\t--                  read calibration files from exported path $FISHEYE_CONFIG_PATH\n"
-            "\t--input0            input image(NV12)\n"
-            "\t--input1            input image(NV12)\n"
-            "\t--input2            input image(NV12)\n"
-            "\t--input3            input image(NV12)\n"
+            "\t--input             input image(NV12)\n"
             "\t--in-w              optional, input width, default: 1280\n"
             "\t--in-h              optional, input height, default: 800\n"
             "\t--out-w             optional, output width, default: 1920\n"
@@ -555,10 +552,7 @@ int main (int argc, char *argv[])
 
     const struct option long_opts[] = {
         {"module", required_argument, NULL, 'm'},
-        {"input0", required_argument, NULL, 'i'},
-        {"input1", required_argument, NULL, 'j'},
-        {"input2", required_argument, NULL, 'k'},
-        {"input3", required_argument, NULL, 'l'},
+        {"input", required_argument, NULL, 'i'},
         {"in-w", required_argument, NULL, 'w'},
         {"in-h", required_argument, NULL, 'h'},
         {"out-w", required_argument, NULL, 'W'},
@@ -586,18 +580,6 @@ int main (int argc, char *argv[])
             }
             break;
         case 'i':
-            XCAM_ASSERT (optarg);
-            PUSH_STREAM (SVStream, ins, optarg);
-            break;
-        case 'j':
-            XCAM_ASSERT (optarg);
-            PUSH_STREAM (SVStream, ins, optarg);
-            break;
-        case 'k':
-            XCAM_ASSERT (optarg);
-            PUSH_STREAM (SVStream, ins, optarg);
-            break;
-        case 'l':
             XCAM_ASSERT (optarg);
             PUSH_STREAM (SVStream, ins, optarg);
             break;
