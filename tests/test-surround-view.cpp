@@ -435,13 +435,10 @@ run_stitcher (
 static void usage(const char* arg0)
 {
     printf ("Usage:\n"
-            "%s --module MODULE --input0 input.nv12 --input1 input1.nv12 --input2 input2.nv12 ...\n"
+            "%s --module MODULE --input input0.nv12 --input input1.nv12 --input input2.nv12 ...\n"
             "\t--module            processing module, selected from: soft, gles, vulkan\n"
             "\t--                  read calibration files from exported path $FISHEYE_CONFIG_PATH\n"
-            "\t--input0            input image(NV12)\n"
-            "\t--input1            input image(NV12)\n"
-            "\t--input2            input image(NV12)\n"
-            "\t--input3            input image(NV12)\n"
+            "\t--input             input image(NV12)\n"
             "\t--output            output image(NV12/MP4)\n"
             "\t--in-w              optional, input width, default: 1280\n"
             "\t--in-h              optional, input height, default: 800\n"
@@ -488,10 +485,7 @@ int main (int argc, char *argv[])
 
     const struct option long_opts[] = {
         {"module", required_argument, NULL, 'm'},
-        {"input0", required_argument, NULL, 'i'},
-        {"input1", required_argument, NULL, 'j'},
-        {"input2", required_argument, NULL, 'k'},
-        {"input3", required_argument, NULL, 'l'},
+        {"input", required_argument, NULL, 'i'},
         {"output", required_argument, NULL, 'o'},
         {"in-w", required_argument, NULL, 'w'},
         {"in-h", required_argument, NULL, 'h'},
@@ -527,18 +521,6 @@ int main (int argc, char *argv[])
             }
             break;
         case 'i':
-            XCAM_ASSERT (optarg);
-            PUSH_STREAM (SVStream, ins, optarg);
-            break;
-        case 'j':
-            XCAM_ASSERT (optarg);
-            PUSH_STREAM (SVStream, ins, optarg);
-            break;
-        case 'k':
-            XCAM_ASSERT (optarg);
-            PUSH_STREAM (SVStream, ins, optarg);
-            break;
-        case 'l':
             XCAM_ASSERT (optarg);
             PUSH_STREAM (SVStream, ins, optarg);
             break;
