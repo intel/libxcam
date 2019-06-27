@@ -21,6 +21,8 @@
 
 #include "stitcher.h"
 #include "xcam_utils.h"
+#include "calibration_parser.h"
+#include <string>
 
 // angle to position, output range [-180, 180]
 #define OUT_WINDOWS_START 0.0f
@@ -28,6 +30,11 @@
 #define constraint_margin (2 * _alignment_x)
 
 #define XCAM_GL_RESTART_FIXED_INDEX 0xFFFF
+
+#define XCAM_STITCH_NAME_LEN 256
+#define XCAM_CAMERA_POSITION_OFFSET_X 2000
+
+#define FISHEYE_CONFIG_ENV_VAR "FISHEYE_CONFIG_PATH"
 
 namespace XCam {
 
@@ -87,15 +94,23 @@ Stitcher::Stitcher (uint32_t align_x, uint32_t align_y)
     , _is_overlap_set (false)
     , _is_crop_set (false)
     , _is_center_marked (false)
+    , _res_mode (StitchRes1080P4Cams)
+    , _dewarp_mode (DewarpBowl)
     , _scale_mode (ScaleSingleConst)
     , _fm_mode (FMNone)
 {
     XCAM_ASSERT (align_x >= 1);
     XCAM_ASSERT (align_y >= 1);
+
+    xcam_mem_clear (_instr_names);
+    xcam_mem_clear (_exstr_names);
+    xcam_mem_clear (_viewpoints_range);
 }
 
 Stitcher::~Stitcher ()
 {
+    xcam_free (_instr_names);
+    xcam_free (_exstr_names);
 }
 
 bool
@@ -184,6 +199,92 @@ Stitcher::get_camera_info (uint32_t index, CameraInfo &info) const
         index, XCAM_STITCH_MAX_CAMERAS);
     info = _camera_info[index];
     return true;
+}
+
+bool
+Stitcher::set_viewpoints_range (const float *range)
+{
+    XCAM_FAIL_RETURN (
+        ERROR, _camera_num, false,
+        "stitcher: set viewpoints range failed, please set camera num(%d) first", _camera_num);
+
+    for(uint32_t i = 0; i < _camera_num; ++i) {
+        _viewpoints_range[i] = range[i];
+    }
+
+    return true;
+}
+
+bool
+Stitcher::set_instrinsic_names (const char *instr_names[])
+{
+    XCAM_FAIL_RETURN (
+        ERROR, _camera_num, false,
+        "stitcher: set instrinsic names failed, please set camera num(%d) first", _camera_num);
+
+    for(uint32_t i = 0; i < _camera_num; ++i) {
+        _instr_names[i] = strndup (instr_names[i], XCAM_MAX_STR_SIZE);
+    }
+
+    return true;
+}
+
+bool
+Stitcher::set_exstrinsic_names (const char *exstr_names[])
+{
+    XCAM_FAIL_RETURN (
+        ERROR, _camera_num, false,
+        "stitcher: set exstrinsic names failed, please set camera num(%d) first", _camera_num);
+
+    for(uint32_t i = 0; i < _camera_num; ++i) {
+        _exstr_names[i] = strndup (exstr_names[i], XCAM_MAX_STR_SIZE);
+    }
+
+    return true;
+}
+
+XCamReturn
+Stitcher::init_camera_info ()
+{
+    if (_dewarp_mode == DewarpSphere) {
+        for (uint32_t i = 0; i < _camera_num; ++i) {
+            CameraInfo &info = _camera_info[i];
+            info.angle_range = _viewpoints_range[i];
+            info.round_angle_start = (i * 360.0f / _camera_num) - info.angle_range / 2.0f;
+        }
+    } else {
+        std::string cfg_path = std::getenv (FISHEYE_CONFIG_ENV_VAR);
+        XCAM_LOG_INFO ("stitcher calibration config path: %s", cfg_path.c_str ());
+
+        CalibrationParser parser;
+        char path[XCAM_STITCH_NAME_LEN] = {'\0'};
+        for (uint32_t i = 0; i < _camera_num; ++i) {
+            CameraInfo &info = _camera_info[i];
+
+            snprintf (path, XCAM_STITCH_NAME_LEN, "%s/%s", cfg_path.c_str (), _instr_names[i]);
+            XCamReturn ret = parser.parse_intrinsic_file (path, info.calibration.intrinsic);
+            XCAM_FAIL_RETURN (
+                ERROR, ret == XCAM_RETURN_NO_ERROR, XCAM_RETURN_ERROR_PARAM,
+                "stitcher parse intrinsic params(%s) failed", path);
+
+            snprintf (path, XCAM_STITCH_NAME_LEN, "%s/%s", cfg_path.c_str (), _exstr_names[i]);
+            ret = parser.parse_extrinsic_file (path, info.calibration.extrinsic);
+            XCAM_FAIL_RETURN (
+                ERROR, ret == XCAM_RETURN_NO_ERROR, XCAM_RETURN_ERROR_PARAM,
+                "stitcher parse exstrinsic params(%s) failed", path);
+
+            info.calibration.extrinsic.trans_x += XCAM_CAMERA_POSITION_OFFSET_X;
+
+            info.angle_range = _viewpoints_range[i];
+            info.round_angle_start = (i * 360.0f / _camera_num) - info.angle_range / 2.0f;
+        }
+
+        centralize_bowl_coord_from_cameras (
+            _camera_info[0].calibration.extrinsic, _camera_info[1].calibration.extrinsic,
+            _camera_info[2].calibration.extrinsic, _camera_info[3].calibration.extrinsic);
+    }
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
 XCamReturn

@@ -66,8 +66,6 @@ static const char *exstrinsic_names[] = {
     "extrinsic_camera_left.txt"
 };
 
-static const float viewpoints_range[] = {64.0f, 160.0f, 64.0f, 160.0f};
-
 class SVStream
     : public Stream
 {
@@ -178,31 +176,6 @@ create_stitcher (const SmartPtr<SVStream> &stitch, SVModule module)
     XCAM_ASSERT (stitcher.ptr ());
 
     return stitcher;
-}
-
-static int
-parse_camera_info (const char *path, uint32_t idx, CameraInfo &info, uint32_t camera_count)
-{
-    XCAM_ASSERT (path);
-
-    char intrinsic_path[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
-    char extrinsic_path[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
-    snprintf (intrinsic_path, XCAM_TEST_MAX_STR_SIZE, "%s/%s", path, instrinsic_names[idx]);
-    snprintf (extrinsic_path, XCAM_TEST_MAX_STR_SIZE, "%s/%s", path, exstrinsic_names[idx]);
-
-    CalibrationParser parser;
-    CHECK (
-        parser.parse_intrinsic_file (intrinsic_path, info.calibration.intrinsic),
-        "parse intrinsic params(%s) failed.", intrinsic_path);
-
-    CHECK (
-        parser.parse_extrinsic_file (extrinsic_path, info.calibration.extrinsic),
-        "parse extrinsic params(%s) failed.", extrinsic_path);
-    info.calibration.extrinsic.trans_x += TEST_CAMERA_POSITION_OFFSET_X;
-
-    info.angle_range = viewpoints_range[idx];
-    info.round_angle_start = (idx * 360.0f / camera_count) - info.angle_range / 2.0f;
-    return 0;
 }
 
 static void
@@ -437,7 +410,7 @@ static void usage(const char* arg0)
     printf ("Usage:\n"
             "%s --module MODULE --input input0.nv12 --input input1.nv12 --input input2.nv12 ...\n"
             "\t--module            processing module, selected from: soft, gles, vulkan\n"
-            "\t--                  read calibration files from exported path $FISHEYE_CONFIG_PATH\n"
+            "\t                    read calibration files from exported path $FISHEYE_CONFIG_PATH\n"
             "\t--input             input image(NV12)\n"
             "\t--output            output image(NV12/MP4)\n"
             "\t--in-w              optional, input width, default: 1280\n"
@@ -446,6 +419,10 @@ static void usage(const char* arg0)
             "\t--out-h             optional, output height, default: 640\n"
             "\t--topview-w         optional, output width, default: 1280\n"
             "\t--topview-h         optional, output height, default: 720\n"
+            "\t--fisheye-num       optional, the number of fisheye lens, default: 4\n"
+            "\t--res-mode          optional, image resolution mode\n"
+            "\t                    select from [1080p2cams/1080p4cams], default: 1080p4cams\n"
+            "\t--dewarp-mode       optional, fisheye dewarp mode, select from [sphere/bowl], default: bowl\n"
             "\t--scale-mode        optional, scaling mode for geometric mapping,\n"
             "\t                    select from [singleconst/dualconst/dualcurve], default: singleconst\n"
             "\t--fm-mode           optional, feature match mode,\n"
@@ -474,10 +451,13 @@ int main (int argc, char *argv[])
     SVStreams ins;
     SVStreams outs;
 
+    uint32_t fisheye_num = 4;
     FrameMode frame_mode = FrameMulti;
     SVModule module = SVModuleNone;
     GeoMapScaleMode scale_mode = ScaleSingleConst;
     FeatureMatchMode fm_mode = FMNone;
+    StitchResMode res_mode = StitchRes1080P4Cams;
+    FisheyeDewarpMode dewarp_mode = DewarpBowl;
 
     int loop = 1;
     bool save_output = true;
@@ -493,6 +473,9 @@ int main (int argc, char *argv[])
         {"out-h", required_argument, NULL, 'H'},
         {"topview-w", required_argument, NULL, 'P'},
         {"topview-h", required_argument, NULL, 'V'},
+        {"fisheye-num", required_argument, NULL, 'N'},
+        {"res-mode", required_argument, NULL, 'R'},
+        {"dewarp-mode", required_argument, NULL, 'd'},
         {"scale-mode", required_argument, NULL, 'S'},
         {"fm-mode", required_argument, NULL, 'F'},
         {"frame-mode", required_argument, NULL, 'f'},
@@ -545,6 +528,33 @@ int main (int argc, char *argv[])
             break;
         case 'V':
             topview_height = atoi(optarg);
+            break;
+        case 'N':
+            fisheye_num = atoi(optarg);
+            if (fisheye_num > XCAM_STITCH_FISHEYE_MAX_NUM) {
+                XCAM_LOG_ERROR ("fisheye number should not be greater than %d\n", XCAM_STITCH_FISHEYE_MAX_NUM);
+                return -1;
+            }
+            break;
+        case 'R':
+            if (!strcasecmp (optarg, "1080p2cams"))
+                res_mode = StitchRes1080P2Cams;
+            else if (!strcasecmp (optarg, "1080p4cams"))
+                res_mode = StitchRes1080P4Cams;
+            else {
+                XCAM_LOG_ERROR ("incorrect resolution mode");
+                return -1;
+            }
+            break;
+        case 'd':
+            if (!strcasecmp (optarg, "sphere"))
+                dewarp_mode = DewarpSphere;
+            else if(!strcasecmp (optarg, "bowl"))
+                dewarp_mode = DewarpBowl;
+            else {
+                XCAM_LOG_ERROR ("incorrect fisheye dewarp mode");
+                return -1;
+            }
             break;
         case 'S':
             XCAM_ASSERT (optarg);
@@ -615,7 +625,12 @@ int main (int argc, char *argv[])
         return -1;
     }
 
-    CHECK_EXP (ins.size () == 4, "surrond view needs 4 input streams");
+    if ((ins.size () != 1) && (ins.size () != fisheye_num)) {
+        XCAM_LOG_ERROR (
+            "multiple-input mode: conflicting input number(%d) and fisheye number(%d)", ins.size (), fisheye_num);
+        return -1;
+    }
+
     for (uint32_t i = 0; i < ins.size (); ++i) {
         CHECK_EXP (ins[i].ptr (), "input stream is NULL, index:%d", i);
         CHECK_EXP (strlen (ins[i]->get_file_name ()), "input file name was not set, index:%d", i);
@@ -634,6 +649,9 @@ int main (int argc, char *argv[])
     printf ("output height:\t\t%d\n", output_height);
     printf ("topview width:\t\t%d\n", topview_width);
     printf ("topview height:\t\t%d\n", topview_height);
+    printf ("fisheye number:\t\t%d\n", fisheye_num);
+    printf ("resolution mode:\t%s\n", res_mode == StitchRes1080P2Cams ? "1080p2cams" : "1080p4cams");
+    printf ("dewarp mode: \t\t%s\n", dewarp_mode == DewarpSphere ? "sphere" : "bowl");
     printf ("scaling mode:\t\t%s\n", (scale_mode == ScaleSingleConst) ? "singleconst" :
             ((scale_mode == ScaleDualConst) ? "dualconst" : "dualcurve"));
     printf ("feature match:\t\t%s\n", (fm_mode == FMNone) ? "none" :
@@ -698,39 +716,30 @@ int main (int argc, char *argv[])
     SmartPtr<Stitcher> stitcher = create_stitcher (outs[IdxStitch], module);
     XCAM_ASSERT (stitcher.ptr ());
 
-    CameraInfo cam_info[4];
-    std::string fisheye_config_path = FISHEYE_CONFIG_PATH;
-    const char *env = std::getenv (FISHEYE_CONFIG_ENV_VAR);
-    if (env)
-        fisheye_config_path.assign (env, strlen (env));
-    XCAM_LOG_INFO ("calibration config path:%s", fisheye_config_path.c_str ());
-
-    uint32_t camera_count = ins.size ();
-    for (uint32_t i = 0; i < camera_count; ++i) {
-        if (parse_camera_info (fisheye_config_path.c_str (), i, cam_info[i], camera_count) != 0) {
-            XCAM_LOG_ERROR ("parse fisheye dewarp info(idx:%d) failed.", i);
-            return -1;
-        }
-    }
-
-    centralize_bowl_coord_from_cameras (
-        cam_info[0].calibration.extrinsic, cam_info[1].calibration.extrinsic,
-        cam_info[2].calibration.extrinsic, cam_info[3].calibration.extrinsic);
-
-    stitcher->set_camera_num (camera_count);
-    for (uint32_t i = 0; i < camera_count; ++i) {
-        stitcher->set_camera_info (i, cam_info[i]);
-    }
-
-    BowlDataConfig bowl;
-    bowl.wall_height = 1800.0f;
-    bowl.ground_length = 3000.0f;
-    bowl.angle_start = 0.0f;
-    bowl.angle_end = 360.0f;
-    stitcher->set_bowl_config (bowl);
+    stitcher->set_camera_num (fisheye_num);
     stitcher->set_output_size (output_width, output_height);
+    stitcher->set_res_mode (res_mode);
+    stitcher->set_dewarp_mode (dewarp_mode);
     stitcher->set_scale_mode (scale_mode);
     stitcher->set_fm_mode (fm_mode);
+
+    if (dewarp_mode == DewarpSphere) {
+        float viewpoints_range[] = {202.8f, 202.8f};
+        stitcher->set_viewpoints_range (viewpoints_range);
+    } else {
+        float viewpoints_range[] = {64.0f, 160.0f, 64.0f, 160.0f};
+        stitcher->set_viewpoints_range (viewpoints_range);
+
+        stitcher->set_instrinsic_names (instrinsic_names);
+        stitcher->set_exstrinsic_names (exstrinsic_names);
+
+        BowlDataConfig bowl;
+        bowl.wall_height = 1800.0f;
+        bowl.ground_length = 3000.0f;
+        bowl.angle_start = 0.0f;
+        bowl.angle_end = 360.0f;
+        stitcher->set_bowl_config (bowl);
+    }
 
     if (save_topview) {
         add_stream (outs, "topview", topview_width, topview_height);
