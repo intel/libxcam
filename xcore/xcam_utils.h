@@ -38,8 +38,7 @@ PointFloat3 bowl_view_image_to_world (
 
 void centralize_bowl_coord_from_cameras (
     ExtrinsicParameter &front_cam, ExtrinsicParameter &right_cam,
-    ExtrinsicParameter &rear_cam, ExtrinsicParameter &left_cam,
-    PointFloat3 &bowl_coord_offset);
+    ExtrinsicParameter &rear_cam, ExtrinsicParameter &left_cam);
 
 double
 linear_interpolate_p2 (
