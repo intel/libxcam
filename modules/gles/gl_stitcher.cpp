@@ -748,7 +748,12 @@ GLStitcher::configure_resource (const SmartPtr<Parameters> &param)
     XCAM_UNUSED (param);
     XCAM_ASSERT (_impl.ptr ());
 
-    XCamReturn ret = estimate_round_slices ();
+    XCamReturn ret = init_camera_info ();
+    XCAM_FAIL_RETURN (
+        ERROR, xcam_ret_is_ok (ret), ret,
+        "gl-stitcher(%s) init camera info failed", XCAM_STR (get_name ()));
+
+    ret = estimate_round_slices ();
     XCAM_FAIL_RETURN (
         ERROR, xcam_ret_is_ok (ret), ret,
         "gl-stitcher(%s) estimate round view slices failed", XCAM_STR (get_name ()));

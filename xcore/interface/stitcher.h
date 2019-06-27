@@ -163,6 +163,20 @@ public:
         height = _output_height;
     }
 
+    void set_res_mode (StitchResMode mode) {
+        _res_mode = mode;
+    }
+    StitchResMode get_res_mode () {
+        return _res_mode;
+    }
+
+    void set_dewarp_mode (FisheyeDewarpMode mode) {
+        _dewarp_mode = mode;
+    }
+    FisheyeDewarpMode get_dewarp_mode () {
+        return _dewarp_mode;
+    }
+
     void set_scale_mode (GeoMapScaleMode scale_mode) {
         _scale_mode = scale_mode;
     }
@@ -177,9 +191,14 @@ public:
         return _fm_mode;
     }
 
+    bool set_viewpoints_range (const float *range);
+    bool set_instrinsic_names (const char *instr_names[]);
+    bool set_exstrinsic_names (const char *exstr_names[]);
+
     virtual XCamReturn stitch_buffers (const VideoBufferList &in_bufs, SmartPtr<VideoBuffer> &out_buf) = 0;
 
 protected:
+    XCamReturn init_camera_info ();
     XCamReturn estimate_round_slices ();
     virtual XCamReturn estimate_coarse_crops ();
     XCamReturn mark_centers ();
@@ -211,8 +230,13 @@ private:
     float                       _out_start_angle;
     uint32_t                    _camera_num;
     CameraInfo                  _camera_info[XCAM_STITCH_MAX_CAMERAS];
+    char                       *_instr_names[XCAM_STITCH_MAX_CAMERAS];
+    char                       *_exstr_names[XCAM_STITCH_MAX_CAMERAS];
+
     RoundViewSlice              _round_view_slices[XCAM_STITCH_MAX_CAMERAS];
     bool                        _is_round_view_set;
+
+    float                       _viewpoints_range[XCAM_STITCH_MAX_CAMERAS];
 
     ImageOverlapInfo            _overlap_info[XCAM_STITCH_MAX_CAMERAS];
     BowlDataConfig              _bowl_config;
@@ -225,6 +249,9 @@ private:
     CenterMark                  _center_marks[XCAM_STITCH_MAX_CAMERAS];
     bool                        _is_center_marked;
     CopyAreaArray               _copy_areas;
+
+    StitchResMode               _res_mode;
+    FisheyeDewarpMode           _dewarp_mode;
 
     GeoMapScaleMode             _scale_mode;
     //update after each feature match

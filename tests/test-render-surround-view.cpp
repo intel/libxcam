@@ -231,31 +231,6 @@ create_stitcher (const SmartPtr<SVStream> &stitch, SVModule module)
     return stitcher;
 }
 
-static int
-parse_camera_info (const char *path, uint32_t idx, CameraInfo &info, uint32_t camera_count)
-{
-    XCAM_ASSERT (path);
-
-    char intrinsic_path[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
-    char extrinsic_path[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
-    snprintf (intrinsic_path, XCAM_TEST_MAX_STR_SIZE, "%s/%s", path, instrinsic_names[idx]);
-    snprintf (extrinsic_path, XCAM_TEST_MAX_STR_SIZE, "%s/%s", path, exstrinsic_names[idx]);
-
-    CalibrationParser parser;
-    CHECK (
-        parser.parse_intrinsic_file (intrinsic_path, info.calibration.intrinsic),
-        "parse intrinsic params(%s) failed.", intrinsic_path);
-
-    CHECK (
-        parser.parse_extrinsic_file (extrinsic_path, info.calibration.extrinsic),
-        "parse extrinsic params(%s) failed.", extrinsic_path);
-    info.calibration.extrinsic.trans_x += TEST_CAMERA_POSITION_OFFSET_X;
-
-    info.angle_range = viewpoints_range[idx];
-    info.round_angle_start = (idx * 360.0f / camera_count) - info.angle_range / 2.0f;
-    return 0;
-}
-
 void
 get_bowl_model (
     const SmartPtr<Stitcher> &stitcher,
@@ -769,29 +744,14 @@ int main (int argc, char *argv[])
     SmartPtr<Stitcher> stitcher = create_stitcher (outs[0], module);
     XCAM_ASSERT (stitcher.ptr ());
 
-    CameraInfo cam_info[4];
-    std::string fisheye_config_path = FISHEYE_CONFIG_PATH;
-    const char *env = std::getenv (FISHEYE_CONFIG_ENV_VAR);
-    if (env)
-        fisheye_config_path.assign (env, strlen (env));
-    XCAM_LOG_INFO ("calibration config path:%s", fisheye_config_path.c_str ());
+    stitcher->set_camera_num (ins.size ());
+    stitcher->set_output_size (output_width, output_height);
+    stitcher->set_scale_mode (scale_mode);
+    stitcher->set_fm_mode (fm_mode);
 
-    uint32_t camera_count = ins.size ();
-    for (uint32_t i = 0; i < camera_count; ++i) {
-        if (parse_camera_info (fisheye_config_path.c_str (), i, cam_info[i], camera_count) != 0) {
-            XCAM_LOG_ERROR ("parse fisheye dewarp info(idx:%d) failed.", i);
-            return -1;
-        }
-    }
-
-    centralize_bowl_coord_from_cameras (
-        cam_info[0].calibration.extrinsic, cam_info[1].calibration.extrinsic,
-        cam_info[2].calibration.extrinsic, cam_info[3].calibration.extrinsic);
-
-    stitcher->set_camera_num (camera_count);
-    for (uint32_t i = 0; i < camera_count; ++i) {
-        stitcher->set_camera_info (i, cam_info[i]);
-    }
+    stitcher->set_viewpoints_range (viewpoints_range);
+    stitcher->set_instrinsic_names (instrinsic_names);
+    stitcher->set_exstrinsic_names (exstrinsic_names);
 
     BowlDataConfig bowl;
     bowl.wall_height = 1800.0f;
@@ -799,9 +759,6 @@ int main (int argc, char *argv[])
     bowl.angle_start = 0.0f;
     bowl.angle_end = 360.0f;
     stitcher->set_bowl_config (bowl);
-    stitcher->set_output_size (output_width, output_height);
-    stitcher->set_scale_mode (scale_mode);
-    stitcher->set_fm_mode (fm_mode);
 
     SmartPtr<RenderOsgViewer> render = new RenderOsgViewer ();
 
