@@ -6,8 +6,6 @@
 
 # Params only 0.35M!! FLOPs 80M !! 
 
-In the first phase,we only use depth data for training ,and after ensemble ACER reduce to 0.0.
-But in the test phase, when we only use depth data, the best ACER is 0.0016.This result is not very satisfactory. If the security is not very high, just using single-mode data is a very good choice. In order to achieve better results, we use IR data to jointly predict the final result.
 # Results on the validation set
 
 |model name | ACER|TPR@FPR=10E-2|TPR@FPR=10E-3|FP|FN|epoch|params|FLOPs|
@@ -23,7 +21,6 @@ But in the test phase, when we only use depth data, the best ACER is 0.0016.This
 |FeatherNetA|0.00261|1.00|0.961590|19|7|51|0.35M|79.99M|
 |FeatherNetB|0.00168|1.0|0.997662|20|1|48|0.35M|83.05M|
 |**Ensembled all**|0.0000|1.0|1.0|0|0|-|-|-|
-
 
 ## Recent Update
 
@@ -72,59 +69,16 @@ Download and unzip our private Dataset into the ./data directory. Then run data/
 
 # Train the model
 
-### Download pretrained models(trained on ImageNet2012)
-download [fishnet150](https://pan.baidu.com/s/1uOEFsBHIdqpDLrbfCZJGUg) pretrained model from [FishNet150 repo](https://github.com/kevin-ssy/FishNet)(Model trained without tricks )
-
-download [mobilenetv2](https://drive.google.com/open?id=1jlto6HRVD3ipNkAl1lNhDbkBp7HylaqR) pretrained model from [MobileNet V2 repo](https://github.com/tonylins/pytorch-mobilenet-v2),or download from here,link: https://pan.baidu.com/s/11Hz50zlMyp3gtR9Bhws-Dg password: gi46 
-**move them to  ./checkpoints/pre-trainedModels/**
-
-
-### 1.train FishNet150
-
-> nohup python main.py --config="cfgs/fishnet150-32.yaml" --b 32 --lr 0.01 --every-decay 30 --fl-gamma 2 >> fishnet150-train.log &
-###  2.train MobileNet V2
-
-> nohup python main.py --config="cfgs/mobilenetv2.yaml" --b 32 --lr 0.01 --every-decay 40 --fl-gamma 2 >> mobilenetv2-bs32-train.log &
-
-Commands to train the model:
-####  3Train MobileLiteNet54
 ```
-python main.py --config="cfgs/MobileLiteNet54-32.yaml" --every-decay 60 -b 32 --lr 0.01 --fl-gamma 3 >>FNet54-bs32-train.log
-```
-####  4Train MobileLiteNet54-SE
-```
-python main.py --config="cfgs/MobileLiteNet54-se-64.yaml" --b 64 --lr 0.01  --every-decay 60 --fl-gamma 3 >> FNet54-se-bs64-train.log
-```
-#### 5Train FeatherNetA
+#### Train FeatherNetA
 ```
 python main.py --config="cfgs/FeatherNetA-32.yaml" --b 32 --lr 0.01  --every-decay 60 --fl-gamma 3 >> MobileLiteNetA-bs32-train.log
 ```
-#### 6Train FeatherNetB
+#### Train FeatherNetB
 ```
 python main.py --config="cfgs/FeatherNetB-32.yaml" --b 32 --lr 0.01  --every-decay 60 --fl-gamma 3 >> MobileLiteNetB-bs32--train.log
 
 ```
-
-
-## How to create a  submission file
-example:
-> python main.py --config="cfgs/mobilenetv2.yaml" --resume ./checkpoints/mobilenetv2_bs32/_4_best.pth.tar --val True --val-save True
-
-
-# Ensemble 
-
-### for validation
-```
-run EnsembledCode_val.ipynb
-```
-### for test
-```
-run EnsembledCode_test.ipynb
-```
-**notice**:Choose a few models with large differences in prediction results
-
-# Serialized copy of the trained model
-You can download my artifacts folder which I used to generate my final submissions: Available Soon
 
 >[1] ChaLearn Face Anti-spoofing Attack Detection Challenge@CVPR2019,[link](https://competitions.codalab.org/competitions/20853?secret_key=ff0e7c30-e244-4681-88e4-9eb5b41dd7f7)
 
