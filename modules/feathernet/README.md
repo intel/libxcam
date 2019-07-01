@@ -1,6 +1,6 @@
-## FeatherNets for [Face Anti-spoofing Attack Detection Challenge@CVPR2019](https://competitions.codalab.org/competitions/20853#results)[1]
+## FeatherNets for [Face Anti-spoofing Attack Detection Challenge@CVPR2019](http://openaccess.thecvf.com/content_CVPRW_2019/html/CFS/Liu_Multi-Modal_Face_Anti-Spoofing_Attack_Detection_Challenge_at_CVPR2019_CVPRW_2019_paper.html)[1]
 
-## The detail in our paper：[FeatherNets: Convolutional Neural Networks as Light as Feather for Face Anti-spoofing](https://arxiv.org/pdf/1904.09290)
+## The detail in our paper：[FeatherNets: Convolutional Neural Networks as Light as Feather for Face Anti-spoofing](http://openaccess.thecvf.com/content_CVPRW_2019/html/CFS/Zhang_FeatherNets_Convolutional_Neural_Networks_as_Light_as_Feather_for_Face_CVPRW_2019_paper.html)
 
 # FeatherNetB Inference Time **1.87ms** In CPU(i7,OpenVINO)
 
