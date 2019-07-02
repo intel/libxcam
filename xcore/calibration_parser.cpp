@@ -197,14 +197,14 @@ CalibrationParser::parse_intrinsic_file(const char *file_path, IntrinsicParamete
     size_t file_size = 0;
 
     XCAM_FAIL_RETURN (
-        WARNING, xcam_ret_is_ok (ret = file_reader.open (file_path, "r")), ret,
+        ERROR, xcam_ret_is_ok (ret = file_reader.open (file_path, "r")), ret,
         "open intrinsic file(%s) failed.", file_path);
     XCAM_FAIL_RETURN (
-        WARNING, xcam_ret_is_ok (ret = file_reader.get_file_size (file_size)), ret,
+        ERROR, xcam_ret_is_ok (ret = file_reader.get_file_size (file_size)), ret,
         "read intrinsic file(%s) failed to get file size.", file_path);
     context.resize (file_size + 1);
     XCAM_FAIL_RETURN (
-        WARNING, xcam_ret_is_ok (ret = file_reader.read_file (&context[0], file_size)), ret,
+        ERROR, xcam_ret_is_ok (ret = file_reader.read_file (&context[0], file_size)), ret,
         "read intrinsic file(%s) failed, file size:%d.", file_path, (int)file_size);
     file_reader.close ();
     context[file_size] = '\0';

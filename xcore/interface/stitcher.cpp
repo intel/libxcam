@@ -254,6 +254,9 @@ Stitcher::init_camera_info ()
         }
     } else {
         std::string cfg_path = std::getenv (FISHEYE_CONFIG_ENV_VAR);
+        XCAM_FAIL_RETURN (
+            ERROR, !cfg_path.empty (), XCAM_RETURN_ERROR_PARAM,
+            "FISHEYE_CONFIG_PATH is empty, export FISHEYE_CONFIG_PATH first");
         XCAM_LOG_INFO ("stitcher calibration config path: %s", cfg_path.c_str ());
 
         CalibrationParser parser;
