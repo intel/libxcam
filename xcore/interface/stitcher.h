@@ -39,6 +39,7 @@ enum StitchResMode {
     StitchRes1080P2Cams,
     StitchRes1080P4Cams,
     StitchRes4K2Cams,
+    StitchRes8K3Cams,
     StitchRes8K6Cams
 };
 
