@@ -241,6 +241,17 @@ get_fm_config (StitchResMode res_mode)
 #endif
         break;
     }
+    case StitchRes8K3Cams: {
+        config.stitch_min_width = 136;
+        config.min_corners = 4;
+        config.offset_factor = 0.95f;
+        config.delta_mean_offset = 256.0f;
+        config.recur_offset_error = 4.0f;
+        config.max_adjusted_offset = 24.0f;
+        config.max_valid_offset_y = 20.0f;
+        config.max_track_error = 8.0f;
+        break;
+    }
     default:
         XCAM_LOG_DEBUG ("unknown reslution mode (%d)", res_mode);
         break;
@@ -267,6 +278,24 @@ get_stitch_info (StitchResMode res_mode)
         stitch_info.fisheye_info[1].wide_angle = 202.8f;
         stitch_info.fisheye_info[1].radius = 480.0f;
         stitch_info.fisheye_info[1].rotate_angle = 89.7f;
+        break;
+    }
+    case StitchRes8K3Cams: {
+        stitch_info.fisheye_info[0].center_x = 1920.0f;
+        stitch_info.fisheye_info[0].center_y = 1440.0f;
+        stitch_info.fisheye_info[0].wide_angle = 200.0f;
+        stitch_info.fisheye_info[0].radius = 1984.0f;
+        stitch_info.fisheye_info[0].rotate_angle = 90.2f;
+        stitch_info.fisheye_info[1].center_x = 1920.0f;
+        stitch_info.fisheye_info[1].center_y = 1440.0f;
+        stitch_info.fisheye_info[1].wide_angle = 200.0f;
+        stitch_info.fisheye_info[1].radius = 1984.0f;
+        stitch_info.fisheye_info[1].rotate_angle = 90.2f;
+        stitch_info.fisheye_info[2].center_x = 1920.0f;
+        stitch_info.fisheye_info[2].center_y = 1440.0f;
+        stitch_info.fisheye_info[2].wide_angle = 200.0f;
+        stitch_info.fisheye_info[2].radius = 1984.0f;
+        stitch_info.fisheye_info[2].rotate_angle = 90.0f;
         break;
     }
     default:

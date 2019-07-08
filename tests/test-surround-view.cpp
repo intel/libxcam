@@ -421,7 +421,7 @@ static void usage(const char* arg0)
             "\t--topview-h         optional, output height, default: 720\n"
             "\t--fisheye-num       optional, the number of fisheye lens, default: 4\n"
             "\t--res-mode          optional, image resolution mode\n"
-            "\t                    select from [1080p2cams/1080p4cams], default: 1080p4cams\n"
+            "\t                    select from [1080p2cams/1080p4cams/8k3cams], default: 1080p4cams\n"
             "\t--dewarp-mode       optional, fisheye dewarp mode, select from [sphere/bowl], default: bowl\n"
             "\t--scale-mode        optional, scaling mode for geometric mapping,\n"
             "\t                    select from [singleconst/dualconst/dualcurve], default: singleconst\n"
@@ -541,6 +541,8 @@ int main (int argc, char *argv[])
                 res_mode = StitchRes1080P2Cams;
             else if (!strcasecmp (optarg, "1080p4cams"))
                 res_mode = StitchRes1080P4Cams;
+            else if (!strcasecmp (optarg, "8k3cams"))
+                res_mode = StitchRes8K3Cams;
             else {
                 XCAM_LOG_ERROR ("incorrect resolution mode");
                 return -1;
@@ -650,7 +652,8 @@ int main (int argc, char *argv[])
     printf ("topview width:\t\t%d\n", topview_width);
     printf ("topview height:\t\t%d\n", topview_height);
     printf ("fisheye number:\t\t%d\n", fisheye_num);
-    printf ("resolution mode:\t%s\n", res_mode == StitchRes1080P2Cams ? "1080p2cams" : "1080p4cams");
+    printf ("resolution mode:\t%s\n", res_mode == StitchRes1080P2Cams ? "1080p2cams" :
+            (res_mode == StitchRes1080P4Cams ? "1080p4cams" : "8k3cams"));
     printf ("dewarp mode: \t\t%s\n", dewarp_mode == DewarpSphere ? "sphere" : "bowl");
     printf ("scaling mode:\t\t%s\n", (scale_mode == ScaleSingleConst) ? "singleconst" :
             ((scale_mode == ScaleDualConst) ? "dualconst" : "dualcurve"));
@@ -724,8 +727,13 @@ int main (int argc, char *argv[])
     stitcher->set_fm_mode (fm_mode);
 
     if (dewarp_mode == DewarpSphere) {
-        float viewpoints_range[] = {202.8f, 202.8f};
-        stitcher->set_viewpoints_range (viewpoints_range);
+        if (res_mode == StitchRes1080P2Cams) {
+            float viewpoints_range[] = {202.8f, 202.8f};
+            stitcher->set_viewpoints_range (viewpoints_range);
+        } else if (res_mode == StitchRes8K3Cams) {
+            float viewpoints_range[] = {144.0f, 144.0f, 144.0f};
+            stitcher->set_viewpoints_range (viewpoints_range);
+        }
     } else {
         float viewpoints_range[] = {64.0f, 160.0f, 64.0f, 160.0f};
         stitcher->set_viewpoints_range (viewpoints_range);
