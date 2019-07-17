@@ -334,10 +334,19 @@ single_frame (
     while (loop--) {
         CHECK (stitcher->stitch_buffers (in_buffers, outs[IdxStitch]->get_buf ()), "stitch buffer failed.");
 
-        if (save_output || save_topview)
-            write_image (ins, outs, save_output, save_topview);
+        if (save_output || save_topview) {
+            if (stitcher->get_fm_mode () == FMNone ||
+                stitcher->get_fm_status () != FMStatusFMFirst ||
+                stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
+                write_image (ins, outs, save_output, save_topview);
+            }
+        }
 
-        FPS_CALCULATION (surround-view, XCAM_OBJ_DUR_FRAME_NUM);
+        if (stitcher->get_fm_mode () == FMNone ||
+            stitcher->get_fm_status () == FMStatusWholeWay ||
+            stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
+            FPS_CALCULATION (surround-view, XCAM_OBJ_DUR_FRAME_NUM);
+        }
     }
 
     return 0;
@@ -375,10 +384,19 @@ multi_frame (
                 stitcher->stitch_buffers (in_buffers, outs[IdxStitch]->get_buf ()),
                 "stitch buffer failed.");
 
-            if (save_output || save_topview)
-                write_image (ins, outs, save_output, save_topview);
+            if (save_output || save_topview) {
+                if (stitcher->get_fm_mode () == FMNone ||
+                    stitcher->get_fm_status () != FMStatusFMFirst ||
+                    stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
+                    write_image (ins, outs, save_output, save_topview);
+                }
+            }
 
-            FPS_CALCULATION (surround-view, XCAM_OBJ_DUR_FRAME_NUM);
+            if (stitcher->get_fm_mode () == FMNone ||
+                stitcher->get_fm_status () == FMStatusWholeWay ||
+                stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
+                FPS_CALCULATION (surround-view, XCAM_OBJ_DUR_FRAME_NUM);
+            }
         } while (true);
     }
 
@@ -425,11 +443,17 @@ static void usage(const char* arg0)
             "\t--dewarp-mode       optional, fisheye dewarp mode, select from [sphere/bowl], default: bowl\n"
             "\t--scale-mode        optional, scaling mode for geometric mapping,\n"
             "\t                    select from [singleconst/dualconst/dualcurve], default: singleconst\n"
-            "\t--fm-mode           optional, feature match mode,\n"
 #if HAVE_OPENCV
+            "\t--fm-mode           optional, feature match mode,\n"
             "\t                    select from [none/default/cluster/capi], default: none\n"
+            "\t--fm-frames         optional, how many frames need to run feature match at the beginning, default: 100\n"
+            "\t--fm-status         optional, running status of feature match,\n"
+            "\t                    select from [wholeway/halfway/fmfirst], default: wholeway\n"
+            "\t                    wholeway: run feature match during the entire runtime\n"
+            "\t                    halfway: run feature match with stitching in the first --fm-frames frames\n"
+            "\t                    fmfirst: run feature match without stitching in the first --fm-frames frames\n"
 #else
-            "\t                    select from [none], default: none\n"
+            "\t--fm-mode           optional, feature match mode, select from [none], default: none\n"
 #endif
             "\t--frame-mode        optional, times of buffer reading, select from [single/multi], default: multi\n"
             "\t--save              optional, save file or not, select from [true/false], default: true\n"
@@ -459,6 +483,11 @@ int main (int argc, char *argv[])
     StitchResMode res_mode = StitchRes1080P4Cams;
     FisheyeDewarpMode dewarp_mode = DewarpBowl;
 
+#if HAVE_OPENCV
+    uint32_t fm_frames = 100;
+    FeatureMatchStatus fm_status = FMStatusWholeWay;
+#endif
+
     int loop = 1;
     bool save_output = true;
     bool save_topview = false;
@@ -478,6 +507,10 @@ int main (int argc, char *argv[])
         {"dewarp-mode", required_argument, NULL, 'd'},
         {"scale-mode", required_argument, NULL, 'S'},
         {"fm-mode", required_argument, NULL, 'F'},
+#if HAVE_OPENCV
+        {"fm-frames", required_argument, NULL, 'n'},
+        {"fm-status", required_argument, NULL, 'T'},
+#endif
         {"frame-mode", required_argument, NULL, 'f'},
         {"save", required_argument, NULL, 's'},
         {"save-topview", required_argument, NULL, 't'},
@@ -590,6 +623,25 @@ int main (int argc, char *argv[])
                 return -1;
             }
             break;
+#if HAVE_OPENCV
+        case 'n':
+            fm_frames = atoi(optarg);
+            break;
+        case 'T':
+            XCAM_ASSERT (optarg);
+            if (!strcasecmp (optarg, "wholeway"))
+                fm_status = FMStatusWholeWay;
+            else if (!strcasecmp (optarg, "halfway"))
+                fm_status = FMStatusHalfWay;
+            else if (!strcasecmp (optarg, "fmfirst"))
+                fm_status = FMStatusFMFirst;
+            else {
+                XCAM_LOG_ERROR ("surround view unsupported feature match status: %s", optarg);
+                usage (argv[0]);
+                return -1;
+            }
+            break;
+#endif
         case 'f':
             XCAM_ASSERT (optarg);
             if (!strcasecmp (optarg, "single"))
@@ -659,6 +711,11 @@ int main (int argc, char *argv[])
             ((scale_mode == ScaleDualConst) ? "dualconst" : "dualcurve"));
     printf ("feature match:\t\t%s\n", (fm_mode == FMNone) ? "none" :
             ((fm_mode == FMDefault ) ? "default" : ((fm_mode == FMCluster) ? "cluster" : "capi")));
+#if HAVE_OPENCV
+    printf ("feature match frames:\t%d\n", fm_frames);
+    printf ("feature match status:\t%s\n", (fm_status == FMStatusWholeWay) ? "wholeway" :
+            ((fm_status == FMStatusHalfWay) ? "halfway" : "fmfirst"));
+#endif
     printf ("frame mode:\t\t%s\n", (frame_mode == FrameSingle) ? "singleframe" : "multiframe");
     printf ("save output:\t\t%s\n", save_output ? "true" : "false");
     printf ("save topview:\t\t%s\n", save_topview ? "true" : "false");
@@ -725,6 +782,10 @@ int main (int argc, char *argv[])
     stitcher->set_dewarp_mode (dewarp_mode);
     stitcher->set_scale_mode (scale_mode);
     stitcher->set_fm_mode (fm_mode);
+#if HAVE_OPENCV
+    stitcher->set_fm_frames (fm_frames);
+    stitcher->set_fm_status (fm_status);
+#endif
 
     if (dewarp_mode == DewarpSphere) {
         if (res_mode == StitchRes1080P2Cams) {

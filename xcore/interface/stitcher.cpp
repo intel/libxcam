@@ -98,6 +98,9 @@ Stitcher::Stitcher (uint32_t align_x, uint32_t align_y)
     , _dewarp_mode (DewarpBowl)
     , _scale_mode (ScaleSingleConst)
     , _fm_mode (FMNone)
+    , _fm_status (FMStatusWholeWay)
+    , _fm_frames (100)
+    , _fm_frame_count (UINT32_MAX)
 {
     XCAM_ASSERT (align_x >= 1);
     XCAM_ASSERT (align_y >= 1);

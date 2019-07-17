@@ -175,6 +175,7 @@ public:
         const SmartPtr<SoftStitcher::StitcherParam> &param,
         const uint32_t idx, const SmartPtr<VideoBuffer> &buf);
 
+    XCamReturn start_overlap_task (uint32_t idx, const SmartPtr<BlenderParam> &param);
     XCamReturn start_single_blender (const uint32_t idx, const SmartPtr<BlenderParam> &param);
     XCamReturn stop ();
 
@@ -767,6 +768,34 @@ StitcherImpl::start_feature_match (
 }
 
 XCamReturn
+StitcherImpl::start_overlap_task (uint32_t idx, const SmartPtr<BlenderParam> &param)
+{
+    const uint32_t fm_frames = _stitcher->get_fm_frames ();
+    FeatureMatchStatus fm_status = _stitcher->get_fm_status ();
+
+    if (fm_status != FMStatusFMFirst || param->stitch_param->frame_count >= fm_frames) {
+        XCamReturn ret = start_single_blender (idx, param);
+        XCAM_FAIL_RETURN (
+            ERROR, xcam_ret_is_ok (ret), ret,
+            "soft-stitcher:%s blender idx:%d failed", XCAM_STR (_stitcher->get_name ()), idx);
+    }
+
+#if ENABLE_FEATURE_MATCH
+    if (_stitcher->get_fm_mode ()) {
+        if (fm_status != FMStatusWholeWay && param->stitch_param->frame_count >= fm_frames)
+            return XCAM_RETURN_NO_ERROR;
+
+        XCamReturn ret = start_feature_match (param->in_buf, param->in1_buf, idx);
+        XCAM_FAIL_RETURN (
+            ERROR, xcam_ret_is_ok (ret), ret,
+            "soft-stitcher:%s feature match idx:%d failed", XCAM_STR (_stitcher->get_name ()), idx);
+    }
+#endif
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
 StitcherImpl::start_overlap_tasks (
     const SmartPtr<SoftStitcher::StitcherParam> &param,
     const uint32_t idx, const SmartPtr<VideoBuffer> &buf)
@@ -796,38 +825,20 @@ StitcherImpl::start_overlap_tasks (
 
     if (cur_param.ptr ()) {
         cur_param->out_buf = param->out_buf;
-        ret = start_single_blender (idx, cur_param);
+        start_overlap_task (idx, cur_param);
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,
-            "soft-stitcher:%s blend overlap idx:%d failed", XCAM_STR (_stitcher->get_name ()), idx);
+            "soft-stitcher:%s start overlap task idx:%d failed", XCAM_STR (_stitcher->get_name ()), idx);
+
     }
 
     if (prev_param.ptr ()) {
         prev_param->out_buf = param->out_buf;
-        ret = start_single_blender (pre_idx, prev_param);
+        start_overlap_task (pre_idx, prev_param);
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,
-            "soft-stitcher:%s blend overlap idx:%d failed", XCAM_STR (_stitcher->get_name ()), pre_idx);
+            "soft-stitcher:%s start overlap task idx:%d failed", XCAM_STR (_stitcher->get_name ()), idx);
     }
-
-#if ENABLE_FEATURE_MATCH
-    //start feature match
-    if (_stitcher->get_fm_mode ()) {
-        if (cur_param.ptr ()) {
-            ret = start_feature_match (cur_param->in_buf, cur_param->in1_buf, idx);
-            XCAM_FAIL_RETURN (
-                ERROR, xcam_ret_is_ok (ret), ret,
-                "soft-stitcher:%s feature-match overlap idx:%d failed", XCAM_STR (_stitcher->get_name ()), idx);
-        }
-
-        if (prev_param.ptr ()) {
-            ret = start_feature_match (prev_param->in_buf, prev_param->in1_buf, pre_idx);
-            XCAM_FAIL_RETURN (
-                ERROR, xcam_ret_is_ok (ret), ret,
-                "soft-stitcher:%s feature-match overlap idx:%d failed", XCAM_STR (_stitcher->get_name ()), pre_idx);
-        }
-    }
-#endif
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -950,9 +961,13 @@ SoftStitcher::stitch_buffers (const VideoBufferList &in_bufs, SmartPtr<VideoBuff
         ERROR, !in_bufs.empty (), XCAM_RETURN_ERROR_PARAM,
         "soft-stitcher:%s stitch buffer failed, in_bufs is empty", XCAM_STR (get_name ()));
 
+    uint32_t frame_count = (get_fm_frame_count () == UINT32_MAX) ? 0 : (get_fm_frame_count () + 1);
+    set_fm_frame_count (frame_count);
+
     SmartPtr<StitcherParam> param = new StitcherParam;
     param->out_buf = out_buf;
     param->in_buf_num = in_bufs.size ();
+    param->frame_count = frame_count;
 
     uint32_t count = 0;
     for (VideoBufferList::const_iterator i = in_bufs.begin (); i != in_bufs.end (); ++i) {
@@ -1000,7 +1015,9 @@ SoftStitcher::start_task_count (const SmartPtr<SoftStitcher::StitcherParam> &par
     }
 
     int32_t count = get_camera_num ();
-    count += get_copy_area ().size ();
+    if (get_fm_status () != FMStatusFMFirst || param->frame_count >= get_fm_frames ()) {
+        count += get_copy_area ().size ();
+    }
 
     XCAM_LOG_DEBUG ("stitcher :%s start task count :%d", XCAM_STR(get_name ()), count);
     _impl->_task_counts.insert (std::make_pair((void*)param.ptr(), count));
@@ -1028,6 +1045,17 @@ SoftStitcher::geomap_done (
 
     //start both blender and feature match
     XCamReturn ret = _impl->start_overlap_tasks (param, geomap_param->idx, geomap_param->out_buf);
+    if (get_fm_status () == FMStatusFMFirst && param->frame_count < get_fm_frames ()) {
+        if (!check_work_continue (param, error)) {
+            _impl->remove_task_count (param);
+            return;
+        }
+        if (_impl->dec_task_count (param) == 0) {
+            work_well_done (param, error);
+        }
+        return;
+    }
+
     if (!xcam_ret_is_ok (ret)) {
         work_broken (param, ret);
     }
