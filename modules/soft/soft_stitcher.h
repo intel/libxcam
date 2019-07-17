@@ -48,11 +48,13 @@ public:
         : ImageHandler::Parameters
     {
         uint32_t in_buf_num;
+        uint32_t frame_count;
         SmartPtr<VideoBuffer> in_bufs[XCAM_STITCH_MAX_CAMERAS];
 
         StitcherParam ()
             : Parameters (NULL, NULL)
             , in_buf_num (0)
+            , frame_count (0)
         {}
     };
 

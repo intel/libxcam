@@ -192,6 +192,27 @@ public:
         return _fm_mode;
     }
 
+    void set_fm_status (FeatureMatchStatus fm_status) {
+        _fm_status = fm_status;
+    }
+    FeatureMatchStatus get_fm_status () {
+        return _fm_status;
+    }
+
+    void set_fm_frames (uint32_t fm_frames) {
+        _fm_frames = fm_frames;
+    }
+    uint32_t get_fm_frames () {
+        return _fm_frames;
+    }
+
+    void set_fm_frame_count (uint32_t frame_count) {
+        _fm_frame_count = frame_count;
+    }
+    uint32_t get_fm_frame_count () {
+        return _fm_frame_count;
+    }
+
     bool set_viewpoints_range (const float *range);
     bool set_instrinsic_names (const char *instr_names[]);
     bool set_exstrinsic_names (const char *exstr_names[]);
@@ -259,6 +280,9 @@ private:
     ScaleFactor                 _scale_factors[XCAM_STITCH_MAX_CAMERAS];
 
     FeatureMatchMode            _fm_mode;
+    FeatureMatchStatus          _fm_status;
+    uint32_t                    _fm_frames;
+    uint32_t                    _fm_frame_count;
 };
 
 class BowlModel {

@@ -38,6 +38,12 @@ enum FeatureMatchMode {
     FMCapi
 };
 
+enum FeatureMatchStatus {
+    FMStatusWholeWay = 0,
+    FMStatusHalfWay,
+    FMStatusFMFirst
+};
+
 enum GeoMapScaleMode {
     ScaleSingleConst = 0,
     ScaleDualConst,
