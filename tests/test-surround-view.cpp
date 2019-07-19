@@ -441,6 +441,7 @@ static void usage(const char* arg0)
             "\t--res-mode          optional, image resolution mode\n"
             "\t                    select from [1080p2cams/1080p4cams/8k3cams], default: 1080p4cams\n"
             "\t--dewarp-mode       optional, fisheye dewarp mode, select from [sphere/bowl], default: bowl\n"
+            "\t--scopic-mode       optional, scopic mode, select from [mono/stereoleft/stereoright], default: mono\n"
             "\t--scale-mode        optional, scaling mode for geometric mapping,\n"
             "\t                    select from [singleconst/dualconst/dualcurve], default: singleconst\n"
 #if HAVE_OPENCV
@@ -483,6 +484,8 @@ int main (int argc, char *argv[])
     StitchResMode res_mode = StitchRes1080P4Cams;
     FisheyeDewarpMode dewarp_mode = DewarpBowl;
 
+    StitchScopicMode scopic_mode = ScopicMono;
+
 #if HAVE_OPENCV
     uint32_t fm_frames = 100;
     FeatureMatchStatus fm_status = FMStatusWholeWay;
@@ -505,6 +508,7 @@ int main (int argc, char *argv[])
         {"fisheye-num", required_argument, NULL, 'N'},
         {"res-mode", required_argument, NULL, 'R'},
         {"dewarp-mode", required_argument, NULL, 'd'},
+        {"scopic-mode", required_argument, NULL, 'c'},
         {"scale-mode", required_argument, NULL, 'S'},
         {"fm-mode", required_argument, NULL, 'F'},
 #if HAVE_OPENCV
@@ -588,6 +592,18 @@ int main (int argc, char *argv[])
                 dewarp_mode = DewarpBowl;
             else {
                 XCAM_LOG_ERROR ("incorrect fisheye dewarp mode");
+                return -1;
+            }
+            break;
+        case 'c':
+            if (!strcasecmp (optarg, "mono"))
+                scopic_mode = ScopicMono;
+            else if(!strcasecmp (optarg, "stereoleft"))
+                scopic_mode = ScopicStereoLeft;
+            else if(!strcasecmp (optarg, "stereoright"))
+                scopic_mode = ScopicStereoRight;
+            else {
+                XCAM_LOG_ERROR ("incorrect scopic mode");
                 return -1;
             }
             break;
@@ -707,6 +723,8 @@ int main (int argc, char *argv[])
     printf ("resolution mode:\t%s\n", res_mode == StitchRes1080P2Cams ? "1080p2cams" :
             (res_mode == StitchRes1080P4Cams ? "1080p4cams" : "8k3cams"));
     printf ("dewarp mode: \t\t%s\n", dewarp_mode == DewarpSphere ? "sphere" : "bowl");
+    printf ("scopic mode:\t\t%s\n", (scopic_mode == ScopicMono) ? "mono" :
+            ((scopic_mode == ScopicStereoLeft) ? "stereoleft" : "stereoright"));
     printf ("scaling mode:\t\t%s\n", (scale_mode == ScaleSingleConst) ? "singleconst" :
             ((scale_mode == ScaleDualConst) ? "dualconst" : "dualcurve"));
     printf ("feature match:\t\t%s\n", (fm_mode == FMNone) ? "none" :
@@ -780,6 +798,7 @@ int main (int argc, char *argv[])
     stitcher->set_output_size (output_width, output_height);
     stitcher->set_res_mode (res_mode);
     stitcher->set_dewarp_mode (dewarp_mode);
+    stitcher->set_scopic_mode (scopic_mode);
     stitcher->set_scale_mode (scale_mode);
     stitcher->set_fm_mode (fm_mode);
 #if HAVE_OPENCV
