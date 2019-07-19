@@ -159,7 +159,7 @@ get_fm_sphere_config (StitchResMode res_mode)
         break;
     }
     default:
-        XCAM_LOG_DEBUG ("unknown reslution mode (%d)", res_mode);
+        XCAM_LOG_ERROR ("unsupported reslution mode (%d)", res_mode);
         break;
     }
 
@@ -350,7 +350,7 @@ get_default_stitch_info (StitchResMode res_mode)
         break;
     }
     default:
-        XCAM_LOG_DEBUG ("unknown reslution mode (%d)", res_mode);
+        XCAM_LOG_ERROR ("unsupported reslution mode (%d)", res_mode);
         break;
     }
 

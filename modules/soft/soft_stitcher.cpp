@@ -254,7 +254,7 @@ get_fm_config (StitchResMode res_mode)
         break;
     }
     default:
-        XCAM_LOG_DEBUG ("unknown reslution mode (%d)", res_mode);
+        XCAM_LOG_ERROR ("unsupported reslution mode (%d)", res_mode);
         break;
     }
 
@@ -300,7 +300,7 @@ get_stitch_info (StitchResMode res_mode)
         break;
     }
     default:
-        XCAM_LOG_DEBUG ("soft-stitcher: unknown reslution mode (%d)", res_mode);
+        XCAM_LOG_ERROR ("soft-stitcher: unsupported reslution mode (%d)", res_mode);
         break;
     }
 
