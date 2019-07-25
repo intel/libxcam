@@ -139,7 +139,6 @@ public:
         const SmartPtr<GLStitcher::StitcherParam> &param,
         uint32_t idx, const SmartPtr<VideoBuffer> &buf);
 
-    XCamReturn start_single_blender (uint32_t idx, const SmartPtr<BlenderParam> &param);
     XCamReturn stop ();
 
     XCamReturn gen_geomap_table ();
@@ -153,6 +152,7 @@ private:
     SmartPtr<GLGeoMapHandler> create_geo_mapper (const Stitcher::RoundViewSlice &view_slice);
 
     XCamReturn init_fisheye (uint32_t idx);
+    XCamReturn init_blender (uint32_t idx);
     bool init_geomap_factors (uint32_t idx);
 
     void calc_geomap_factors (
@@ -392,6 +392,32 @@ StitcherImpl::init_feature_match (uint32_t idx)
 }
 
 XCamReturn
+StitcherImpl::init_blender (uint32_t idx)
+{
+    _overlaps[idx].blender = create_gl_blender ().dynamic_cast_ptr<GLBlender>();
+    XCAM_ASSERT (_overlaps[idx].blender.ptr ());
+
+    uint32_t out_width, out_height;
+    _stitcher->get_output_size (out_width, out_height);
+    _overlaps[idx].blender->set_output_size (out_width, out_height);
+
+    const Stitcher::ImageOverlapInfo overlap_info = _stitcher->get_overlap (idx);
+    _overlaps[idx].blender->set_merge_window (overlap_info.out_area);
+    _overlaps[idx].blender->set_input_valid_area (overlap_info.left, 0);
+    _overlaps[idx].blender->set_input_valid_area (overlap_info.right, 1);
+    _overlaps[idx].blender->set_input_merge_area (overlap_info.left, 0);
+    _overlaps[idx].blender->set_input_merge_area (overlap_info.right, 1);
+
+    SmartPtr<ImageHandler::Callback> blender_cb = new CbBlender (_stitcher);
+    XCAM_ASSERT (blender_cb.ptr ());
+    _overlaps[idx].blender->set_callback (blender_cb);
+
+    _overlaps[idx].param_map.clear ();
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
 StitcherImpl::init_config (uint32_t count)
 {
     for (uint32_t i = 0; i < count; ++i) {
@@ -404,12 +430,7 @@ StitcherImpl::init_config (uint32_t count)
         init_feature_match (i);
 #endif
 
-        _overlaps[i].blender = create_gl_blender ().dynamic_cast_ptr<GLBlender>();
-        XCAM_ASSERT (_overlaps[i].blender.ptr ());
-        SmartPtr<ImageHandler::Callback> blender_cb = new CbBlender (_stitcher);
-        XCAM_ASSERT (blender_cb.ptr ());
-        _overlaps[i].blender->set_callback (blender_cb);
-        _overlaps[i].param_map.clear ();
+        init_blender (i);
     }
 
     Stitcher::CopyAreaArray areas = _stitcher->get_copy_area ();
@@ -553,25 +574,6 @@ Overlap::find_blender_param_in_map (
 }
 
 XCamReturn
-StitcherImpl::start_single_blender (
-    uint32_t idx, const SmartPtr<BlenderParam> &param)
-{
-    SmartPtr<GLBlender> blender = _overlaps[idx].blender;
-    const Stitcher::ImageOverlapInfo &overlap_info = _stitcher->get_overlap (idx);
-    uint32_t out_width, out_height;
-    _stitcher->get_output_size (out_width, out_height);
-
-    blender->set_output_size (out_width, out_height);
-    blender->set_merge_window (overlap_info.out_area);
-    blender->set_input_valid_area (overlap_info.left, 0);
-    blender->set_input_valid_area (overlap_info.right, 1);
-    blender->set_input_merge_area (overlap_info.left, 0);
-    blender->set_input_merge_area (overlap_info.right, 1);
-
-    return blender->execute_buffer (param, false);
-}
-
-XCamReturn
 StitcherImpl::start_blenders (
     const SmartPtr<GLStitcher::StitcherParam> &param,
     uint32_t idx, const SmartPtr<VideoBuffer> &buf)
@@ -596,7 +598,7 @@ StitcherImpl::start_blenders (
 
     if (cur_param.ptr ()) {
         cur_param->out_buf = param->out_buf;
-        XCamReturn ret = start_single_blender (idx, cur_param);
+        XCamReturn ret = _overlaps[idx].blender->execute_buffer (cur_param, false);
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,
             "gl-stitcher(%s) blend overlap idx:%d failed", XCAM_STR (_stitcher->get_name ()), idx);
@@ -604,7 +606,7 @@ StitcherImpl::start_blenders (
 
     if (prev_param.ptr ()) {
         prev_param->out_buf = param->out_buf;
-        XCamReturn ret = start_single_blender (pre_idx, prev_param);
+        XCamReturn ret = _overlaps[pre_idx].blender->execute_buffer (prev_param, false);
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,
             "gl-stitcher(%s) blend overlap idx:%d failed", XCAM_STR (_stitcher->get_name ()), pre_idx);
