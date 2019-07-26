@@ -461,7 +461,7 @@ AC_CONFIG_FILES([Makefile
                  modules/gles/Makefile
                  modules/vulkan/Makefile
                  modules/render/Makefile
-                 modules/dnn/Makefile
+                 modules/dnn/inference/Makefile
                  wrapper/Makefile
                  wrapper/gstreamer/Makefile
                  wrapper/gstreamer/interface/Makefile
