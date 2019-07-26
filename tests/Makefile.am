@@ -196,7 +196,7 @@ if ENABLE_RENDER
 TEST_RENDER_LA = $(top_builddir)/modules/render/libxcam_render.la \
                  $(NULL)
 if ENABLE_DNN
-TEST_RENDER_LA += $(top_builddir)/modules/dnn/libxcam_dnn.la
+TEST_RENDER_LA += $(top_builddir)/modules/dnn/inference/libxcam_dnn.la
 endif
 
 test_render_surround_view_SOURCES = test-render-surround-view.cpp
@@ -219,7 +219,7 @@ test_render_surround_view_LDADD = \
 endif
 
 if ENABLE_DNN
-TEST_DNN_LA = $(top_builddir)/modules/dnn/libxcam_dnn.la
+TEST_DNN_LA = $(top_builddir)/modules/dnn/inference/libxcam_dnn.la
 
 test_dnn_inference_SOURCES = test-dnn-inference.cpp
 test_dnn_inference_CXXFLAGS = \

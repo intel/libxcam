@@ -33,9 +33,9 @@
 #endif
 
 #if ENABLE_DNN
-#include "dnn/dnn_inference_utils.h"
-#include "dnn/dnn_inference_engine.h"
-#include "dnn/dnn_object_detection.h"
+#include "dnn/inference/dnn_inference_utils.h"
+#include "dnn/inference/dnn_inference_engine.h"
+#include "dnn/inference/dnn_object_detection.h"
 #endif
 
 #include <render/render_osg_viewer.h>
