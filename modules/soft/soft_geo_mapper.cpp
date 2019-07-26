@@ -121,7 +121,7 @@ SoftGeoMapper::set_work_size (
         xcam_ceil (luma_width, work_unit.value[0]) / work_unit.value[0],
         xcam_ceil (luma_height, work_unit.value[1]) / work_unit.value[1]);
     WorkSize local_size (
-        xcam_ceil(global_size.value[0], thread_x) / thread_x ,
+        xcam_ceil(global_size.value[0], thread_x) / thread_x,
         xcam_ceil(global_size.value[1], thread_y) / thread_y);
 
     _map_task->set_local_size (local_size);
@@ -166,7 +166,13 @@ SoftGeoMapper::start_remap_task (const SmartPtr<ImageHandler::Parameters> &param
     args->lookup_table = _lookup_table;
     args->factors = factors;
 
-    set_work_size (2, 2, args->out_luma->get_width (), args->out_luma->get_height ());
+    uint32_t thread_x = 2;
+    uint32_t thread_y = 2;
+    get_thread_count (thread_x, thread_y);
+    if (thread_x == 0) thread_x = 2;
+    if (thread_y == 0) thread_y = 2;
+
+    set_work_size (thread_x, thread_y, args->out_luma->get_width (), args->out_luma->get_height ());
 
     param->in_buf.release ();
     return _map_task->work (args);
@@ -342,7 +348,13 @@ SoftDualConstGeoMapper::prepare_arguments (
     args->out_uv = new Uchar2Image (out_buf, 1);
     args->lookup_table = lookup_table;
 
-    set_work_size (2, 2, args->out_luma->get_width (), args->out_luma->get_height ());
+    uint32_t thread_x = 2;
+    uint32_t thread_y = 2;
+    get_thread_count (thread_x, thread_y);
+    if (thread_x == 0) thread_x = 2;
+    if (thread_y == 0) thread_y = 2;
+
+    set_work_size (thread_x, thread_y, args->out_luma->get_width (), args->out_luma->get_height ());
 
     param->in_buf.release ();
     return XCAM_RETURN_NO_ERROR;

@@ -27,6 +27,8 @@ GeoMapper::GeoMapper ()
     , _out_height (0)
     , _factor_x (0.0f)
     , _factor_y (0.0f)
+    , _thread_x (12)
+    , _thread_y (8)
 {}
 
 GeoMapper::~GeoMapper ()
@@ -55,6 +57,20 @@ GeoMapper::set_output_size (uint32_t width, uint32_t height)
 
     _out_width = width;
     _out_height = height;
+    return true;
+}
+
+bool
+GeoMapper::set_thread_count (uint32_t x, uint32_t y)
+{
+    XCAM_FAIL_RETURN (
+        ERROR, x && y, false,
+        "GeoMapper set thread count failed. (x:%d, y:%d)",
+        x, y);
+
+    _thread_x = x;
+    _thread_y = y;
+
     return true;
 }
 
