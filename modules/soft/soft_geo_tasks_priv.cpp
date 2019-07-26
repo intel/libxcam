@@ -60,69 +60,73 @@ static void map_image (
     const uint32_t &x_idx, const uint32_t &y_idx, const uint32_t &out_x, const uint32_t &out_y,
     const Float2 &first, const Float2 &step, const Uchar *zero_luma_byte, const Uchar2 *zero_uv_byte)
 {
-    Float2 lut_pos[8] = {
+    Float2 lut_pos[16] = {
         first, Float2(first.x + step.x, first.y),
         Float2(first.x + step.x * 2, first.y), Float2(first.x + step.x * 3, first.y),
         Float2(first.x + step.x * 4, first.y), Float2(first.x + step.x * 5, first.y),
-        Float2(first.x + step.x * 6, first.y), Float2(first.x + step.x * 7, first.y)
+        Float2(first.x + step.x * 6, first.y), Float2(first.x + step.x * 7, first.y),
+        Float2(first.x + step.x * 8, first.y), Float2(first.x + step.x * 9, first.y),
+        Float2(first.x + step.x * 10, first.y), Float2(first.x + step.x * 11, first.y),
+        Float2(first.x + step.x * 12, first.y), Float2(first.x + step.x * 13, first.y),
+        Float2(first.x + step.x * 14, first.y), Float2(first.x + step.x * 15, first.y)
     };
 
     //1st-line luma
-    Float2 in_pos[8];
-    float  luma_value[8];
-    Uchar  luma_uc[8];
+    Float2 in_pos[XCAM_GEO_MAP_WORKUNIT_X];
+    float  luma_value[XCAM_GEO_MAP_WORKUNIT_X];
+    Uchar  luma_uc[XCAM_GEO_MAP_WORKUNIT_X];
     BoundState bound = BoundInternal;
-    lut->read_interpolate_array<Float2, 8> (lut_pos, in_pos);
-    check_bound (luma_w, luma_h, in_pos, 7, bound);
+    lut->read_interpolate_array<Float2, XCAM_GEO_MAP_WORKUNIT_X> (lut_pos, in_pos);
+    check_bound (luma_w, luma_h, in_pos, XCAM_GEO_MAP_WORKUNIT_X - 1, bound);
     if (bound == BoundExternal)
-        out_luma->write_array_no_check<8> (out_x, out_y, zero_luma_byte);
+        out_luma->write_array_no_check<XCAM_GEO_MAP_WORKUNIT_X> (out_x, out_y, zero_luma_byte);
     else {
-        in_luma->read_interpolate_array<float, 8> (in_pos, luma_value);
-        convert_to_uchar_N<float, 8> (luma_value, luma_uc);
+        in_luma->read_interpolate_array<float, XCAM_GEO_MAP_WORKUNIT_X> (in_pos, luma_value);
+        convert_to_uchar_N<float, XCAM_GEO_MAP_WORKUNIT_X> (luma_value, luma_uc);
         if (bound == BoundCritical)
-            calc_critical_pixels (luma_w, luma_h, in_pos, 8, zero_luma_byte[0], luma_uc);
-        out_luma->write_array_no_check<8> (out_x, out_y, luma_uc);
+            calc_critical_pixels (luma_w, luma_h, in_pos, XCAM_GEO_MAP_WORKUNIT_X, zero_luma_byte[0], luma_uc);
+        out_luma->write_array_no_check<XCAM_GEO_MAP_WORKUNIT_X> (out_x, out_y, luma_uc);
     }
 
     //4x1 UV
-    Float2 uv_value[4];
-    Uchar2 uv_uc[4];
-    in_pos[0] /= 2.0f;
-    in_pos[1] = in_pos[2] / 2.0f;
-    in_pos[2] = in_pos[4] / 2.0f;
-    in_pos[3] = in_pos[6] / 2.0f;
-    check_bound (uv_w, uv_h, in_pos, 3, bound);
-    if (bound == BoundExternal)
-        out_uv->write_array_no_check<4> (x_idx * 4, y_idx, zero_uv_byte);
-    else {
-        in_uv->read_interpolate_array<Float2, 4> (in_pos, uv_value);
-        convert_to_uchar2_N<Float2, 4> (uv_value, uv_uc);
-        if (bound == BoundCritical)
-            calc_critical_pixels (uv_w, uv_h, in_pos, 4, zero_uv_byte[0], uv_uc);
-        out_uv->write_array_no_check<4> (x_idx * 4, y_idx, uv_uc);
+    Float2 uv_value[XCAM_GEO_MAP_WORKUNIT_X / 2];
+    Uchar2 uv_uc[XCAM_GEO_MAP_WORKUNIT_X / 2];
+    for (uint32_t i = 0; i < XCAM_GEO_MAP_WORKUNIT_X; i += 2) {
+        in_pos[i / 2] = in_pos[i] / 2.0f;
     }
 
-    //2nd-line luma
-    lut_pos[0].y = lut_pos[1].y = lut_pos[2].y = lut_pos[3].y = lut_pos[4].y = lut_pos[5].y =
-                                      lut_pos[6].y = lut_pos[7].y = first.y + step.y;
-    lut->read_interpolate_array<Float2, 8> (lut_pos, in_pos);
-    check_bound (luma_w, luma_h, in_pos, 7, bound);
+    check_bound (uv_w, uv_h, in_pos, XCAM_GEO_MAP_WORKUNIT_X / 2 - 1, bound);
     if (bound == BoundExternal)
-        out_luma->write_array_no_check<8> (out_x, out_y + 1, zero_luma_byte);
+        out_uv->write_array_no_check < XCAM_GEO_MAP_WORKUNIT_X / 2 > (x_idx * (XCAM_GEO_MAP_WORKUNIT_X / 2), y_idx, zero_uv_byte);
     else {
-        in_luma->read_interpolate_array<float, 8> (in_pos, luma_value);
-        convert_to_uchar_N<float, 8> (luma_value, luma_uc);
+        in_uv->read_interpolate_array < Float2, XCAM_GEO_MAP_WORKUNIT_X / 2 > (in_pos, uv_value);
+        convert_to_uchar2_N < Float2, XCAM_GEO_MAP_WORKUNIT_X / 2 > (uv_value, uv_uc);
         if (bound == BoundCritical)
-            calc_critical_pixels (luma_w, luma_h, in_pos, 8, zero_luma_byte[0], luma_uc);
-        out_luma->write_array_no_check<8> (out_x, out_y + 1, luma_uc);
+            calc_critical_pixels (uv_w, uv_h, in_pos, XCAM_GEO_MAP_WORKUNIT_X / 2, zero_uv_byte[0], uv_uc);
+        out_uv->write_array_no_check < XCAM_GEO_MAP_WORKUNIT_X / 2 > (x_idx * (XCAM_GEO_MAP_WORKUNIT_X / 2), y_idx, uv_uc);
+    }
+
+    for (uint32_t i = 0; i < XCAM_GEO_MAP_WORKUNIT_X; i++) {
+        lut_pos[i].y = first.y + step.y;
+    }
+    lut->read_interpolate_array<Float2, XCAM_GEO_MAP_WORKUNIT_X> (lut_pos, in_pos);
+    check_bound (luma_w, luma_h, in_pos, XCAM_GEO_MAP_WORKUNIT_X - 1, bound);
+    if (bound == BoundExternal)
+        out_luma->write_array_no_check<XCAM_GEO_MAP_WORKUNIT_X> (out_x, out_y + 1, zero_luma_byte);
+    else {
+        in_luma->read_interpolate_array<float, XCAM_GEO_MAP_WORKUNIT_X> (in_pos, luma_value);
+        convert_to_uchar_N<float, XCAM_GEO_MAP_WORKUNIT_X> (luma_value, luma_uc);
+        if (bound == BoundCritical)
+            calc_critical_pixels (luma_w, luma_h, in_pos, XCAM_GEO_MAP_WORKUNIT_X, zero_luma_byte[0], luma_uc);
+        out_luma->write_array_no_check<XCAM_GEO_MAP_WORKUNIT_X> (out_x, out_y + 1, luma_uc);
     }
 }
 
 XCamReturn
 GeoMapTask::work_range (const SmartPtr<Arguments> &base, const WorkRange &range)
 {
-    static const Uchar zero_luma_byte[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    static const Uchar2 zero_uv_byte[4] = {{128, 128}, {128, 128}, {128, 128}, {128, 128}};
+    static const Uchar zero_luma_byte[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    static const Uchar2 zero_uv_byte[8] = {{128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}};
     SmartPtr<GeoMapTask::Args> args = base.dynamic_cast_ptr<GeoMapTask::Args> ();
     XCAM_ASSERT (args.ptr ());
 
@@ -149,9 +153,9 @@ GeoMapTask::work_range (const SmartPtr<Arguments> &base, const WorkRange &range)
     for (uint32_t y = range.pos[1]; y < range.pos[1] + range.pos_len[1]; ++y)
         for (uint32_t x = range.pos[0]; x < range.pos[0] + range.pos_len[0]; ++x)
         {
-            uint32_t out_x = x * 8, out_y = y * 2;
+            uint32_t out_x = x * XCAM_GEO_MAP_WORKUNIT_X, out_y = y * 2;
 
-            // calculate 8x2 luma, center aligned
+            // calculate XCAM_GEO_MAP_WORKUNIT_X * 2 luma, center aligned
             Float2 out_pos (out_x, out_y);
             out_pos -= out_center;
             Float2 first = out_pos / factors;
@@ -167,8 +171,8 @@ GeoMapTask::work_range (const SmartPtr<Arguments> &base, const WorkRange &range)
 XCamReturn
 GeoMapDualConstTask::work_range (const SmartPtr<Arguments> &base, const WorkRange &range)
 {
-    static const Uchar zero_luma_byte[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    static const Uchar2 zero_uv_byte[4] = {{128, 128}, {128, 128}, {128, 128}, {128, 128}};
+    static const Uchar zero_luma_byte[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    static const Uchar2 zero_uv_byte[8] = {{128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}};
     SmartPtr<GeoMapDualConstTask::Args> args = base.dynamic_cast_ptr<GeoMapDualConstTask::Args> ();
     XCAM_ASSERT (args.ptr ());
 
@@ -199,11 +203,11 @@ GeoMapDualConstTask::work_range (const SmartPtr<Arguments> &base, const WorkRang
     for (uint32_t y = range.pos[1]; y < range.pos[1] + range.pos_len[1]; ++y)
         for (uint32_t x = range.pos[0]; x < range.pos[0] + range.pos_len[0]; ++x)
         {
-            uint32_t out_x = x * 8, out_y = y * 2;
+            uint32_t out_x = x * XCAM_GEO_MAP_WORKUNIT_X, out_y = y * 2;
             Float2 &factor = (out_x + 4 < out_center.x) ? left_factor : right_factor;
             Float2 &step = (out_x + 4 < out_center.x) ? left_step : right_step;
 
-            // calculate 8x2 luma, center aligned
+            // calculate XCAM_GEO_MAP_WORKUNIT_X * 2 luma, center aligned
             Float2 out_pos (out_x, out_y);
             out_pos -= out_center;
             Float2 first = out_pos / factor;
@@ -226,7 +230,7 @@ GeoMapDualCurveTask::GeoMapDualCurveTask (const SmartPtr<Worker::Callback> &cb)
     , _left_steps (NULL)
     , _right_steps (NULL)
 {
-    set_work_unit (8, 2);
+    set_work_unit (XCAM_GEO_MAP_WORKUNIT_X, 2);
 }
 
 GeoMapDualCurveTask::~GeoMapDualCurveTask () {

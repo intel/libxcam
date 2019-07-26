@@ -51,7 +51,11 @@ public:
         width = _out_width;
         height = _out_height;
     }
-
+    bool set_thread_count (uint32_t x, uint32_t y);
+    void get_thread_count (uint32_t &x, uint32_t &y) const {
+        x = _thread_x;
+        y = _thread_y;
+    }
     virtual XCamReturn remap (
         const SmartPtr<VideoBuffer> &in,
         SmartPtr<VideoBuffer> &out_buf) = 0;
@@ -62,6 +66,7 @@ protected:
 private:
     uint32_t     _out_width, _out_height;
     float        _factor_x, _factor_y;
+    uint32_t     _thread_x, _thread_y;
 };
 
 }

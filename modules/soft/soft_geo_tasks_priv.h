@@ -26,6 +26,8 @@
 #include <soft/soft_image.h>
 #include <soft/soft_handler.h>
 
+#define XCAM_GEO_MAP_WORKUNIT_X 16
+
 namespace XCam {
 
 namespace XCamSoftTasks {
@@ -50,7 +52,7 @@ public:
     explicit GeoMapTask (const SmartPtr<Worker::Callback> &cb)
         : SoftWorker ("GeoMapTask", cb)
     {
-        set_work_unit (8, 2);
+        set_work_unit (XCAM_GEO_MAP_WORKUNIT_X, 2);
     }
 
 private:
@@ -75,7 +77,7 @@ public:
     explicit GeoMapDualConstTask (const SmartPtr<Worker::Callback> &cb)
         : GeoMapTask (cb)
     {
-        set_work_unit (8, 2);
+        set_work_unit (XCAM_GEO_MAP_WORKUNIT_X, 2);
     }
 
 private:
