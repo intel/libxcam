@@ -95,7 +95,7 @@
     ++_profiling_times;                     \
     if (_profiling_times >= times) {        \
         char buf[1024];                     \
-        snprintf (buf, 1024, "profiling %s,average duration:%.2fms\n", \
+        snprintf (buf, 1024, "profiling %s, average duration:%.2fms\n", \
         (name), (_profiling_sum_duration/times)); \
         printf ("%s", buf);                 \
         _profiling_times = 0;               \
