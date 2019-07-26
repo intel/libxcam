@@ -312,6 +312,8 @@ write_image (
     frame_num++;
 }
 
+XCAM_OBJ_PROFILING_DEFINES;
+
 static int
 single_frame (
     const SmartPtr<Stitcher> &stitcher,
@@ -332,7 +334,11 @@ single_frame (
     }
 
     while (loop--) {
+        XCAM_OBJ_PROFILING_START;
+
         CHECK (stitcher->stitch_buffers (in_buffers, outs[IdxStitch]->get_buf ()), "stitch buffer failed.");
+
+        XCAM_OBJ_PROFILING_END ("stitch-buffers", XCAM_OBJ_DUR_FRAME_NUM);
 
         if (save_output || save_topview) {
             if (stitcher->get_fm_mode () == FMNone ||
@@ -380,9 +386,13 @@ multi_frame (
             if (ret == XCAM_RETURN_BYPASS)
                 break;
 
+            XCAM_OBJ_PROFILING_START;
+
             CHECK (
                 stitcher->stitch_buffers (in_buffers, outs[IdxStitch]->get_buf ()),
                 "stitch buffer failed.");
+
+            XCAM_OBJ_PROFILING_END ("stitch-buffers", XCAM_OBJ_DUR_FRAME_NUM);
 
             if (save_output || save_topview) {
                 if (stitcher->get_fm_mode () == FMNone ||
@@ -409,6 +419,8 @@ run_stitcher (
     const SVStreams &ins, const SVStreams &outs,
     FrameMode frame_mode, bool save_output, bool save_topview, int loop)
 {
+    XCAM_OBJ_PROFILING_INIT;
+
     CHECK (check_streams<SVStreams> (ins), "invalid input streams");
     CHECK (check_streams<SVStreams> (outs), "invalid output streams");
 
