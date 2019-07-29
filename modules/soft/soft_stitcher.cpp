@@ -608,6 +608,8 @@ StitcherImpl::init_blender (uint32_t idx)
     _overlaps[idx].blender = create_soft_blender ().dynamic_cast_ptr<SoftBlender>();
     XCAM_ASSERT (_overlaps[idx].blender.ptr ());
 
+    _overlaps[idx].blender->set_pyr_levels (_stitcher->get_blend_pyr_levels ());
+
     uint32_t out_width, out_height;
     _stitcher->get_output_size (out_width, out_height);
     _overlaps[idx].blender->set_output_size (out_width, out_height);

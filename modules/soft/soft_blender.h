@@ -26,7 +26,6 @@
 #include <soft/soft_handler.h>
 
 #define XCAM_SOFT_PYRAMID_MAX_LEVEL 4
-#define XCAM_SOFT_PYRAMID_DEFAULT_LEVEL 2
 
 namespace XCam {
 
@@ -61,7 +60,7 @@ public:
 public:
     ~SoftBlender ();
 
-    bool set_pyr_levels (uint32_t num);
+    bool set_pyr_levels (uint32_t levels);
 
     //derived from SoftHandler
     virtual XCamReturn terminate ();

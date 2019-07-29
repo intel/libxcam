@@ -226,6 +226,13 @@ public:
         return _fm_frame_count;
     }
 
+    void set_blend_pyr_levels (uint32_t pyr_levels) {
+        _blend_pyr_levels = pyr_levels;
+    }
+    uint32_t get_blend_pyr_levels () {
+        return _blend_pyr_levels;
+    }
+
     bool set_viewpoints_range (const float *range);
     bool set_instrinsic_names (const char *instr_names[]);
     bool set_exstrinsic_names (const char *exstr_names[]);
@@ -298,6 +305,8 @@ private:
     FeatureMatchStatus          _fm_status;
     uint32_t                    _fm_frames;
     uint32_t                    _fm_frame_count;
+
+    uint32_t                    _blend_pyr_levels;
 };
 
 class BowlModel {
