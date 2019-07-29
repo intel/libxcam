@@ -5,7 +5,7 @@ XCAM_VK_CXXFLAGS = \
     $(LIBVULKAN_CFLAGS)           \
     -I$(top_srcdir)/xcore         \
     -I$(top_srcdir)/modules       \
-    -I$(top_builddir)/shaders/spv \
+    -I$(top_srcdir)/shaders/spv \
     $(NULL)
 
 XCAM_VK_LIBS = \
