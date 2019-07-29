@@ -252,7 +252,7 @@ get_fm_config (StitchResMode res_mode)
         config.recur_offset_error = 4.0f;
         config.max_adjusted_offset = 24.0f;
         config.max_valid_offset_y = 20.0f;
-        config.max_track_error = 8.0f;
+        config.max_track_error = 6.0f;
         break;
     }
     default:
@@ -290,7 +290,7 @@ get_stitch_info (StitchResMode res_mode, StitchScopicMode scopic_mode)
             stitch_info.merge_width[1] = 256;
             stitch_info.merge_width[2] = 256;
 
-            stitch_info.fisheye_info[0].center_x = 1920.0f;
+            stitch_info.fisheye_info[0].center_x = 1907.0f;
             stitch_info.fisheye_info[0].center_y = 1440.0f;
             stitch_info.fisheye_info[0].wide_angle = 200.0f;
             stitch_info.fisheye_info[0].radius = 1984.0f;
@@ -299,7 +299,7 @@ get_stitch_info (StitchResMode res_mode, StitchScopicMode scopic_mode)
             stitch_info.fisheye_info[1].center_y = 1440.0f;
             stitch_info.fisheye_info[1].wide_angle = 200.0f;
             stitch_info.fisheye_info[1].radius = 1984.0f;
-            stitch_info.fisheye_info[1].rotate_angle = 90.0f;
+            stitch_info.fisheye_info[1].rotate_angle = 90.2f;
             stitch_info.fisheye_info[2].center_x = 1920.0f;
             stitch_info.fisheye_info[2].center_y = 1440.0f;
             stitch_info.fisheye_info[2].wide_angle = 200.0f;
@@ -322,7 +322,7 @@ get_stitch_info (StitchResMode res_mode, StitchScopicMode scopic_mode)
             stitch_info.fisheye_info[1].wide_angle = 200.0f;
             stitch_info.fisheye_info[1].radius = 1984.0f;
             stitch_info.fisheye_info[1].rotate_angle = 90.0f;
-            stitch_info.fisheye_info[2].center_x = 1920.0f;
+            stitch_info.fisheye_info[2].center_x = 1914.0f;
             stitch_info.fisheye_info[2].center_y = 1440.0f;
             stitch_info.fisheye_info[2].wide_angle = 200.0f;
             stitch_info.fisheye_info[2].radius = 1984.0f;
