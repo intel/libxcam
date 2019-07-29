@@ -452,6 +452,7 @@ static void usage(const char* arg0)
             "\t--fisheye-num       optional, the number of fisheye lens, default: 4\n"
             "\t--res-mode          optional, image resolution mode\n"
             "\t                    select from [1080p2cams/1080p4cams/8k3cams], default: 1080p4cams\n"
+            "\t--blend-pyr-levels  optional, the pyramid levels of blender, default: 2\n"
             "\t--dewarp-mode       optional, fisheye dewarp mode, select from [sphere/bowl], default: bowl\n"
             "\t--scopic-mode       optional, scopic mode, select from [mono/stereoleft/stereoright], default: mono\n"
             "\t--scale-mode        optional, scaling mode for geometric mapping,\n"
@@ -495,8 +496,9 @@ int main (int argc, char *argv[])
     FeatureMatchMode fm_mode = FMNone;
     StitchResMode res_mode = StitchRes1080P4Cams;
     FisheyeDewarpMode dewarp_mode = DewarpBowl;
-
     StitchScopicMode scopic_mode = ScopicMono;
+
+    uint32_t blend_pyr_levels = 2;
 
 #if HAVE_OPENCV
     uint32_t fm_frames = 100;
@@ -519,6 +521,7 @@ int main (int argc, char *argv[])
         {"topview-h", required_argument, NULL, 'V'},
         {"fisheye-num", required_argument, NULL, 'N'},
         {"res-mode", required_argument, NULL, 'R'},
+        {"blend-pyr-levels", required_argument, NULL, 'b'},
         {"dewarp-mode", required_argument, NULL, 'd'},
         {"scopic-mode", required_argument, NULL, 'c'},
         {"scale-mode", required_argument, NULL, 'S'},
@@ -596,6 +599,9 @@ int main (int argc, char *argv[])
                 XCAM_LOG_ERROR ("incorrect resolution mode");
                 return -1;
             }
+            break;
+        case 'b':
+            blend_pyr_levels = atoi(optarg);
             break;
         case 'd':
             if (!strcasecmp (optarg, "sphere"))
@@ -734,6 +740,7 @@ int main (int argc, char *argv[])
     printf ("fisheye number:\t\t%d\n", fisheye_num);
     printf ("resolution mode:\t%s\n", res_mode == StitchRes1080P2Cams ? "1080p2cams" :
             (res_mode == StitchRes1080P4Cams ? "1080p4cams" : "8k3cams"));
+    printf ("blend pyr levels:\t%d\n", blend_pyr_levels);
     printf ("dewarp mode: \t\t%s\n", dewarp_mode == DewarpSphere ? "sphere" : "bowl");
     printf ("scopic mode:\t\t%s\n", (scopic_mode == ScopicMono) ? "mono" :
             ((scopic_mode == ScopicStereoLeft) ? "stereoleft" : "stereoright"));
@@ -812,6 +819,7 @@ int main (int argc, char *argv[])
     stitcher->set_dewarp_mode (dewarp_mode);
     stitcher->set_scopic_mode (scopic_mode);
     stitcher->set_scale_mode (scale_mode);
+    stitcher->set_blend_pyr_levels (blend_pyr_levels);
     stitcher->set_fm_mode (fm_mode);
 #if HAVE_OPENCV
     stitcher->set_fm_frames (fm_frames);

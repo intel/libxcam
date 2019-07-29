@@ -85,9 +85,7 @@ public:
     BlenderPrivConfig (SoftBlender *blender, uint32_t level)
         : pyr_levels (level - 1)
         , _blender (blender)
-    {
-        XCAM_ASSERT (level >= 2 && level <= XCAM_SOFT_PYRAMID_MAX_LEVEL);
-    }
+    {}
 
     XCamReturn init_first_masks (uint32_t width, uint32_t height);
     XCamReturn scale_down_masks (uint32_t level, uint32_t width, uint32_t height);
@@ -174,7 +172,7 @@ SoftBlender::SoftBlender (const char *name)
     , Blender (SOFT_BLENDER_ALIGNMENT_X, SOFT_BLENDER_ALIGNMENT_Y)
 {
     SmartPtr<SoftBlenderPriv::BlenderPrivConfig> config =
-        new SoftBlenderPriv::BlenderPrivConfig (this, XCAM_SOFT_PYRAMID_DEFAULT_LEVEL);
+        new SoftBlenderPriv::BlenderPrivConfig (this, 2);
     XCAM_ASSERT (config.ptr ());
     _priv_config = config;
 }
@@ -184,14 +182,14 @@ SoftBlender::~SoftBlender ()
 }
 
 bool
-SoftBlender::set_pyr_levels (uint32_t num)
+SoftBlender::set_pyr_levels (uint32_t levels)
 {
-    XCAM_ASSERT (num > 0);
     XCAM_FAIL_RETURN (
-        ERROR, num > 0, false,
-        "blender:%s set_pyr_levels failed, level(%d) must > 0", XCAM_STR (get_name ()), num);
+        ERROR, levels > 0 && levels <= XCAM_SOFT_PYRAMID_MAX_LEVEL, false,
+        "blender:%s set_pyr_levels failed, levels(%d) must be in (0, %d]",
+        XCAM_STR (get_name ()), levels, XCAM_SOFT_PYRAMID_MAX_LEVEL);
 
-    _priv_config->pyr_levels = num;
+    _priv_config->pyr_levels = levels - 1;
     return true;
 }
 
@@ -250,6 +248,7 @@ SoftBlenderPriv::BlenderPrivConfig::stop ()
         last_level_blend->stop ();
         last_level_blend.release ();
     }
+
     return XCAM_RETURN_NO_ERROR;
 }
 
@@ -438,43 +437,98 @@ SoftBlenderPriv::BlenderPrivConfig::start_blend_task (
     const SmartPtr<VideoBuffer> &buf,
     const SoftBlender::BufIdx idx)
 {
-
     SmartPtr<BlendTask::Args> args;
-    uint32_t last_level = pyr_levels - 1;
 
-    {
-        SmartLock locker (map_args_mutex);
-        MapBlendArgs::iterator i = blend_args.find (param.ptr ());
-        if (i == blend_args.end ()) {
-            args = new BlendTask::Args (param, pyr_layer[last_level].coef_mask);
-            XCAM_ASSERT (args.ptr ());
-            blend_args.insert (std::make_pair((void*)param.ptr (), args));
-            XCAM_LOG_DEBUG ("soft_blender:%s init blender args", XCAM_STR (_blender->get_name ()));
-        } else {
-            args = (*i).second;
+    if (pyr_levels == 0) {
+        SmartPtr<SoftBlender::BlenderParam> blend_param = param.dynamic_cast_ptr<SoftBlender::BlenderParam> ();
+        XCAM_ASSERT (blend_param.ptr ());
+
+        SmartPtr<VideoBuffer> &in0_buf = blend_param->in_buf;
+        SmartPtr<VideoBuffer> &in1_buf = blend_param->in1_buf;
+        SmartPtr<VideoBuffer> &out_buf = blend_param->out_buf;
+        XCAM_ASSERT (in0_buf.ptr () && in1_buf.ptr () && out_buf.ptr ());
+
+        Rect in0_area = _blender->get_input_merge_area (SoftBlender::Idx0);
+        Rect in1_area = _blender->get_input_merge_area (SoftBlender::Idx1);
+        Rect out_area = _blender->get_merge_window ();
+
+        const VideoBufferInfo &buf0_info = in0_buf->get_video_info ();
+        const VideoBufferInfo &buf1_info = in1_buf->get_video_info ();
+        const VideoBufferInfo &out_info = out_buf->get_video_info ();
+
+        if (in0_area.width == 0 || in0_area.height == 0 ||
+                in1_area.width == 0 || in1_area.height == 0 ||
+                out_area.width == 0 || out_area.height == 0) {
+            in0_area.width = buf0_info.width;
+            in0_area.height = buf0_info.height;
+            in1_area.width = buf1_info.width;
+            in1_area.height = buf1_info.height;
+            out_area.width = out_info.width;
+            out_area.height = out_info.height;
         }
-        args->in_luma[idx] = new UcharImage (buf, 0);
-        args->in_uv[idx] = new Uchar2Image (buf, 1);
-        XCAM_ASSERT (args->in_luma[idx].ptr () && args->in_uv[idx].ptr ());
 
-        if (!args->in_luma[SoftBlender::Idx0].ptr () || !args->in_luma[SoftBlender::Idx1].ptr ())
-            return XCAM_RETURN_BYPASS;
+        args = new BlendTask::Args (param, orig_mask);
+        XCAM_ASSERT (args.ptr ());
 
-        blend_args.erase (i);
+        args->in_luma[SoftBlender::Idx0] = new UcharImage (
+            in0_buf, in0_area.width, in0_area.height, buf0_info.strides[0],
+            buf0_info.offsets[0] + in0_area.pos_x + in0_area.pos_y * buf0_info.strides[0]);
+        args->in_uv[SoftBlender::Idx0] = new Uchar2Image (
+            in0_buf, in0_area.width / 2, in0_area.height / 2, buf0_info.strides[1],
+            buf0_info.offsets[1] + in0_area.pos_x +  buf0_info.strides[1] * in0_area.pos_y / 2);
+
+        args->in_luma[SoftBlender::Idx1] = new UcharImage (
+            in1_buf, in1_area.width, in1_area.height, buf1_info.strides[0],
+            buf1_info.offsets[0] + in1_area.pos_x + in1_area.pos_y * buf1_info.strides[0]);
+        args->in_uv[SoftBlender::Idx1] = new Uchar2Image (
+            in1_buf, in1_area.width / 2, in1_area.height / 2, buf1_info.strides[1],
+            buf1_info.offsets[1] + in1_area.pos_x +  buf1_info.strides[1] * in1_area.pos_y / 2);
+
+        args->out_luma = new UcharImage (
+            out_buf, out_area.width, out_area.height, out_info.strides[0],
+            out_info.offsets[0] + out_area.pos_x + out_area.pos_y * out_info.strides[0]);
+        args->out_uv = new Uchar2Image (
+            out_buf, out_area.width / 2, out_area.height / 2, out_info.strides[1],
+            out_info.offsets[1] + out_area.pos_x + out_area.pos_y / 2 * out_info.strides[1]);
+        args->out_buf = blend_param->out_buf;
+    } else {
+        uint32_t last_level = pyr_levels - 1;
+
+        {
+            SmartLock locker (map_args_mutex);
+            MapBlendArgs::iterator i = blend_args.find (param.ptr ());
+            if (i == blend_args.end ()) {
+                args = new BlendTask::Args (param, pyr_layer[last_level].coef_mask);
+                XCAM_ASSERT (args.ptr ());
+                blend_args.insert (std::make_pair((void*)param.ptr (), args));
+                XCAM_LOG_DEBUG ("soft_blender:%s init blender args", XCAM_STR (_blender->get_name ()));
+            } else {
+                args = (*i).second;
+            }
+            args->in_luma[idx] = new UcharImage (buf, 0);
+            args->in_uv[idx] = new Uchar2Image (buf, 1);
+            XCAM_ASSERT (args->in_luma[idx].ptr () && args->in_uv[idx].ptr ());
+
+            if (!args->in_luma[SoftBlender::Idx0].ptr () || !args->in_luma[SoftBlender::Idx1].ptr ())
+                return XCAM_RETURN_BYPASS;
+
+            blend_args.erase (i);
+        }
+
+        XCAM_ASSERT (args.ptr ());
+        XCAM_ASSERT (args->in_luma[SoftBlender::Idx0]->get_width () == args->in_luma[SoftBlender::Idx1]->get_width ());
+
+        XCAM_ASSERT (pyr_layer[last_level].overlap_pool.ptr ());
+        SmartPtr<VideoBuffer> out_buf = pyr_layer[last_level].overlap_pool->get_buffer ();
+        XCAM_FAIL_RETURN (
+            ERROR, out_buf.ptr (), XCAM_RETURN_ERROR_MEM,
+            "blender:(%s) start_blend_task failed, last level blend buffer empty.",
+            XCAM_STR (_blender->get_name ()), (int)idx);
+        args->out_luma = new UcharImage (out_buf, 0);
+        args->out_uv = new Uchar2Image (out_buf, 1);
+        args->out_buf = out_buf;
+
     }
-
-    XCAM_ASSERT (args.ptr ());
-    XCAM_ASSERT (args->in_luma[SoftBlender::Idx0]->get_width () == args->in_luma[SoftBlender::Idx1]->get_width ());
-
-    XCAM_ASSERT (pyr_layer[last_level].overlap_pool.ptr ());
-    SmartPtr<VideoBuffer> out_buf = pyr_layer[last_level].overlap_pool->get_buffer ();
-    XCAM_FAIL_RETURN (
-        ERROR, out_buf.ptr (), XCAM_RETURN_ERROR_MEM,
-        "blender:(%s) start_blend_task failed, last level blend buffer empty.",
-        XCAM_STR (_blender->get_name ()), (int)idx);
-    args->out_luma = new UcharImage (out_buf, 0);
-    args->out_uv = new Uchar2Image (out_buf, 1);
-    args->out_buf = out_buf;
 
     // process 4x1 uv each loop
     SmartPtr<SoftWorker> worker = last_level_blend;
@@ -627,17 +681,24 @@ SoftBlender::start_work (const SmartPtr<ImageHandler::Parameters> &base)
         "blender:%s start_work failed, params(in1/out buf) are not fully set or type not correct",
         XCAM_STR (get_name ()));
 
-    //start gauss scale level0: idx0
-    ret = _priv_config->start_scaler (param, param->in_buf, 0, Idx0);
-    XCAM_FAIL_RETURN (
-        ERROR, xcam_ret_is_ok (ret), ret,
-        "blender:%s start_work failed on idx0", XCAM_STR (get_name ()));
+    if (_priv_config->pyr_levels == 0) {
+        ret = _priv_config->start_blend_task (param, NULL, Idx0);
+        XCAM_FAIL_RETURN (
+            ERROR, xcam_ret_is_ok (ret), ret,
+            "blender:%s start_blend_task failed", XCAM_STR (get_name ()));
+    } else {
+        //start gauss scale level0: idx0
+        ret = _priv_config->start_scaler (param, param->in_buf, 0, Idx0);
+        XCAM_FAIL_RETURN (
+            ERROR, xcam_ret_is_ok (ret), ret,
+            "blender:%s start_work failed on idx0", XCAM_STR (get_name ()));
 
-    //start gauss scale level0: idx1
-    ret = _priv_config->start_scaler (param, param->in1_buf, 0, Idx1);
-    XCAM_FAIL_RETURN (
-        ERROR, xcam_ret_is_ok (ret), ret,
-        "blender:%s start_work failed on idx1", XCAM_STR (get_name ()));
+        //start gauss scale level0: idx1
+        ret = _priv_config->start_scaler (param, param->in1_buf, 0, Idx1);
+        XCAM_FAIL_RETURN (
+            ERROR, xcam_ret_is_ok (ret), ret,
+            "blender:%s start_work failed on idx1", XCAM_STR (get_name ()));
+    }
 
     //param->in_buf.release ();
     //param->in1_buf.release ();
@@ -784,7 +845,6 @@ SoftBlender::lap_done (
 {
     XCAM_UNUSED (worker);
 
-    XCamReturn ret = XCAM_RETURN_NO_ERROR;
     SmartPtr<LaplaceTask::Args> args = base.dynamic_cast_ptr<LaplaceTask::Args> ();
     XCAM_ASSERT (args.ptr ());
     const SmartPtr<ImageHandler::Parameters> param = args->get_param ();
@@ -798,8 +858,7 @@ SoftBlender::lap_done (
 
     dump_level_buf (args->out_buf, "lap", level, idx);
 
-    ret = _priv_config->start_reconstruct_task_by_lap (param, args->out_buf, level, idx);
-
+    XCamReturn ret = _priv_config->start_reconstruct_task_by_lap (param, args->out_buf, level, idx);
     if (!xcam_ret_is_ok (ret)) {
         work_broken (param, ret);
     }
@@ -811,7 +870,6 @@ SoftBlender::blend_task_done (
 {
     XCAM_UNUSED (worker);
 
-    XCamReturn ret = XCAM_RETURN_NO_ERROR;
     SmartPtr<BlendTask::Args> args = base.dynamic_cast_ptr<BlendTask::Args> ();
     XCAM_ASSERT (args.ptr ());
     const SmartPtr<ImageHandler::Parameters> param = args->get_param ();
@@ -821,8 +879,14 @@ SoftBlender::blend_task_done (
         return;
 
     dump_buf (args->out_buf, "blend-last");
-    ret = _priv_config->start_reconstruct_task_by_gauss (param, args->out_buf, _priv_config->pyr_levels - 1);
 
+    if (_priv_config->pyr_levels == 0) {
+        work_well_done (param, error);
+        return;
+    }
+
+    XCamReturn ret = _priv_config->start_reconstruct_task_by_gauss (
+        param, args->out_buf, _priv_config->pyr_levels - 1);
     if (!xcam_ret_is_ok (ret)) {
         work_broken (param, ret);
     }
@@ -834,7 +898,6 @@ SoftBlender::reconstruct_done (
 {
     XCAM_UNUSED (worker);
 
-    XCamReturn ret = XCAM_RETURN_NO_ERROR;
     SmartPtr<ReconstructTask::Args> args = base.dynamic_cast_ptr<ReconstructTask::Args> ();
     XCAM_ASSERT (args.ptr ());
     const SmartPtr<ImageHandler::Parameters> param = args->get_param ();
@@ -852,7 +915,7 @@ SoftBlender::reconstruct_done (
         return;
     }
 
-    ret = _priv_config->start_reconstruct_task_by_gauss (param, args->out_buf, level - 1);
+    XCamReturn ret = _priv_config->start_reconstruct_task_by_gauss (param, args->out_buf, level - 1);
     if (!xcam_ret_is_ok (ret)) {
         work_broken (param, ret);
     }
