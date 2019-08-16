@@ -112,12 +112,13 @@ struct Overlap {
 struct FisheyeMap {
     SmartPtr<GLGeoMapHandler>    mapper;
     SmartPtr<BufferPool>         buf_pool;
+    FisheyeDewarpMode            dewarp_mode;
+    FisheyeInfo                  fisheye_info;
     Factor                       left_match_factor;
     Factor                       right_match_factor;
 
     XCamReturn set_map_table (
-        const SmartPtr<GLGeoMapHandler> &mapper, const CameraInfo &cam_info,
-        const Stitcher::RoundViewSlice &view_slice, const BowlDataConfig &bowl);
+        GLStitcher *stitcher, const Stitcher::RoundViewSlice &view_slice, uint32_t cam_idx);
 };
 
 typedef std::vector<SmartPtr<GLCopyHandler>> Copiers;
@@ -171,29 +172,129 @@ private:
     SmartPtr<GLComputeProgram>    _sync_prog;
 };
 
+#if HAVE_OPENCV
+static FMConfig
+get_fm_config (StitchResMode res_mode)
+{
+    FMConfig config;
+
+    switch (res_mode) {
+    case StitchRes1080P2Cams: {
+        config.stitch_min_width = 136;
+        config.min_corners = 4;
+        config.offset_factor = 0.9f;
+        config.delta_mean_offset = 120.0f;
+        config.recur_offset_error = 8.0f;
+        config.max_adjusted_offset = 24.0f;
+        config.max_valid_offset_y = 8.0f;
+        config.max_track_error = 28.0f;
+        break;
+    }
+    case StitchRes1080P4Cams: {
+        config.stitch_min_width = 136;
+        config.min_corners = 4;
+        config.offset_factor = 0.8f;
+        config.delta_mean_offset = 120.0f;
+        config.recur_offset_error = 8.0f;
+        config.max_adjusted_offset = 24.0f;
+        config.max_valid_offset_y = 20.0f;
+        config.max_track_error = 28.0f;
+#ifdef ANDROID
+        config.max_track_error = 3600.0f;
+#endif
+        break;
+    }
+    default:
+        XCAM_LOG_DEBUG ("gl-stitcher: unknown reslution mode (%d)", res_mode);
+        break;
+    }
+
+    return config;
+}
+#endif
+
+static StitchInfo
+get_stitch_info (StitchResMode res_mode)
+{
+    StitchInfo stitch_info;
+
+    switch (res_mode) {
+    case StitchRes1080P2Cams: {
+        stitch_info.fisheye_info[0].center_x = 480.0f;
+        stitch_info.fisheye_info[0].center_y = 480.0f;
+        stitch_info.fisheye_info[0].wide_angle = 202.8f;
+        stitch_info.fisheye_info[0].radius = 480.0f;
+        stitch_info.fisheye_info[0].rotate_angle = -90.0f;
+        stitch_info.fisheye_info[1].center_x = 1436.0f;
+        stitch_info.fisheye_info[1].center_y = 480.0f;
+        stitch_info.fisheye_info[1].wide_angle = 202.8f;
+        stitch_info.fisheye_info[1].radius = 480.0f;
+        stitch_info.fisheye_info[1].rotate_angle = 89.7f;
+        break;
+    }
+    default:
+        XCAM_LOG_DEBUG ("gl-stitcher: unknown reslution mode (%d)", res_mode);
+        break;
+    }
+
+    return stitch_info;
+}
+
 XCamReturn
 FisheyeMap::set_map_table (
-    const SmartPtr<GLGeoMapHandler> &mapper, const CameraInfo &cam_info,
-    const Stitcher::RoundViewSlice &view_slice, const BowlDataConfig &bowl)
+    GLStitcher *stitcher, const Stitcher::RoundViewSlice &view_slice, uint32_t cam_idx)
 {
-    uint32_t table_width = view_slice.width / MAP_FACTOR_X;
-    uint32_t table_height = view_slice.height / MAP_FACTOR_Y;
+    SmartPtr<FisheyeDewarp> dewarper;
+    if(dewarp_mode == DewarpBowl) {
+        BowlDataConfig bowl = stitcher->get_bowl_config ();
+        bowl.angle_start = view_slice.hori_angle_start;
+        bowl.angle_end = format_angle (view_slice.hori_angle_start + view_slice.hori_angle_range);
+        if (bowl.angle_end < bowl.angle_start)
+            bowl.angle_start -= 360.0f;
 
-    PolyBowlFisheyeDewarp fd;
-    fd.set_out_size (view_slice.width, view_slice.height);
-    fd.set_table_size (table_width, table_height);
-    fd.set_intr_param (cam_info.calibration.intrinsic);
-    fd.set_extr_param (cam_info.calibration.extrinsic);
-    fd.set_bowl_config (bowl);
+        XCAM_LOG_DEBUG (
+            "gl-stitcher:%s camera(idx:%d) info(angle start:%.2f, range:%.2f), bowl_info(angle start%.2f, end:%.2f)",
+            XCAM_STR (stitcher->get_name ()), cam_idx,
+            view_slice.hori_angle_start, view_slice.hori_angle_range, bowl.angle_start, bowl.angle_end);
+
+        CameraInfo cam_info;
+        stitcher->get_camera_info (cam_idx, cam_info);
+
+        SmartPtr<PolyBowlFisheyeDewarp> fd = new PolyBowlFisheyeDewarp ();
+        fd->set_intr_param (cam_info.calibration.intrinsic);
+        fd->set_extr_param (cam_info.calibration.extrinsic);
+        fd->set_bowl_config (bowl);
+        dewarper = fd;
+    } else {
+        float max_dst_latitude = (fisheye_info.wide_angle > 180.0f) ? 180.0f : fisheye_info.wide_angle;
+        float max_dst_longitude = max_dst_latitude * view_slice.width / view_slice.height;
+
+        SmartPtr<SphereFisheyeDewarp> fd = new SphereFisheyeDewarp ();
+        fd->set_fisheye_info (fisheye_info);
+        fd->set_dst_range (max_dst_longitude, max_dst_latitude);
+        dewarper = fd;
+    }
+    XCAM_FAIL_RETURN (
+        ERROR, dewarper.ptr (), XCAM_RETURN_ERROR_MEM,
+        "gl-stitcher:%s fisheye dewarper is NULL", XCAM_STR (stitcher->get_name ()));
+
+    dewarper->set_out_size (view_slice.width, view_slice.height);
+
+    uint32_t table_width = view_slice.width / MAP_FACTOR_X;
+    table_width = XCAM_ALIGN_UP (table_width, 4);
+    uint32_t table_height = view_slice.height / MAP_FACTOR_Y;
+    table_height = XCAM_ALIGN_UP (table_height, 2);
+    dewarper->set_table_size (table_width, table_height);
 
     FisheyeDewarp::MapTable map_table (table_width * table_height);
-    fd.gen_table (map_table);
+    dewarper->gen_table (map_table);
 
     XCAM_FAIL_RETURN (
         ERROR,
         mapper->set_lookup_table (map_table.data (), table_width, table_height),
         XCAM_RETURN_ERROR_UNKNOWN,
-        "set fisheye geomap lookup table failed");
+        "gl-stitcher:%s set fisheye geomap lookup table failed",
+        XCAM_STR (stitcher->get_name ()));
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -314,6 +415,12 @@ XCamReturn
 StitcherImpl::init_fisheye (uint32_t idx)
 {
     FisheyeMap &fisheye = _fisheye[idx];
+    fisheye.dewarp_mode = _stitcher->get_dewarp_mode ();
+    if (fisheye.dewarp_mode == DewarpSphere) {
+        StitchInfo stitch_info = get_stitch_info (_stitcher->get_res_mode ());
+        fisheye.fisheye_info = stitch_info.fisheye_info[idx];
+    }
+
     Stitcher::RoundViewSlice view_slice = _stitcher->get_round_view_slice (idx);
 
     SmartPtr<ImageHandler::Callback> geomap_cb = new CbGeoMap (_stitcher);
@@ -361,18 +468,7 @@ StitcherImpl::init_feature_match (uint32_t idx)
 #endif
     XCAM_ASSERT (_overlaps[idx].matcher.ptr ());
 
-    FMConfig config;
-    config.stitch_min_width = 136;
-    config.min_corners = 4;
-    config.offset_factor = 0.8f;
-    config.delta_mean_offset = 120.0f;
-    config.recur_offset_error = 8.0f;
-    config.max_adjusted_offset = 24.0f;
-    config.max_valid_offset_y = 20.0f;
-    config.max_track_error = 28.0f;
-#ifdef ANDROID
-    config.max_track_error = 3600.0f;
-#endif
+    const FMConfig &config = get_fm_config (_stitcher->get_res_mode ());
     _overlaps[idx].matcher->set_config (config);
     _overlaps[idx].matcher->set_fm_index (idx);
 
@@ -380,10 +476,18 @@ StitcherImpl::init_feature_match (uint32_t idx)
     const Stitcher::ImageOverlapInfo &info = _stitcher->get_overlap (idx);
     Rect left_ovlap = info.left;
     Rect right_ovlap = info.right;
-    left_ovlap.pos_y = 0;
-    left_ovlap.height = int32_t (bowl.wall_height / (bowl.wall_height + bowl.ground_length) * left_ovlap.height);
-    right_ovlap.pos_y = 0;
-    right_ovlap.height = left_ovlap.height;
+
+    if (_stitcher->get_dewarp_mode () == DewarpSphere) {
+        left_ovlap.pos_y = left_ovlap.height / 3;
+        left_ovlap.height = left_ovlap.height / 3;
+        right_ovlap.pos_y = left_ovlap.pos_y;
+        right_ovlap.height = left_ovlap.height;
+    } else {
+        left_ovlap.pos_y = 0;
+        left_ovlap.height = int32_t (bowl.wall_height / (bowl.wall_height + bowl.ground_length) * left_ovlap.height);
+        right_ovlap.pos_y = 0;
+        right_ovlap.height = left_ovlap.height;
+    }
     _overlaps[idx].matcher->set_crop_rect (left_ovlap, right_ovlap);
 #else
     XCAM_LOG_ERROR ("gl-stitcher(%s) feature match is unsupported", XCAM_STR (_stitcher->get_name ()));
@@ -457,31 +561,10 @@ StitcherImpl::gen_geomap_table ()
 {
     uint32_t camera_num = _stitcher->get_camera_num ();
     for (uint32_t i = 0; i < camera_num; ++i) {
-        CameraInfo cam_info;
-        _stitcher->get_camera_info (i, cam_info);
-        Stitcher::RoundViewSlice view_slice = _stitcher->get_round_view_slice (i);
-
-        BowlDataConfig bowl = _stitcher->get_bowl_config ();
-        bowl.angle_start = view_slice.hori_angle_start;
-        bowl.angle_end = format_angle (view_slice.hori_angle_start + view_slice.hori_angle_range);
-
-        uint32_t out_width, out_height;
-        _stitcher->get_output_size (out_width, out_height);
-
-        XCAM_ASSERT (_fisheye[i].mapper.ptr ());
+        const Stitcher::RoundViewSlice view_slice = _stitcher->get_round_view_slice (i);
         _fisheye[i].mapper->set_output_size (view_slice.width, view_slice.height);
 
-        if (bowl.angle_end < bowl.angle_start)
-            bowl.angle_start -= 360.0f;
-
-        XCAM_LOG_DEBUG (
-            "gl-stitcher(%s) camera(idx:%d) info(angle start:%.2f, range:%.2f), bowl info(angle start:%.2f, end:%.2f)",
-            XCAM_STR (_stitcher->get_name ()), i,
-            view_slice.hori_angle_start, view_slice.hori_angle_range,
-            bowl.angle_start, bowl.angle_end);
-
-        XCamReturn ret = _fisheye[i].set_map_table (_fisheye[i].mapper, cam_info, view_slice, bowl);
-
+        XCamReturn ret = _fisheye[i].set_map_table (_stitcher, view_slice, i);
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,
             "gl-stitcher(%s) generate geomap table failed, idx:%d", XCAM_STR (_stitcher->get_name ()), i);
@@ -725,18 +808,23 @@ GLStitcher::stitch_buffers (const VideoBufferList &in_bufs, SmartPtr<VideoBuffer
         "gl-stitcher(%s) stitch buffer failed, input buffers is empty", XCAM_STR (get_name ()));
 
     SmartPtr<StitcherParam> param = new StitcherParam;
-    XCAM_ASSERT (param.ptr ());
     param->out_buf = out_buf;
+    param->in_buf_num = in_bufs.size ();
 
     uint32_t count = 0;
-    for (VideoBufferList::const_iterator iter = in_bufs.begin(); iter != in_bufs.end (); ++iter) {
-        SmartPtr<VideoBuffer> buf = *iter;
+    for (VideoBufferList::const_iterator i = in_bufs.begin (); i != in_bufs.end (); ++i) {
+        SmartPtr<VideoBuffer> buf = *i;
         XCAM_ASSERT (buf.ptr ());
         param->in_bufs[count++] = buf;
     }
-    param->in_buf_num = count;
+    if (in_bufs.size () == 1) {
+        for (uint32_t i = 1; i < get_camera_num (); ++i) {
+            param->in_bufs[i] = param->in_bufs[0];
+        }
+    }
 
-    XCamReturn ret = execute_buffer (param, false);
+    XCamReturn ret = execute_buffer (param, true);
+
     if (!out_buf.ptr () && xcam_ret_is_ok (ret)) {
         out_buf = param->out_buf;
     }
