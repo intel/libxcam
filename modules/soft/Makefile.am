@@ -4,6 +4,7 @@ XCAMSOFT_CXXFLAGS = \
     $(XCAM_CXXFLAGS)        \
     -I$(top_srcdir)/xcore   \
     -I$(top_srcdir)/modules \
+    -mavx -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -msse3 -msse4.1 -msse4.2 -msse4a \
     $(NULL)
 
 XCAMSOFT_LIBS = \

@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  * Author: Wind Yuan <feng.yuan@intel.com>
+ * Author: Zong Wei <wei.zong@intel.com>
  */
 
 #ifndef XCAM_SOFT_IMAGE_H
@@ -25,6 +26,12 @@
 #include <video_buffer.h>
 #include <vec_mat.h>
 #include <file_handle.h>
+
+#if ENABLE_AVX512
+#include <immintrin.h>
+#endif
+
+#define XCAM_SOFT_WORKUNIT_PIXELS 16
 
 namespace XCam {
 
@@ -111,6 +118,12 @@ public:
 
     template<typename O, uint32_t N>
     inline void read_interpolate_array (Float2 *pos, O *array) const;
+
+#if ENABLE_AVX512
+    inline void read_interpolate_array (Float2 *pos, Float2 *array) const;
+    inline void read_interpolate_array (Float2 *pos, Uchar *array) const;
+    inline void read_interpolate_array (Float2 *pos, Uchar2 *array) const;
+#endif
 
     template<uint32_t N>
     inline void read_array_no_check (const int32_t x, const int32_t y, T *array) const {
@@ -210,7 +223,7 @@ private:
 template <typename T>
 SoftImage<T>::SoftImage (const SmartPtr<VideoBuffer> &buf, const uint32_t plane)
     : _buf_ptr (NULL)
-    , _width (0) , _height (0) , _pitch (0)
+    , _width (0), _height (0), _pitch (0)
 {
     XCAM_ASSERT (buf.ptr ());
     const VideoBufferInfo &info = buf->get_video_info ();
@@ -233,7 +246,7 @@ template <typename T>
 SoftImage<T>::SoftImage (
     const uint32_t width, const uint32_t height, uint32_t aligned_width)
     : _buf_ptr (NULL)
-    , _width (0) , _height (0) , _pitch (0)
+    , _width (0), _height (0), _pitch (0)
 {
     if (!aligned_width)
         aligned_width = width;
@@ -252,7 +265,7 @@ SoftImage<T>::SoftImage (
     const SmartPtr<VideoBuffer> &buf,
     const uint32_t width, const uint32_t height, const uint32_t pictch, const uint32_t offset)
     : _buf_ptr (NULL)
-    , _width (width) , _height (height)
+    , _width (width), _height (height)
     , _pitch (pictch)
     , _bind (buf)
 {
@@ -379,6 +392,254 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, O *array) const
         array[i] = read_interpolate_data<O> (pos[i].x, pos[i].y);
     }
 }
+
+#if ENABLE_AVX512
+
+// interpolate 8 pixels position
+// result = p00 * (1 - weight.x) * (1 - weight.y) +
+//          p01 * weight.x * (1 - weight.y) +
+//          p10 * (1 - weight.x) * weight.y +
+//          p11 * weight.x * weight.y;
+template <typename T>
+void
+SoftImage<T>::read_interpolate_array (Float2 *pos, Float2 *array) const
+{
+    Float2* dest = array;
+
+    __m512 const_one = _mm512_set1_ps (1.0f);
+    __m512 const_two = _mm512_set1_ps (2.0f);
+    __m512 const_one_low = _mm512_setr_ps (0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
+    __m512i const_left_idx = _mm512_setr_epi32 (0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1);
+    __m512i const_right_idx = _mm512_setr_epi32 (2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3);
+    __m512i const_shuffle = _mm512_setr_epi32 (0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14);
+
+    for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS / 8; i++) {
+        __m512 interp_pos = _mm512_loadu_ps (&pos[8 * i]);
+        __m512 interp_pos_xy = _mm512_floor_ps (interp_pos);
+        __m512 interp_weight = _mm512_sub_ps (interp_pos, interp_pos_xy);
+        __m512 weight_x = _mm512_permute_ps (interp_weight, 0xA0); //0b10100000
+        __m512 weight_y = _mm512_permute_ps (interp_weight, 0xF5); //0b11110101
+
+        int32_t pos_x0 = (int32_t)(pos[8 * i].x);
+        border_check_x (pos_x0);
+
+        float* pos_xy = (float*)&interp_pos_xy;
+        __m512 pos_00 = _mm512_setr_ps (pos_xy[0], pos_xy[1], pos_xy[0], pos_xy[1],
+                                        pos_xy[0], pos_xy[1], pos_xy[0], pos_xy[1],
+                                        pos_xy[0], pos_xy[1], pos_xy[0], pos_xy[1],
+                                        pos_xy[0], pos_xy[1], pos_xy[0], pos_xy[1]);
+
+        __m512i pos_index = _mm512_cvtps_epu32 (_mm512_add_ps (_mm512_mul_ps (_mm512_sub_ps (interp_pos_xy, pos_00), const_two), const_one_low));
+
+        __m512i idx_left = _mm512_add_epi32 (_mm512_permutexvar_epi32 (const_shuffle, pos_index), const_left_idx);
+        __m512i idx_right = _mm512_add_epi32 (_mm512_permutexvar_epi32 (const_shuffle, pos_index), const_right_idx);
+
+        int32_t pos_y0 = (int32_t)(pos[8 * i].y);
+        border_check_y (pos_y0);
+        const T* l0_ptr = ((const T*)(_buf_ptr + pos_y0 * _pitch));
+
+        int32_t pos_y1 = pos_y0 + 1;
+        border_check_y (pos_y1);
+        const T* l1_ptr = ((const T*)(_buf_ptr + pos_y1 * _pitch));
+
+        __m512 l0 = _mm512_loadu_ps ((float*) & (l0_ptr[pos_x0]));
+        float* top = (float*)&l0;
+        __m512 l1 = _mm512_loadu_ps ((float*) & (l1_ptr[pos_x0]));
+        float* bottom = (float*)&l1;
+
+        uint32_t *idx = (uint32_t*) &idx_left;
+        __m512 tl = _mm512_setr_ps (top[idx[0]], top[idx[1]], top[idx[2]], top[idx[3]],
+                                    top[idx[4]], top[idx[5]], top[idx[6]], top[idx[7]],
+                                    top[idx[8]], top[idx[9]], top[idx[10]], top[idx[11]],
+                                    top[idx[12]], top[idx[13]], top[idx[14]], top[idx[15]]);
+
+        __m512 bl = _mm512_setr_ps (bottom[idx[0]], bottom[idx[1]], bottom[idx[2]], bottom[idx[3]],
+                                    bottom[idx[4]], bottom[idx[5]], bottom[idx[6]], bottom[idx[7]],
+                                    bottom[idx[8]], bottom[idx[9]], bottom[idx[10]], bottom[idx[11]],
+                                    bottom[idx[12]], bottom[idx[13]], bottom[idx[14]], bottom[idx[15]]);
+
+        idx = (uint32_t*) &idx_right;
+        __m512 tr = _mm512_setr_ps (top[idx[0]], top[idx[1]], top[idx[2]], top[idx[3]],
+                                    top[idx[4]], top[idx[5]], top[idx[6]], top[idx[7]],
+                                    top[idx[8]], top[idx[9]], top[idx[10]], top[idx[11]],
+                                    top[idx[12]], top[idx[13]], top[idx[14]], top[idx[15]]);
+
+        __m512 br = _mm512_setr_ps (bottom[idx[0]], bottom[idx[1]], bottom[idx[2]], bottom[idx[3]],
+                                    bottom[idx[4]], bottom[idx[5]], bottom[idx[6]], bottom[idx[7]],
+                                    bottom[idx[8]], bottom[idx[9]], bottom[idx[10]], bottom[idx[11]],
+                                    bottom[idx[12]], bottom[idx[13]], bottom[idx[14]], bottom[idx[15]]);
+
+        __m512 interp_value = _mm512_mul_ps (tl, _mm512_mul_ps (_mm512_sub_ps (const_one, weight_x), _mm512_sub_ps (const_one, weight_y))) +
+                              _mm512_mul_ps (tr, _mm512_mul_ps (weight_x, _mm512_sub_ps(const_one, weight_y))) +
+                              _mm512_mul_ps (bl, _mm512_mul_ps (_mm512_sub_ps(const_one, weight_x), weight_y)) +
+                              _mm512_mul_ps (br, _mm512_mul_ps (weight_x, weight_y));
+
+        _mm512_storeu_ps (dest, interp_value);
+        dest += 8;
+    }
+}
+
+template <typename T>
+void
+SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar *array) const
+{
+    float* dest = (float*)array;
+    __m256 const_one_float = _mm256_set1_ps (1.0f);
+    __m256i const_pitch = _mm256_set1_epi32 (_pitch);
+    __m256i const_one_int = _mm256_set1_epi32 (1);
+
+    for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS / 8; i++) {
+        // load 8 interpolate pos ((8 x float2) x 32bit)
+        __m512 interp_pos = _mm512_loadu_ps (&pos[8 * i]);
+        __m512 interp_pos_xy = _mm512_floor_ps (interp_pos);
+        __m512 interp_weight = _mm512_sub_ps (interp_pos, interp_pos_xy);
+        float* weight = (float*)&interp_weight;
+        __m256 weight_x = _mm256_setr_ps (weight[0], weight[2], weight[4], weight[6], weight[8], weight[10], weight[12], weight[14]);
+        __m256 weight_y = _mm256_setr_ps (weight[1], weight[3], weight[5], weight[7], weight[9], weight[11], weight[13], weight[15]);
+
+        int32_t pos_x0 = (int32_t)(pos[8 * i].x);
+        border_check_x (pos_x0);
+
+        float* pos_xy = (float*)&interp_pos_xy;
+        __m512 pos_00 = _mm512_setr_ps (0, pos_xy[1], 0, pos_xy[1],
+                                        0, pos_xy[1], 0, pos_xy[1],
+                                        0, pos_xy[1], 0, pos_xy[1],
+                                        0, pos_xy[1], 0, pos_xy[1]);
+
+        __m512i pos_index = _mm512_cvtps_epi32 (_mm512_sub_ps (interp_pos_xy, pos_00));
+        int32_t* idx = (int32_t*) &pos_index;
+        __m256i pos_idx_x = _mm256_setr_epi32 (idx[0], idx[2], idx[4], idx[6], idx[8], idx[10], idx[12], idx[14]);
+        __m256i pos_idx_y = _mm256_setr_epi32 (idx[1], idx[3], idx[5], idx[7], idx[9], idx[11], idx[13], idx[15]);
+
+        int32_t pos_y0 = (int32_t)(pos[8 * i].y);
+        border_check_y (pos_y0);
+        const T* base = ((const T*)(_buf_ptr + pos_y0 * _pitch));
+
+        __m256i offset_top0 = _mm256_add_epi32 (pos_idx_x, _mm256_mullo_epi32 (pos_idx_y, const_pitch));
+        int32_t* offset_tl = (int32_t*)&offset_top0;
+
+        __m256i offset_top1 = _mm256_add_epi32 (offset_top0, const_one_int);
+        int32_t* offset_tr = (int32_t*)&offset_top1;
+
+        __m256i offset_bottom0 = _mm256_add_epi32 (pos_idx_x, _mm256_mullo_epi32 (_mm256_add_epi32(pos_idx_y, const_one_int), const_pitch));
+        int32_t* offset_bl = (int32_t*)&offset_bottom0;
+
+        __m256i offset_bottom1 = _mm256_add_epi32 (offset_bottom0, const_one_int);
+        int32_t* offset_br = (int32_t*)&offset_bottom1;
+
+        __m256 pixel_tl = _mm256_setr_ps (*(base + offset_tl[0]), *(base + offset_tl[1]), *(base + offset_tl[2]), *(base + offset_tl[3]),
+                                          *(base + offset_tl[4]), *(base + offset_tl[5]), *(base + offset_tl[6]), *(base + offset_tl[7]));
+        __m256 pixel_tr = _mm256_setr_ps (*(base + offset_tr[0]), *(base + offset_tr[1]), *(base + offset_tr[2]), *(base + offset_tr[3]),
+                                          *(base + offset_tr[4]), *(base + offset_tr[5]), *(base + offset_tr[6]), *(base + offset_tr[7]));
+        __m256 pixel_bl = _mm256_setr_ps (*(base + offset_bl[0]), *(base + offset_bl[1]), *(base + offset_bl[2]), *(base + offset_bl[3]),
+                                          *(base + offset_bl[4]), *(base + offset_bl[5]), *(base + offset_bl[6]), *(base + offset_bl[7]));
+        __m256 pixel_br = _mm256_setr_ps (*(base + offset_br[0]), *(base + offset_br[1]), *(base + offset_br[2]), *(base + offset_br[3]),
+                                          *(base + offset_br[4]), *(base + offset_br[5]), *(base + offset_br[6]), *(base + offset_br[7]));
+
+        __m256 interp_value_f = _mm256_mul_ps (pixel_tl, _mm256_mul_ps (_mm256_sub_ps (const_one_float, weight_x), _mm256_sub_ps (const_one_float, weight_y))) +
+                                _mm256_mul_ps (pixel_tr, _mm256_mul_ps (weight_x, _mm256_sub_ps(const_one_float, weight_y))) +
+                                _mm256_mul_ps (pixel_bl, _mm256_mul_ps (_mm256_sub_ps(const_one_float, weight_x), weight_y)) +
+                                _mm256_mul_ps (pixel_br, _mm256_mul_ps (weight_x, weight_y));
+
+        interp_value_f = _mm256_round_ps (interp_value_f, _MM_FROUND_TO_NEAREST_INT);
+        __m256i interp_value = _mm256_cvtps_epi32 (interp_value_f);
+        interp_value = _mm256_packs_epi32 (interp_value, interp_value);
+        interp_value = _mm256_packus_epi16 (interp_value, interp_value);
+
+        _mm_store_ss (dest, (__m128)_mm256_extractf128_si256 (interp_value, 0));
+        _mm_store_ss (dest + 1, (__m128)_mm256_extractf128_si256 (interp_value, 1));
+        dest += 2;
+    }
+}
+
+template <typename T>
+void
+SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar2 *array) const
+{
+    float* dest = (float*)array;
+
+    __m512 const_one_float = _mm512_set1_ps (1.0f);
+    __m256i const_pitch = _mm256_set1_epi32 (_pitch / 2);
+    __m256i const_one_int = _mm256_set1_epi32 (1);
+
+    // load 8 interpolate pos ((8 x float2) x 32bit)
+    __m512 interp_pos = _mm512_loadu_ps (pos);
+
+    __m512 interp_pos_xy = _mm512_floor_ps (interp_pos);
+    __m512 interp_weight = _mm512_sub_ps (interp_pos, interp_pos_xy);
+
+    __m512 weight_x = _mm512_permute_ps (interp_weight, 0xA0); //0b10100000
+    __m512 weight_y = _mm512_permute_ps (interp_weight, 0xF5); //0b11110101
+
+    int32_t pos_x0 = (int32_t)(pos[0].x);
+    border_check_x (pos_x0);
+
+    float* pos_xy = (float*)&interp_pos_xy;
+    __m512 pos_00 = _mm512_setr_ps (0, pos_xy[1], 0, pos_xy[1],
+                                    0, pos_xy[1], 0, pos_xy[1],
+                                    0, pos_xy[1], 0, pos_xy[1],
+                                    0, pos_xy[1], 0, pos_xy[1]);
+
+    __m512i pos_index = _mm512_cvtps_epi32 (_mm512_sub_ps (interp_pos_xy, pos_00));
+    int32_t* idx = (int32_t*) &pos_index;
+    __m256i pos_idx_x = _mm256_setr_epi32 (idx[0], idx[2], idx[4], idx[6], idx[8], idx[10], idx[12], idx[14]);
+    __m256i pos_idx_y = _mm256_setr_epi32 (idx[1], idx[3], idx[5], idx[7], idx[9], idx[11], idx[13], idx[15]);
+
+    int32_t pos_y0 = (int32_t)(pos[0].y);
+    border_check_y (pos_y0);
+
+    int32_t pos_y1 = pos_y0 + 1;
+    border_check_y (pos_y1);
+
+    const T* base = ((const T*)(_buf_ptr + pos_y0 * _pitch));
+    __m256i offset_top0 = _mm256_add_epi32 (pos_idx_x, _mm256_mullo_epi32 (pos_idx_y, const_pitch));
+    int32_t* offset_tl = (int32_t*)&offset_top0;
+
+    __m256i offset_top1 = _mm256_add_epi32 (offset_top0, const_one_int);
+    int32_t* offset_tr = (int32_t*)&offset_top1;
+
+    __m256i offset_bottom0 = _mm256_add_epi32 (pos_idx_x, _mm256_mullo_epi32 (_mm256_add_epi32(pos_idx_y, const_one_int), const_pitch));
+    int32_t* offset_bl = (int32_t*)&offset_bottom0;
+
+    __m256i offset_bottom1 = _mm256_add_epi32 (offset_bottom0, const_one_int);
+    int32_t* offset_br = (int32_t*)&offset_bottom1;
+
+    __m512 pixel_tl = _mm512_setr_ps ((base + offset_tl[0])->x, (base + offset_tl[0])->y, (base + offset_tl[1])->x, (base + offset_tl[1])->y,
+                                      (base + offset_tl[2])->x, (base + offset_tl[2])->y, (base + offset_tl[3])->x, (base + offset_tl[3])->y,
+                                      (base + offset_tl[4])->x, (base + offset_tl[4])->y, (base + offset_tl[5])->x, (base + offset_tl[5])->y,
+                                      (base + offset_tl[6])->x, (base + offset_tl[6])->y, (base + offset_tl[7])->x, (base + offset_tl[7])->y);
+
+    __m512 pixel_tr = _mm512_setr_ps ((base + offset_tr[0])->x, (base + offset_tr[0])->y, (base + offset_tr[1])->x, (base + offset_tr[1])->y,
+                                      (base + offset_tr[2])->x, (base + offset_tr[2])->y, (base + offset_tr[3])->x, (base + offset_tr[3])->y,
+                                      (base + offset_tr[4])->x, (base + offset_tr[4])->y, (base + offset_tr[5])->x, (base + offset_tr[5])->y,
+                                      (base + offset_tr[6])->x, (base + offset_tr[6])->y, (base + offset_tr[7])->x, (base + offset_tr[7])->y);
+    __m512 pixel_bl = _mm512_setr_ps ((base + offset_bl[0])->x, (base + offset_bl[0])->y, (base + offset_bl[1])->x, (base + offset_bl[1])->y,
+                                      (base + offset_bl[2])->x, (base + offset_bl[2])->y, (base + offset_bl[3])->x, (base + offset_bl[3])->y,
+                                      (base + offset_bl[4])->x, (base + offset_bl[4])->y, (base + offset_bl[5])->x, (base + offset_bl[5])->y,
+                                      (base + offset_bl[6])->x, (base + offset_bl[6])->y, (base + offset_bl[7])->x, (base + offset_bl[7])->y);
+    __m512 pixel_br = _mm512_setr_ps ((base + offset_br[0])->x, (base + offset_br[0])->y, (base + offset_br[1])->x, (base + offset_br[1])->y,
+                                      (base + offset_br[2])->x, (base + offset_br[2])->y, (base + offset_br[3])->x, (base + offset_br[3])->y,
+                                      (base + offset_br[4])->x, (base + offset_br[4])->y, (base + offset_br[5])->x, (base + offset_br[5])->y,
+                                      (base + offset_br[6])->x, (base + offset_br[6])->y, (base + offset_br[7])->x, (base + offset_br[7])->y);
+
+    __m512 interp_value_f = _mm512_mul_ps (pixel_tl, _mm512_mul_ps (_mm512_sub_ps (const_one_float, weight_x), _mm512_sub_ps (const_one_float, weight_y))) +
+                            _mm512_mul_ps (pixel_tr, _mm512_mul_ps (weight_x, _mm512_sub_ps(const_one_float, weight_y))) +
+                            _mm512_mul_ps (pixel_bl, _mm512_mul_ps (_mm512_sub_ps(const_one_float, weight_x), weight_y)) +
+                            _mm512_mul_ps (pixel_br, _mm512_mul_ps (weight_x, weight_y));
+
+    //interp_value_f = _mm512_round_ps (interp_value_f, _MM_FROUND_TO_NEAREST_INT);
+
+    __m512i interp_value = _mm512_cvtps_epi32 (interp_value_f);
+    interp_value = _mm512_packs_epi32 (interp_value, interp_value);
+    interp_value = _mm512_packus_epi16 (interp_value, interp_value);
+
+    _mm_store_ss (dest,  (__m128)_mm512_extractf32x4_ps ((__m512)interp_value, 0));
+    _mm_store_ss (dest + 1,  (__m128)_mm512_extractf32x4_ps ((__m512)interp_value, 1));
+    _mm_store_ss (dest + 2,  (__m128)_mm512_extractf32x4_ps ((__m512)interp_value, 2));
+    _mm_store_ss (dest + 3,  (__m128)_mm512_extractf32x4_ps ((__m512)interp_value, 3));
+}
+
+#endif
 
 }
 #endif //XCAM_SOFT_IMAGE_H
