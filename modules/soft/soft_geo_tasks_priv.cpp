@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  * Author: Wind Yuan <feng.yuan@intel.com>
+ * Author: Zong Wei <wei.zong@intel.com>
  */
 
 #include "soft_geo_tasks_priv.h"
@@ -34,6 +35,20 @@ inline void check_bound (const uint32_t &img_w, const uint32_t &img_h, Float2 *i
                          const uint32_t &max_idx, BoundState &bound)
 {
     if (in_pos[0].x >= 0.0f && in_pos[max_idx].x >= 0.0f && in_pos[0].x < img_w && in_pos[max_idx].x < img_w &&
+            in_pos[0].y >= 0.0f && in_pos[max_idx].y >= 0.0f && in_pos[0].y < img_h && in_pos[max_idx].y < img_h)
+        bound = BoundInternal;
+    else if ((in_pos[0].x < 0.0f && in_pos[max_idx].x < 0.0f) || (in_pos[0].x >= img_w && in_pos[max_idx].x >= img_w) ||
+             (in_pos[0].y < 0.0f && in_pos[max_idx].y < 0.0f) || (in_pos[0].y >= img_h && in_pos[max_idx].y >= img_h))
+        bound = BoundExternal;
+    else
+        bound = BoundCritical;
+}
+
+inline void check_interp_bound (const uint32_t &img_w, const uint32_t &img_h, Float2 *in_pos,
+                                const uint32_t &max_idx, BoundState &bound)
+{
+    if (in_pos[0].x >= 0.0f && in_pos[max_idx].x >= 0.0f &&
+            in_pos[0].x < img_w - XCAM_SOFT_WORKUNIT_PIXELS && in_pos[max_idx].x < img_w - XCAM_SOFT_WORKUNIT_PIXELS &&
             in_pos[0].y >= 0.0f && in_pos[max_idx].y >= 0.0f && in_pos[0].y < img_h && in_pos[max_idx].y < img_h)
         bound = BoundInternal;
     else if ((in_pos[0].x < 0.0f && in_pos[max_idx].x < 0.0f) || (in_pos[0].x >= img_w && in_pos[max_idx].x >= img_w) ||
@@ -72,53 +87,104 @@ static void map_image (
     };
 
     //1st-line luma
-    Float2 in_pos[XCAM_GEO_MAP_WORKUNIT_X];
-    float  luma_value[XCAM_GEO_MAP_WORKUNIT_X];
-    Uchar  luma_uc[XCAM_GEO_MAP_WORKUNIT_X];
+    Float2 in_pos[XCAM_SOFT_WORKUNIT_PIXELS];
+    float  luma_value[XCAM_SOFT_WORKUNIT_PIXELS];
+    Uchar  luma_uc[XCAM_SOFT_WORKUNIT_PIXELS];
     BoundState bound = BoundInternal;
-    lut->read_interpolate_array<Float2, XCAM_GEO_MAP_WORKUNIT_X> (lut_pos, in_pos);
-    check_bound (luma_w, luma_h, in_pos, XCAM_GEO_MAP_WORKUNIT_X - 1, bound);
+
+#if ENABLE_AVX512
+    BoundState interp_bound = BoundInternal;
+    check_interp_bound (lut->get_width (), lut->get_height (), lut_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, interp_bound);
+    if (interp_bound == BoundInternal) {
+        lut->read_interpolate_array (lut_pos, in_pos);
+    } else {
+        lut->read_interpolate_array<Float2, XCAM_SOFT_WORKUNIT_PIXELS> (lut_pos, in_pos);
+    }
+#else
+    lut->read_interpolate_array<Float2, XCAM_SOFT_WORKUNIT_PIXELS> (lut_pos, in_pos);
+#endif
+    check_bound (luma_w, luma_h, in_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, bound);
     if (bound == BoundExternal)
-        out_luma->write_array_no_check<XCAM_GEO_MAP_WORKUNIT_X> (out_x, out_y, zero_luma_byte);
+        out_luma->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y, zero_luma_byte);
     else {
-        in_luma->read_interpolate_array<float, XCAM_GEO_MAP_WORKUNIT_X> (in_pos, luma_value);
-        convert_to_uchar_N<float, XCAM_GEO_MAP_WORKUNIT_X> (luma_value, luma_uc);
+#if ENABLE_AVX512
+        check_interp_bound (in_luma->get_width (), in_luma->get_height (), in_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, interp_bound);
+        if (interp_bound == BoundInternal) {
+            in_luma->read_interpolate_array (in_pos, luma_uc);
+        } else {
+            in_luma->read_interpolate_array<float, XCAM_SOFT_WORKUNIT_PIXELS> (in_pos, luma_value);
+            convert_to_uchar_N<float, XCAM_SOFT_WORKUNIT_PIXELS> (luma_value, luma_uc);
+        }
+#else
+        in_luma->read_interpolate_array<float, XCAM_SOFT_WORKUNIT_PIXELS> (in_pos, luma_value);
+        convert_to_uchar_N<float, XCAM_SOFT_WORKUNIT_PIXELS> (luma_value, luma_uc);
+#endif
         if (bound == BoundCritical)
-            calc_critical_pixels (luma_w, luma_h, in_pos, XCAM_GEO_MAP_WORKUNIT_X, zero_luma_byte[0], luma_uc);
-        out_luma->write_array_no_check<XCAM_GEO_MAP_WORKUNIT_X> (out_x, out_y, luma_uc);
+            calc_critical_pixels (luma_w, luma_h, in_pos, XCAM_SOFT_WORKUNIT_PIXELS, zero_luma_byte[0], luma_uc);
+        out_luma->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y, luma_uc);
     }
 
     //4x1 UV
-    Float2 uv_value[XCAM_GEO_MAP_WORKUNIT_X / 2];
-    Uchar2 uv_uc[XCAM_GEO_MAP_WORKUNIT_X / 2];
-    for (uint32_t i = 0; i < XCAM_GEO_MAP_WORKUNIT_X; i += 2) {
+    Float2 uv_value[XCAM_SOFT_WORKUNIT_PIXELS / 2];
+    Uchar2 uv_uc[XCAM_SOFT_WORKUNIT_PIXELS / 2];
+    for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i += 2) {
         in_pos[i / 2] = in_pos[i] / 2.0f;
     }
 
-    check_bound (uv_w, uv_h, in_pos, XCAM_GEO_MAP_WORKUNIT_X / 2 - 1, bound);
+    check_bound (uv_w, uv_h, in_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2 - 1, bound);
     if (bound == BoundExternal)
-        out_uv->write_array_no_check < XCAM_GEO_MAP_WORKUNIT_X / 2 > (x_idx * (XCAM_GEO_MAP_WORKUNIT_X / 2), y_idx, zero_uv_byte);
+        out_uv->write_array_no_check < XCAM_SOFT_WORKUNIT_PIXELS / 2 > (x_idx * (XCAM_SOFT_WORKUNIT_PIXELS / 2), y_idx, zero_uv_byte);
     else {
-        in_uv->read_interpolate_array < Float2, XCAM_GEO_MAP_WORKUNIT_X / 2 > (in_pos, uv_value);
-        convert_to_uchar2_N < Float2, XCAM_GEO_MAP_WORKUNIT_X / 2 > (uv_value, uv_uc);
+#if ENABLE_AVX512
+        check_interp_bound (in_uv->get_width (), in_uv->get_height (), in_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2 - 1, interp_bound);
+        if (interp_bound == BoundInternal) {
+            in_uv->read_interpolate_array (in_pos, uv_uc);
+        } else {
+            in_uv->read_interpolate_array < Float2, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (in_pos, uv_value);
+            convert_to_uchar2_N < Float2, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (uv_value, uv_uc);
+        }
+#else
+        in_uv->read_interpolate_array < Float2, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (in_pos, uv_value);
+        convert_to_uchar2_N < Float2, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (uv_value, uv_uc);
+#endif
         if (bound == BoundCritical)
-            calc_critical_pixels (uv_w, uv_h, in_pos, XCAM_GEO_MAP_WORKUNIT_X / 2, zero_uv_byte[0], uv_uc);
-        out_uv->write_array_no_check < XCAM_GEO_MAP_WORKUNIT_X / 2 > (x_idx * (XCAM_GEO_MAP_WORKUNIT_X / 2), y_idx, uv_uc);
+            calc_critical_pixels (uv_w, uv_h, in_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2, zero_uv_byte[0], uv_uc);
+        out_uv->write_array_no_check < XCAM_SOFT_WORKUNIT_PIXELS / 2 > (x_idx * (XCAM_SOFT_WORKUNIT_PIXELS / 2), y_idx, uv_uc);
     }
 
-    for (uint32_t i = 0; i < XCAM_GEO_MAP_WORKUNIT_X; i++) {
+    //2nd-line luma
+    for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i++) {
         lut_pos[i].y = first.y + step.y;
     }
-    lut->read_interpolate_array<Float2, XCAM_GEO_MAP_WORKUNIT_X> (lut_pos, in_pos);
-    check_bound (luma_w, luma_h, in_pos, XCAM_GEO_MAP_WORKUNIT_X - 1, bound);
+#if ENABLE_AVX512
+    check_interp_bound (lut->get_width (), lut->get_height (), lut_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, interp_bound);
+    if (interp_bound == BoundInternal) {
+        lut->read_interpolate_array (lut_pos, in_pos);
+    } else {
+        lut->read_interpolate_array<Float2, XCAM_SOFT_WORKUNIT_PIXELS> (lut_pos, in_pos);
+    }
+#else
+    lut->read_interpolate_array<Float2, XCAM_SOFT_WORKUNIT_PIXELS> (lut_pos, in_pos);
+#endif
+    check_bound (luma_w, luma_h, in_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, bound);
     if (bound == BoundExternal)
-        out_luma->write_array_no_check<XCAM_GEO_MAP_WORKUNIT_X> (out_x, out_y + 1, zero_luma_byte);
+        out_luma->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y + 1, zero_luma_byte);
     else {
-        in_luma->read_interpolate_array<float, XCAM_GEO_MAP_WORKUNIT_X> (in_pos, luma_value);
-        convert_to_uchar_N<float, XCAM_GEO_MAP_WORKUNIT_X> (luma_value, luma_uc);
+#if ENABLE_AVX512
+        check_interp_bound (in_luma->get_width (), in_luma->get_height (), in_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, interp_bound);
+        if (interp_bound == BoundInternal) {
+            in_luma->read_interpolate_array (in_pos, luma_uc);
+        } else {
+            in_luma->read_interpolate_array<float, XCAM_SOFT_WORKUNIT_PIXELS> (in_pos, luma_value);
+            convert_to_uchar_N<float, XCAM_SOFT_WORKUNIT_PIXELS> (luma_value, luma_uc);
+        }
+#else
+        in_luma->read_interpolate_array<float, XCAM_SOFT_WORKUNIT_PIXELS> (in_pos, luma_value);
+        convert_to_uchar_N<float, XCAM_SOFT_WORKUNIT_PIXELS> (luma_value, luma_uc);
+#endif
         if (bound == BoundCritical)
-            calc_critical_pixels (luma_w, luma_h, in_pos, XCAM_GEO_MAP_WORKUNIT_X, zero_luma_byte[0], luma_uc);
-        out_luma->write_array_no_check<XCAM_GEO_MAP_WORKUNIT_X> (out_x, out_y + 1, luma_uc);
+            calc_critical_pixels (luma_w, luma_h, in_pos, XCAM_SOFT_WORKUNIT_PIXELS, zero_luma_byte[0], luma_uc);
+        out_luma->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y + 1, luma_uc);
     }
 }
 
@@ -153,7 +219,7 @@ GeoMapTask::work_range (const SmartPtr<Arguments> &base, const WorkRange &range)
     for (uint32_t y = range.pos[1]; y < range.pos[1] + range.pos_len[1]; ++y)
         for (uint32_t x = range.pos[0]; x < range.pos[0] + range.pos_len[0]; ++x)
         {
-            uint32_t out_x = x * XCAM_GEO_MAP_WORKUNIT_X, out_y = y * 2;
+            uint32_t out_x = x * XCAM_SOFT_WORKUNIT_PIXELS, out_y = y * 2;
 
             // calculate XCAM_GEO_MAP_WORKUNIT_X * 2 luma, center aligned
             Float2 out_pos (out_x, out_y);
@@ -203,7 +269,7 @@ GeoMapDualConstTask::work_range (const SmartPtr<Arguments> &base, const WorkRang
     for (uint32_t y = range.pos[1]; y < range.pos[1] + range.pos_len[1]; ++y)
         for (uint32_t x = range.pos[0]; x < range.pos[0] + range.pos_len[0]; ++x)
         {
-            uint32_t out_x = x * XCAM_GEO_MAP_WORKUNIT_X, out_y = y * 2;
+            uint32_t out_x = x * XCAM_SOFT_WORKUNIT_PIXELS, out_y = y * 2;
             Float2 &factor = (out_x + 4 < out_center.x) ? left_factor : right_factor;
             Float2 &step = (out_x + 4 < out_center.x) ? left_step : right_step;
 
@@ -230,7 +296,7 @@ GeoMapDualCurveTask::GeoMapDualCurveTask (const SmartPtr<Worker::Callback> &cb)
     , _left_steps (NULL)
     , _right_steps (NULL)
 {
-    set_work_unit (XCAM_GEO_MAP_WORKUNIT_X, 2);
+    set_work_unit (XCAM_SOFT_WORKUNIT_PIXELS, 2);
 }
 
 GeoMapDualCurveTask::~GeoMapDualCurveTask () {

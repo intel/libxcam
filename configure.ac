@@ -82,6 +82,11 @@ AC_ARG_ENABLE([vulkan],
                    [enable vulkan, @<:@default=no@:>@]),
     [], [enable_vulkan="no"])
 
+AC_ARG_ENABLE([avx512],
+    AS_HELP_STRING([--enable-avx512],
+                   [enable avx512, @<:@default=no@:>@]),
+    [], [enable_avx512="no"])
+
 AC_ARG_ENABLE(opencv,
     AS_HELP_STRING([--enable-opencv],
                    [enable opencv library, @<:@default=no@:>@]),
@@ -155,6 +160,12 @@ fi
 HAVE_VULKAN=0
 if test "$enable_vulkan" = "yes"; then
     PKG_CHECK_MODULES(LIBVULKAN, [vulkan], [HAVE_VULKAN=1], [HAVE_VULKAN=0])
+fi
+
+# check avx
+ENABLE_AVX512=0
+if test "$enable_avx512" = "yes"; then
+    ENABLE_AVX512=1
 fi
 
 # check open sence graph
@@ -415,6 +426,10 @@ AC_DEFINE_UNQUOTED([HAVE_VULKAN], $HAVE_VULKAN,
     [have vulkan])
 AM_CONDITIONAL([HAVE_VULKAN], [test "$HAVE_VULKAN" -eq 1])
 
+AC_DEFINE_UNQUOTED([ENABLE_AVX512], $ENABLE_AVX512,
+    [have avx instruction])
+AM_CONDITIONAL([ENABLE_AVX512], [test "$ENABLE_AVX512" -eq 1])
+
 AC_DEFINE_UNQUOTED([ENABLE_RENDER], $ENABLE_RENDER,
     [enable texture render])
 AM_CONDITIONAL([ENABLE_RENDER], [test "$ENABLE_RENDER" -eq 1])
@@ -488,6 +503,7 @@ if test "$USE_LOCAL_ATOMISP" -eq 1; then use_local_atomisp="yes"; else  use_loca
 if test "$HAVE_LIBCL" -eq 1; then have_libcl="yes"; else  have_libcl="no"; fi
 if test "$HAVE_GLES" -eq 1; then have_gles="yes"; else  have_gles="no"; fi
 if test "$HAVE_VULKAN" -eq 1; then have_vulkan="yes"; else  have_vulkan="no"; fi
+if test "$ENABLE_AVX512" -eq 1; then enable_avx512="yes"; else enable_avx512="no"; fi
 if test "$HAVE_OPENCV" -eq 1; then have_opencv="yes"; else have_opencv="no"; fi
 if test "$ENABLE_RENDER" -eq 1; then enable_render="yes"; else enable_render="no"; fi
 if test "$ENABLE_DNN" -eq 1; then enable_dnn="yes"; else enable_dnn="no"; fi
@@ -508,6 +524,7 @@ echo "
      enable OpenCL              : $have_libcl
      enable GLES                : $have_gles
      enable Vulkan              : $have_vulkan
+     enable AVX512 instruction  : $enable_avx512
      enable OSG render          : $enable_render
      enable DNN                 : $enable_dnn
      enable 3a lib              : $enable_3alib
