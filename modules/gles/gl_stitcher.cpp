@@ -227,7 +227,7 @@ get_fm_config (StitchResMode res_mode)
 #endif
 
 static StitchInfo
-get_stitch_info (StitchResMode res_mode)
+get_stitch_info (StitchResMode res_mode, StitchScopicMode scopic_mode)
 {
     StitchInfo stitch_info;
 
@@ -246,21 +246,47 @@ get_stitch_info (StitchResMode res_mode)
         break;
     }
     case StitchRes8K3Cams: {
-        stitch_info.fisheye_info[0].center_x = 1920.0f;
-        stitch_info.fisheye_info[0].center_y = 1440.0f;
-        stitch_info.fisheye_info[0].wide_angle = 200.0f;
-        stitch_info.fisheye_info[0].radius = 1984.0f;
-        stitch_info.fisheye_info[0].rotate_angle = 90.2f;
-        stitch_info.fisheye_info[1].center_x = 1920.0f;
-        stitch_info.fisheye_info[1].center_y = 1440.0f;
-        stitch_info.fisheye_info[1].wide_angle = 200.0f;
-        stitch_info.fisheye_info[1].radius = 1984.0f;
-        stitch_info.fisheye_info[1].rotate_angle = 90.2f;
-        stitch_info.fisheye_info[2].center_x = 1920.0f;
-        stitch_info.fisheye_info[2].center_y = 1440.0f;
-        stitch_info.fisheye_info[2].wide_angle = 200.0f;
-        stitch_info.fisheye_info[2].radius = 1984.0f;
-        stitch_info.fisheye_info[2].rotate_angle = 90.0f;
+        switch (scopic_mode) {
+        case ScopicStereoLeft: {
+            stitch_info.fisheye_info[0].center_x = 1920.0f;
+            stitch_info.fisheye_info[0].center_y = 1440.0f;
+            stitch_info.fisheye_info[0].wide_angle = 200.0f;
+            stitch_info.fisheye_info[0].radius = 1984.0f;
+            stitch_info.fisheye_info[0].rotate_angle = 90.3f;
+            stitch_info.fisheye_info[1].center_x = 1920.0f;
+            stitch_info.fisheye_info[1].center_y = 1440.0f;
+            stitch_info.fisheye_info[1].wide_angle = 200.0f;
+            stitch_info.fisheye_info[1].radius = 1984.0f;
+            stitch_info.fisheye_info[1].rotate_angle = 90.0f;
+            stitch_info.fisheye_info[2].center_x = 1920.0f;
+            stitch_info.fisheye_info[2].center_y = 1440.0f;
+            stitch_info.fisheye_info[2].wide_angle = 200.0f;
+            stitch_info.fisheye_info[2].radius = 1984.0f;
+            stitch_info.fisheye_info[2].rotate_angle = 91.2f;
+            break;
+        }
+        case ScopicStereoRight: {
+            stitch_info.fisheye_info[0].center_x = 1920.0f;
+            stitch_info.fisheye_info[0].center_y = 1440.0f;
+            stitch_info.fisheye_info[0].wide_angle = 200.0f;
+            stitch_info.fisheye_info[0].radius = 1984.0f;
+            stitch_info.fisheye_info[0].rotate_angle = 90.0f;
+            stitch_info.fisheye_info[1].center_x = 1920.0f;
+            stitch_info.fisheye_info[1].center_y = 1440.0f;
+            stitch_info.fisheye_info[1].wide_angle = 200.0f;
+            stitch_info.fisheye_info[1].radius = 1984.0f;
+            stitch_info.fisheye_info[1].rotate_angle = 90.0f;
+            stitch_info.fisheye_info[2].center_x = 1920.0f;
+            stitch_info.fisheye_info[2].center_y = 1440.0f;
+            stitch_info.fisheye_info[2].wide_angle = 200.0f;
+            stitch_info.fisheye_info[2].radius = 1984.0f;
+            stitch_info.fisheye_info[2].rotate_angle = 90.1f;
+            break;
+        }
+        default:
+            XCAM_LOG_ERROR ("gl-stitcher: unsupported scopic mode (%d)", scopic_mode);
+            break;
+        }
         break;
     }
     default:
@@ -448,7 +474,7 @@ StitcherImpl::init_fisheye (uint32_t idx)
     FisheyeMap &fisheye = _fisheye[idx];
     fisheye.dewarp_mode = _stitcher->get_dewarp_mode ();
     if (fisheye.dewarp_mode == DewarpSphere) {
-        StitchInfo stitch_info = get_stitch_info (_stitcher->get_res_mode ());
+        StitchInfo stitch_info = get_stitch_info (_stitcher->get_res_mode (), _stitcher->get_scopic_mode ());
         fisheye.fisheye_info = stitch_info.fisheye_info[idx];
     }
 
