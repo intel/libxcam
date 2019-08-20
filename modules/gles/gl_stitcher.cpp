@@ -133,7 +133,7 @@ public:
 
     XCamReturn init_config (uint32_t count);
     XCamReturn start_geomaps (const SmartPtr<GLStitcher::StitcherParam> &param);
-    XCamReturn start_blenders (
+    XCamReturn start_overlaps (
         const SmartPtr<GLStitcher::StitcherParam> &param,
         uint32_t idx, const SmartPtr<VideoBuffer> &buf);
     XCamReturn start_copier (
@@ -162,6 +162,8 @@ private:
 
     void init_feature_match (uint32_t idx);
     bool get_and_reset_fm_factors (uint32_t idx, Factor &left, Factor &right);
+
+    XCamReturn start_overlap (uint32_t idx, const SmartPtr<BlenderParam> &param);
 
 private:
     FisheyeMap                    _fisheye[XCAM_STITCH_MAX_CAMERAS];
@@ -686,7 +688,35 @@ Overlap::find_blender_param_in_map (
 }
 
 XCamReturn
-StitcherImpl::start_blenders (
+StitcherImpl::start_overlap (uint32_t idx, const SmartPtr<BlenderParam> &param)
+{
+    const uint32_t fm_frames = _stitcher->get_fm_frames ();
+    FeatureMatchStatus fm_status = _stitcher->get_fm_status ();
+
+    if (fm_status != FMStatusFMFirst || param->stitch_param->frame_count >= fm_frames) {
+        XCamReturn ret = _overlaps[idx].blender->execute_buffer (param, false);
+        XCAM_FAIL_RETURN (
+            ERROR, xcam_ret_is_ok (ret), ret,
+            "gl-stitcher:%s blender idx:%d failed", XCAM_STR (_stitcher->get_name ()), idx);
+    }
+
+#if HAVE_OPENCV
+    if (_stitcher->get_fm_mode ()) {
+        if (fm_status != FMStatusWholeWay && param->stitch_param->frame_count >= fm_frames)
+            return XCAM_RETURN_NO_ERROR;
+
+        XCamReturn ret = start_feature_match (param->in_buf, param->in1_buf, idx);
+        XCAM_FAIL_RETURN (
+            ERROR, xcam_ret_is_ok (ret), ret,
+            "gl-stitcher:%s feature match idx:%d failed", XCAM_STR (_stitcher->get_name ()), idx);
+    }
+#endif
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
+StitcherImpl::start_overlaps (
     const SmartPtr<GLStitcher::StitcherParam> &param,
     uint32_t idx, const SmartPtr<VideoBuffer> &buf)
 {
@@ -710,37 +740,19 @@ StitcherImpl::start_blenders (
 
     if (cur_param.ptr ()) {
         cur_param->out_buf = param->out_buf;
-        XCamReturn ret = _overlaps[idx].blender->execute_buffer (cur_param, false);
+        XCamReturn ret = start_overlap (idx, cur_param);
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,
-            "gl-stitcher(%s) blend overlap idx:%d failed", XCAM_STR (_stitcher->get_name ()), idx);
+            "gl-stitcher:%s start overlap idx:%d failed", XCAM_STR (_stitcher->get_name ()), idx);
     }
 
     if (prev_param.ptr ()) {
         prev_param->out_buf = param->out_buf;
-        XCamReturn ret = _overlaps[pre_idx].blender->execute_buffer (prev_param, false);
+        XCamReturn ret = start_overlap (pre_idx, prev_param);
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,
-            "gl-stitcher(%s) blend overlap idx:%d failed", XCAM_STR (_stitcher->get_name ()), pre_idx);
+            "gl-stitcher:%s start overlap idx:%d failed", XCAM_STR (_stitcher->get_name ()), idx);
     }
-
-#if HAVE_OPENCV
-    if (_stitcher->get_fm_mode ()) {
-        if (cur_param.ptr ()) {
-            XCamReturn ret = start_feature_match (cur_param->in_buf, cur_param->in1_buf, idx);
-            XCAM_FAIL_RETURN (
-                ERROR, xcam_ret_is_ok (ret), ret,
-                "gl-stitcher(%s) feature-match overlap idx:%d failed", XCAM_STR (_stitcher->get_name ()), idx);
-        }
-
-        if (prev_param.ptr ()) {
-            XCamReturn ret = start_feature_match (prev_param->in_buf, prev_param->in1_buf, pre_idx);
-            XCAM_FAIL_RETURN (
-                ERROR, xcam_ret_is_ok (ret), ret,
-                "gl-stitcher(%s) feature-match overlap idx:%d failed", XCAM_STR (_stitcher->get_name ()), pre_idx);
-        }
-    }
-#endif
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -836,9 +848,13 @@ GLStitcher::stitch_buffers (const VideoBufferList &in_bufs, SmartPtr<VideoBuffer
         ERROR, !in_bufs.empty (), XCAM_RETURN_ERROR_PARAM,
         "gl-stitcher(%s) stitch buffer failed, input buffers is empty", XCAM_STR (get_name ()));
 
+    uint32_t frame_count = (get_fm_frame_count () == UINT32_MAX) ? 0 : (get_fm_frame_count () + 1);
+    set_fm_frame_count (frame_count);
+
     SmartPtr<StitcherParam> param = new StitcherParam;
     param->out_buf = out_buf;
     param->in_buf_num = in_bufs.size ();
+    param->frame_count = frame_count;
 
     uint32_t count = 0;
     for (VideoBufferList::const_iterator i = in_bufs.begin (); i != in_bufs.end (); ++i) {
@@ -963,9 +979,9 @@ GLStitcher::geomap_done (
     XCAM_LOG_DEBUG ("gl-stitcher(%s) camera(idx:%d) geomap done", XCAM_STR (get_name ()), geomap_param->idx);
     dump_buf (geomap_param->out_buf, geomap_param->idx, "stitcher-geomap");
 
-    XCamReturn ret = _impl->start_blenders (param, geomap_param->idx, geomap_param->out_buf);
+    XCamReturn ret = _impl->start_overlaps (param, geomap_param->idx, geomap_param->out_buf);
     if (!xcam_ret_is_ok (ret))
-        XCAM_LOG_ERROR ("start_blenders failed");
+        XCAM_LOG_ERROR ("start_overlaps failed");
 
     ret = _impl->start_copier (param, geomap_param->idx, geomap_param->out_buf);
     if (!xcam_ret_is_ok (ret))
