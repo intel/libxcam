@@ -365,13 +365,13 @@ SoftBlenderPriv::BlenderPrivConfig::start_scaler (
 
     XCAM_ASSERT (out_buf->get_video_info ().width % 2 == 0 && out_buf->get_video_info ().height % 2 == 0);
 
-    uint32_t thread_x = 2, thread_y = 2;
+    uint32_t thread_x = 4, thread_y = 4;
     WorkSize work_unit = worker->get_work_unit ();
     WorkSize global_size (
         xcam_ceil (args->out_luma->get_width (), work_unit.value[0]) / work_unit.value[0],
         xcam_ceil (args->out_luma->get_height (), work_unit.value[1]) / work_unit.value[1]);
     WorkSize local_size (
-        xcam_ceil(global_size.value[0], thread_x) / thread_x ,
+        xcam_ceil(global_size.value[0], thread_x) / thread_x,
         xcam_ceil(global_size.value[1], thread_y) / thread_y);
 
     worker->set_local_size (local_size);
@@ -415,13 +415,13 @@ SoftBlenderPriv::BlenderPrivConfig::start_lap_task (
     SmartPtr<SoftWorker> worker = pyr_layer[level].lap_task[idx];
     XCAM_ASSERT (worker.ptr ());
 
-    uint32_t thread_x = 2, thread_y = 2;
+    uint32_t thread_x = 4, thread_y = 4;
     WorkSize work_unit = worker->get_work_unit ();
     WorkSize global_size (
         xcam_ceil (args->out_luma->get_width (), work_unit.value[0]) / work_unit.value[0],
         xcam_ceil (args->out_luma->get_height (), work_unit.value[1]) / work_unit.value[1]);
     WorkSize local_size (
-        xcam_ceil(global_size.value[0], thread_x) / thread_x ,
+        xcam_ceil(global_size.value[0], thread_x) / thread_x,
         xcam_ceil(global_size.value[1], thread_y) / thread_y);
 
 
@@ -534,7 +534,7 @@ SoftBlenderPriv::BlenderPrivConfig::start_blend_task (
     SmartPtr<SoftWorker> worker = last_level_blend;
     XCAM_ASSERT (worker.ptr ());
 
-    uint32_t thread_x = 2, thread_y = 2;
+    uint32_t thread_x = 4, thread_y = 4;
     WorkSize work_unit = worker->get_work_unit ();
     WorkSize global_size (
         xcam_ceil (args->out_luma->get_width (), work_unit.value[0]) / work_unit.value[0],
@@ -591,7 +591,7 @@ SoftBlenderPriv::BlenderPrivConfig::start_reconstruct_task (
     SmartPtr<SoftWorker> worker = pyr_layer[level].recon_task;
     XCAM_ASSERT (worker.ptr ());
 
-    uint32_t thread_x = 2, thread_y = 2;
+    uint32_t thread_x = 4, thread_y = 4;
     WorkSize work_unit = worker->get_work_unit ();
     WorkSize global_size (
         xcam_ceil (args->out_luma->get_width (), work_unit.value[0]) / work_unit.value[0],
@@ -886,7 +886,7 @@ SoftBlender::blend_task_done (
     }
 
     XCamReturn ret = _priv_config->start_reconstruct_task_by_gauss (
-        param, args->out_buf, _priv_config->pyr_levels - 1);
+                         param, args->out_buf, _priv_config->pyr_levels - 1);
     if (!xcam_ret_is_ok (ret)) {
         work_broken (param, ret);
     }
