@@ -154,6 +154,7 @@ private:
 
     XCamReturn init_fisheye (uint32_t idx);
     XCamReturn init_blender (uint32_t idx);
+    XCamReturn init_copier (Stitcher::CopyArea area);
     bool init_geomap_factors (uint32_t idx);
 
     void calc_geomap_factors (
@@ -166,6 +167,7 @@ private:
     XCamReturn start_overlap (uint32_t idx, const SmartPtr<BlenderParam> &param);
 
 private:
+    StitchInfo                    _stitch_info;
     FisheyeMap                    _fisheye[XCAM_STITCH_MAX_CAMERAS];
     Overlap                       _overlaps[XCAM_STITCH_MAX_CAMERAS];
     Copiers                       _copiers;
@@ -248,6 +250,10 @@ get_stitch_info (StitchResMode res_mode, StitchScopicMode scopic_mode)
     case StitchRes8K3Cams: {
         switch (scopic_mode) {
         case ScopicStereoLeft: {
+            stitch_info.merge_width[0] = 256;
+            stitch_info.merge_width[1] = 256;
+            stitch_info.merge_width[2] = 256;
+
             stitch_info.fisheye_info[0].center_x = 1920.0f;
             stitch_info.fisheye_info[0].center_y = 1440.0f;
             stitch_info.fisheye_info[0].wide_angle = 200.0f;
@@ -266,6 +272,10 @@ get_stitch_info (StitchResMode res_mode, StitchScopicMode scopic_mode)
             break;
         }
         case ScopicStereoRight: {
+            stitch_info.merge_width[0] = 256;
+            stitch_info.merge_width[1] = 256;
+            stitch_info.merge_width[2] = 256;
+
             stitch_info.fisheye_info[0].center_x = 1920.0f;
             stitch_info.fisheye_info[0].center_y = 1440.0f;
             stitch_info.fisheye_info[0].wide_angle = 200.0f;
@@ -474,8 +484,7 @@ StitcherImpl::init_fisheye (uint32_t idx)
     FisheyeMap &fisheye = _fisheye[idx];
     fisheye.dewarp_mode = _stitcher->get_dewarp_mode ();
     if (fisheye.dewarp_mode == DewarpSphere) {
-        StitchInfo stitch_info = get_stitch_info (_stitcher->get_res_mode (), _stitcher->get_scopic_mode ());
-        fisheye.fisheye_info = stitch_info.fisheye_info[idx];
+        fisheye.fisheye_info = _stitch_info.fisheye_info[idx];
     }
 
     Stitcher::RoundViewSlice view_slice = _stitcher->get_round_view_slice (idx);
@@ -563,11 +572,26 @@ StitcherImpl::init_blender (uint32_t idx)
     _overlaps[idx].blender->set_output_size (out_width, out_height);
 
     const Stitcher::ImageOverlapInfo overlap_info = _stitcher->get_overlap (idx);
-    _overlaps[idx].blender->set_merge_window (overlap_info.out_area);
-    _overlaps[idx].blender->set_input_valid_area (overlap_info.left, 0);
-    _overlaps[idx].blender->set_input_valid_area (overlap_info.right, 1);
-    _overlaps[idx].blender->set_input_merge_area (overlap_info.left, 0);
-    _overlaps[idx].blender->set_input_merge_area (overlap_info.right, 1);
+    Stitcher::ImageOverlapInfo overlap = overlap_info;
+    if (_stitcher->get_dewarp_mode () == DewarpSphere && _stitch_info.merge_width[idx] > 0) {
+        uint32_t specific_merge_width = _stitch_info.merge_width[idx];
+        XCAM_ASSERT (uint32_t (overlap.left.width) >= specific_merge_width);
+
+        uint32_t ext_width = (overlap.left.width - specific_merge_width) / 2;
+        ext_width = XCAM_ALIGN_UP (ext_width, GL_STITCHER_ALIGNMENT_X);
+
+        overlap.left.pos_x += ext_width;
+        overlap.left.width = specific_merge_width;
+        overlap.right.pos_x += ext_width;
+        overlap.right.width = specific_merge_width;
+        overlap.out_area.pos_x += ext_width;
+        overlap.out_area.width = specific_merge_width;
+    }
+    _overlaps[idx].blender->set_merge_window (overlap.out_area);
+    _overlaps[idx].blender->set_input_valid_area (overlap.left, 0);
+    _overlaps[idx].blender->set_input_valid_area (overlap.right, 1);
+    _overlaps[idx].blender->set_input_merge_area (overlap.left, 0);
+    _overlaps[idx].blender->set_input_merge_area (overlap.right, 1);
 
     SmartPtr<ImageHandler::Callback> blender_cb = new CbBlender (_stitcher);
     XCAM_ASSERT (blender_cb.ptr ());
@@ -579,8 +603,50 @@ StitcherImpl::init_blender (uint32_t idx)
 }
 
 XCamReturn
+StitcherImpl::init_copier (Stitcher::CopyArea area)
+{
+    if (_stitcher->get_dewarp_mode () == DewarpSphere && _stitch_info.merge_width[area.in_idx] > 0) {
+        uint32_t specific_merge_width = _stitch_info.merge_width[area.in_idx];
+        const Stitcher::ImageOverlapInfo overlap_info = _stitcher->get_overlap (area.in_idx);
+        XCAM_ASSERT (uint32_t (overlap_info.left.width) >= specific_merge_width);
+
+        uint32_t ext_width = (overlap_info.left.width - specific_merge_width) / 2;
+        ext_width = XCAM_ALIGN_UP (ext_width, GL_STITCHER_ALIGNMENT_X);
+
+        area.in_area.width = (area.in_idx == 0) ?
+            (area.in_area.width + ext_width) : (area.in_area.width + ext_width * 2);
+        area.out_area.width = area.in_area.width;
+        if (area.out_area.pos_x > 0) {
+            area.in_area.pos_x -= ext_width;
+            area.out_area.pos_x -= ext_width;
+        }
+    }
+
+    XCAM_LOG_DEBUG ("gl-stitcher:copy area (idx:%d) input area(%d, %d, %d, %d) output area(%d, %d, %d, %d)",
+                    area.in_idx,
+                    area.in_area.pos_x, area.in_area.pos_y, area.in_area.width, area.in_area.height,
+                    area.out_area.pos_x, area.out_area.pos_y, area.out_area.width, area.out_area.height);
+
+    SmartPtr<ImageHandler::Callback> copier_cb = new CbCopier (_stitcher);
+    XCAM_ASSERT (copier_cb.ptr ());
+    SmartPtr<GLCopyHandler> copier = new GLCopyHandler ("stitch_copy");
+    XCAM_ASSERT (copier.ptr ());
+
+    copier->enable_allocator (false);
+    copier->set_callback (copier_cb);
+    copier->set_copy_area (area.in_idx, area.in_area, area.out_area);
+    _copiers.push_back (copier);
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
 StitcherImpl::init_config (uint32_t count)
 {
+    if (_stitcher->get_dewarp_mode () == DewarpSphere) {
+        _stitch_info = get_stitch_info (_stitcher->get_res_mode (), _stitcher->get_scopic_mode ());
+    }
+
     for (uint32_t i = 0; i < count; ++i) {
         XCamReturn ret = init_fisheye (i);
         XCAM_FAIL_RETURN (
@@ -599,15 +665,10 @@ StitcherImpl::init_config (uint32_t count)
     for (uint32_t i = 0; i < size; ++i) {
         XCAM_ASSERT (areas[i].in_idx < size);
 
-        SmartPtr<ImageHandler::Callback> copier_cb = new CbCopier (_stitcher);
-        XCAM_ASSERT (copier_cb.ptr ());
-        SmartPtr<GLCopyHandler> copier = new GLCopyHandler ("stitch_copy");
-        XCAM_ASSERT (copier.ptr ());
-
-        copier->enable_allocator (false);
-        copier->set_callback (copier_cb);
-        copier->set_copy_area (areas[i].in_idx, areas[i].in_area, areas[i].out_area);
-        _copiers.push_back (copier);
+        XCamReturn ret = init_copier (areas[i]);
+        XCAM_FAIL_RETURN (
+            ERROR, xcam_ret_is_ok (ret), ret,
+            "gl-stitcher:%s init copyer failed, idx:%d.", XCAM_STR (_stitcher->get_name ()), areas[i].in_idx);
     }
 
     return XCAM_RETURN_NO_ERROR;
