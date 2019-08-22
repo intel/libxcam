@@ -408,7 +408,6 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Float2 *array) const
 
     __m512 const_one = _mm512_set1_ps (1.0f);
     __m512 const_two = _mm512_set1_ps (2.0f);
-    __m512 const_one_low = _mm512_setr_ps (0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
     __m512i const_left_idx = _mm512_setr_epi32 (0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1);
     __m512i const_right_idx = _mm512_setr_epi32 (2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3);
     __m512i const_shuffle = _mm512_setr_epi32 (0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14);
@@ -429,45 +428,22 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Float2 *array) const
                                         pos_xy[0], pos_xy[1], pos_xy[0], pos_xy[1],
                                         pos_xy[0], pos_xy[1], pos_xy[0], pos_xy[1]);
 
-        __m512i pos_index = _mm512_cvtps_epu32 (_mm512_add_ps (_mm512_mul_ps (_mm512_sub_ps (interp_pos_xy, pos_00), const_two), const_one_low));
-
+        __m512i pos_index = _mm512_cvtps_epu32 (_mm512_mul_ps (_mm512_sub_ps (interp_pos_xy, pos_00), const_two));
         __m512i idx_left = _mm512_add_epi32 (_mm512_permutexvar_epi32 (const_shuffle, pos_index), const_left_idx);
         __m512i idx_right = _mm512_add_epi32 (_mm512_permutexvar_epi32 (const_shuffle, pos_index), const_right_idx);
 
         int32_t pos_y0 = (int32_t)(pos[8 * i].y);
         border_check_y (pos_y0);
-        const T* l0_ptr = ((const T*)(_buf_ptr + pos_y0 * _pitch));
+        const T* top_ptr = ((const T*)(_buf_ptr + pos_y0 * _pitch));
 
         int32_t pos_y1 = pos_y0 + 1;
         border_check_y (pos_y1);
-        const T* l1_ptr = ((const T*)(_buf_ptr + pos_y1 * _pitch));
+        const T* bottom_ptr = ((const T*)(_buf_ptr + pos_y1 * _pitch));
 
-        __m512 l0 = _mm512_loadu_ps ((float*) & (l0_ptr[pos_x0]));
-        float* top = (float*)&l0;
-        __m512 l1 = _mm512_loadu_ps ((float*) & (l1_ptr[pos_x0]));
-        float* bottom = (float*)&l1;
-
-        uint32_t *idx = (uint32_t*) &idx_left;
-        __m512 tl = _mm512_setr_ps (top[idx[0]], top[idx[1]], top[idx[2]], top[idx[3]],
-                                    top[idx[4]], top[idx[5]], top[idx[6]], top[idx[7]],
-                                    top[idx[8]], top[idx[9]], top[idx[10]], top[idx[11]],
-                                    top[idx[12]], top[idx[13]], top[idx[14]], top[idx[15]]);
-
-        __m512 bl = _mm512_setr_ps (bottom[idx[0]], bottom[idx[1]], bottom[idx[2]], bottom[idx[3]],
-                                    bottom[idx[4]], bottom[idx[5]], bottom[idx[6]], bottom[idx[7]],
-                                    bottom[idx[8]], bottom[idx[9]], bottom[idx[10]], bottom[idx[11]],
-                                    bottom[idx[12]], bottom[idx[13]], bottom[idx[14]], bottom[idx[15]]);
-
-        idx = (uint32_t*) &idx_right;
-        __m512 tr = _mm512_setr_ps (top[idx[0]], top[idx[1]], top[idx[2]], top[idx[3]],
-                                    top[idx[4]], top[idx[5]], top[idx[6]], top[idx[7]],
-                                    top[idx[8]], top[idx[9]], top[idx[10]], top[idx[11]],
-                                    top[idx[12]], top[idx[13]], top[idx[14]], top[idx[15]]);
-
-        __m512 br = _mm512_setr_ps (bottom[idx[0]], bottom[idx[1]], bottom[idx[2]], bottom[idx[3]],
-                                    bottom[idx[4]], bottom[idx[5]], bottom[idx[6]], bottom[idx[7]],
-                                    bottom[idx[8]], bottom[idx[9]], bottom[idx[10]], bottom[idx[11]],
-                                    bottom[idx[12]], bottom[idx[13]], bottom[idx[14]], bottom[idx[15]]);
+        __m512 tl = _mm512_i32gather_ps (idx_left, (void*) & (top_ptr[pos_x0]), 4);
+        __m512 tr = _mm512_i32gather_ps (idx_right, (void*) & (top_ptr[pos_x0]), 4);
+        __m512 bl = _mm512_i32gather_ps (idx_left, (void*) & (bottom_ptr[pos_x0]), 4);
+        __m512 br = _mm512_i32gather_ps (idx_right, (void*) & (bottom_ptr[pos_x0]), 4);
 
         __m512 interp_value = _mm512_mul_ps (tl, _mm512_mul_ps (_mm512_sub_ps (const_one, weight_x), _mm512_sub_ps (const_one, weight_y))) +
                               _mm512_mul_ps (tr, _mm512_mul_ps (weight_x, _mm512_sub_ps(const_one, weight_y))) +
