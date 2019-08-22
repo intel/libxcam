@@ -111,6 +111,10 @@ public:
         SmartPtr<GLBuffer>       out_glbuf;
         SmartPtr<GLBuffer>       mask_glbuf;
 
+        Rect                     in0_area;
+        Rect                     in1_area;
+        Rect                     out_area;
+
         SmartPtr<VideoBuffer>    out_video_buf;
 
         Args (const SmartPtr<ImageHandler::Parameters> &param)
@@ -127,7 +131,8 @@ private:
     virtual XCamReturn prepare_arguments (const SmartPtr<Worker::Arguments> &args, GLCmdList &cmds);
     bool check_desc (
         const GLBufferDesc &in0_desc, const GLBufferDesc &in1_desc,
-        const GLBufferDesc &out_desc, const GLBufferDesc &mask_desc);
+        const GLBufferDesc &out_desc, const GLBufferDesc &mask_desc,
+        const Rect &in0_area, const Rect &in1_area, const Rect &out_area);
 };
 
 class GLReconstructPyrShader

@@ -109,9 +109,7 @@ public:
     BlenderPrivConfig (GLBlender *blender, uint32_t level)
         : pyr_levels (level - 1)
         , _blender (blender)
-    {
-        XCAM_ASSERT (level >= 2 && level <= XCAM_GL_PYRAMID_MAX_LEVEL);
-    }
+    {}
 
     XCamReturn init_first_masks (uint32_t width, uint32_t height);
     XCamReturn scale_down_masks (uint32_t level, uint32_t width, uint32_t height);
@@ -378,44 +376,76 @@ BlenderPrivConfig::start_blend (
     XCAM_ASSERT (idx < GLBlender::BufIdxCount);
     XCAM_ASSERT (top_level_blend.ptr ());
 
-    uint32_t top_level = pyr_levels - 1;
-    XCAM_ASSERT (pyr_layer[top_level].overlap_pool.ptr ());
-    XCAM_ASSERT (pyr_layer[top_level].coef_mask.ptr ());
-
     SmartPtr<GLBlendPyrShader::Args> args;
-    {
-        SmartLock locker (map_args_mutex);
-        MapBlendArgs::iterator i = blend_args.find (param.ptr ());
-        if (i == blend_args.end ()) {
-            args = new GLBlendPyrShader::Args (param);
-            XCAM_ASSERT (args.ptr ());
-            blend_args.insert (std::make_pair((void*)param.ptr (), args));
-            XCAM_LOG_DEBUG ("blender(%s) init blend args, idx:%d", XCAM_STR (_blender->get_name ()), (int)idx);
-        } else {
-            args = (*i).second;
+
+    if (pyr_levels == 0) {
+        SmartPtr<GLBlender::BlenderParam> blend_param = param.dynamic_cast_ptr<GLBlender::BlenderParam> ();
+        XCAM_ASSERT (blend_param.ptr ());
+
+        SmartPtr<VideoBuffer> &in0_buf = blend_param->in_buf;
+        SmartPtr<VideoBuffer> &in1_buf = blend_param->in1_buf;
+        SmartPtr<VideoBuffer> &out_buf = blend_param->out_buf;
+        XCAM_ASSERT (in0_buf.ptr () && in1_buf.ptr () && out_buf.ptr ());
+
+        args = new GLBlendPyrShader::Args (param);
+        XCAM_ASSERT (args.ptr ());
+        args->in0_glbuf = get_glbuffer (in0_buf);
+        args->in1_glbuf = get_glbuffer (in1_buf);
+        args->out_glbuf = get_glbuffer (out_buf);
+        args->mask_glbuf = first_mask;
+        args->out_video_buf = out_buf;
+
+        args->in0_area = _blender->get_input_merge_area (GLBlender::Idx0);
+        args->in1_area = _blender->get_input_merge_area (GLBlender::Idx1);
+        args->out_area = _blender->get_merge_window ();
+    } else {
+        uint32_t top_level = pyr_levels - 1;
+        XCAM_ASSERT (pyr_layer[top_level].overlap_pool.ptr ());
+        XCAM_ASSERT (pyr_layer[top_level].coef_mask.ptr ());
+
+        {
+            SmartLock locker (map_args_mutex);
+            MapBlendArgs::iterator i = blend_args.find (param.ptr ());
+            if (i == blend_args.end ()) {
+                args = new GLBlendPyrShader::Args (param);
+                XCAM_ASSERT (args.ptr ());
+                blend_args.insert (std::make_pair((void*)param.ptr (), args));
+                XCAM_LOG_DEBUG ("blender(%s) init blend args, idx:%d", XCAM_STR (_blender->get_name ()), (int)idx);
+            } else {
+                args = (*i).second;
+            }
+
+            if (idx == GLBlender::Idx0) {
+                args->in0_glbuf = get_glbuffer (buf);
+
+                const VideoBufferInfo &info = buf->get_video_info ();
+                args->in0_area = Rect (0, 0, info.width, info.height);
+            } else {
+                args->in1_glbuf = get_glbuffer (buf);
+
+                const VideoBufferInfo &info = buf->get_video_info ();
+                args->in1_area = Rect (0, 0, info.width, info.height);
+            }
+
+            if (!args->in0_glbuf.ptr () || !args->in1_glbuf.ptr ())
+                return XCAM_RETURN_BYPASS;
+
+            blend_args.erase (i);
         }
 
-        if (idx == GLBlender::Idx0) {
-            args->in0_glbuf = get_glbuffer (buf);
-        } else {
-            args->in1_glbuf = get_glbuffer (buf);
-        }
+        args->mask_glbuf = pyr_layer[top_level].coef_mask;
 
-        if (!args->in0_glbuf.ptr () || !args->in1_glbuf.ptr ())
-            return XCAM_RETURN_BYPASS;
+        SmartPtr<VideoBuffer> out_buf = pyr_layer[top_level].overlap_pool->get_buffer ();
+        XCAM_FAIL_RETURN (
+            ERROR, out_buf.ptr (), XCAM_RETURN_ERROR_MEM,
+            "blender(%s) start_blend failed, output buffer is empty, idx:%d",
+            XCAM_STR (_blender->get_name ()), (int)idx);
+        args->out_glbuf = get_glbuffer (out_buf);
+        args->out_video_buf = out_buf;
 
-        blend_args.erase (i);
+        const VideoBufferInfo &info = out_buf->get_video_info ();
+        args->out_area = Rect (0, 0, info.width, info.height);
     }
-
-    args->mask_glbuf = pyr_layer[top_level].coef_mask;
-
-    SmartPtr<VideoBuffer> out_buf = pyr_layer[top_level].overlap_pool->get_buffer ();
-    XCAM_FAIL_RETURN (
-        ERROR, out_buf.ptr (), XCAM_RETURN_ERROR_MEM,
-        "blender(%s) start_blend failed, output buffer is empty, idx:%d",
-        XCAM_STR (_blender->get_name ()), (int)idx);
-    args->out_glbuf = get_glbuffer (out_buf);
-    args->out_video_buf = out_buf;
 
     return top_level_blend->work (args);
 }
@@ -554,13 +584,25 @@ GLBlender::GLBlender (const char *name)
     , Blender (GL_BLENDER_ALIGN_X, GL_BLENDER_ALIGN_Y)
 {
     SmartPtr<GLBlenderPriv::BlenderPrivConfig> config =
-        new GLBlenderPriv::BlenderPrivConfig (this, XCAM_GL_PYRAMID_DEFAULT_LEVEL);
+        new GLBlenderPriv::BlenderPrivConfig (this, 2);
     XCAM_ASSERT (config.ptr ());
     _priv_config = config;
 }
 
 GLBlender::~GLBlender ()
 {
+}
+
+bool
+GLBlender::set_pyr_levels (uint32_t levels)
+{
+    XCAM_FAIL_RETURN (
+        ERROR, levels > 0 && levels <= XCAM_GL_PYRAMID_MAX_LEVEL, false,
+        "blender:%s set_pyr_levels failed, levels(%d) must be in (0, %d]",
+        XCAM_STR (get_name ()), levels, XCAM_GL_PYRAMID_MAX_LEVEL);
+
+    _priv_config->pyr_levels = levels - 1;
+    return true;
 }
 
 XCamReturn
@@ -612,19 +654,26 @@ GLBlender::start_work (const SmartPtr<ImageHandler::Parameters> &base)
     dump_level_buf (param->in_buf, "input", 0, 0);
     dump_level_buf (param->in1_buf, "input", 0, 1);
 
-    // start gauss scale level:0 idx:0
-    XCamReturn ret = _priv_config->start_gauss_scale (param, param->in_buf, 0, GLBlender::Idx0);
-    XCAM_FAIL_RETURN (
-        ERROR, xcam_ret_is_ok (ret), ret,
-        "blender(%s) start gauss scale failed, level:0 idx:0", XCAM_STR (get_name ()));
+    if (_priv_config->pyr_levels == 0) {
+        XCamReturn ret = _priv_config->start_blend (param, NULL, Idx0);
+        XCAM_FAIL_RETURN (
+            ERROR, xcam_ret_is_ok (ret), ret,
+            "blender:%s start_blend failed", XCAM_STR (get_name ()));
+    } else {
+        // start gauss scale level:0 idx:0
+        XCamReturn ret = _priv_config->start_gauss_scale (param, param->in_buf, 0, GLBlender::Idx0);
+        XCAM_FAIL_RETURN (
+            ERROR, xcam_ret_is_ok (ret), ret,
+            "blender(%s) start gauss scale failed, level:0 idx:0", XCAM_STR (get_name ()));
 
-    // start gauss scale level:0 idx:1
-    ret = _priv_config->start_gauss_scale (param, param->in1_buf, 0, GLBlender::Idx1);
-    XCAM_FAIL_RETURN (
-        ERROR, xcam_ret_is_ok (ret), ret,
-        "blender(%s) start gauss scale failed, level:0 idx:1", XCAM_STR (get_name ()));
+        // start gauss scale level:0 idx:1
+        ret = _priv_config->start_gauss_scale (param, param->in1_buf, 0, GLBlender::Idx1);
+        XCAM_FAIL_RETURN (
+            ERROR, xcam_ret_is_ok (ret), ret,
+            "blender(%s) start gauss scale failed, level:0 idx:1", XCAM_STR (get_name ()));
+    }
 
-    return ret;
+    return XCAM_RETURN_NO_ERROR;
 };
 
 XCamReturn
@@ -803,6 +852,10 @@ GLBlender::blend_done (
     XCAM_ASSERT (param.ptr ());
 
     dump_buf (args->out_video_buf, "blend-top");
+
+    if (_priv_config->pyr_levels == 0) {
+        return;
+    }
 
     XCamReturn ret = _priv_config->start_reconstruct_by_gauss (param, args->out_video_buf, _priv_config->pyr_levels - 1);
     CHECK_RET (ret, "execute reconstruct by gauss failed, level:%d", _priv_config->pyr_levels - 1);

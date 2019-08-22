@@ -26,7 +26,6 @@
 #include <gles/gl_image_handler.h>
 
 #define XCAM_GL_PYRAMID_MAX_LEVEL 4
-#define XCAM_GL_PYRAMID_DEFAULT_LEVEL 2
 
 namespace XCam {
 
@@ -61,6 +60,8 @@ public:
 
 public:
     ~GLBlender ();
+
+    bool set_pyr_levels (uint32_t levels);
 
     //derived from GLHandler
     virtual XCamReturn finish ();
