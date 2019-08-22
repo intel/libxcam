@@ -188,17 +188,23 @@ GLLapTransPyrShader::prepare_arguments (const SmartPtr<Worker::Arguments> &base,
 bool
 GLBlendPyrShader::check_desc (
     const GLBufferDesc &in0_desc, const GLBufferDesc &in1_desc,
-    const GLBufferDesc &out_desc, const GLBufferDesc &mask_desc)
+    const GLBufferDesc &out_desc, const GLBufferDesc &mask_desc,
+    const Rect &in0_area, const Rect &in1_area, const Rect &out_area)
 {
     XCAM_FAIL_RETURN (
         ERROR,
-        in0_desc.width == in1_desc.width && in0_desc.height == in1_desc.height &&
-        in0_desc.width == out_desc.width && in0_desc.height == out_desc.height &&
-        in0_desc.width == mask_desc.width,
+        (int32_t)in0_desc.width >= in0_area.width && (int32_t)in0_desc.height == in0_area.height &&
+        (int32_t)in1_desc.width >= in1_area.width && (int32_t)in1_desc.height == in1_area.height &&
+        (int32_t)out_desc.width >= out_area.width && (int32_t)out_desc.height == out_area.height &&
+        (int32_t)mask_desc.width == in0_area.width && (int32_t)mask_desc.width == in1_area.width &&
+        (int32_t)mask_desc.width == out_area.width && in0_area.height == in1_area.height &&
+        in1_area.height == out_area.height,
         false,
-        "invalid buffer size: intput0:%dx%d, intput1:%dx%d, output:%dx%d, mask:%dx%d",
+        "invalid buffer size: intput0:%dx%d, intput1:%dx%d, output:%dx%d, mask:%dx%d, "
+        "in0_area:%dx%d, in1_area:%dx%d, out_area:%dx%d",
         in0_desc.width, in0_desc.height, in1_desc.width, in1_desc.height,
-        out_desc.width, out_desc.height, mask_desc.width, mask_desc.height);
+        out_desc.width, out_desc.height, mask_desc.width, mask_desc.height,
+        in0_area.width, in0_area.height, in1_area.width, in1_area.height, out_area.width, out_area.height);
 
     XCAM_FAIL_RETURN (
         ERROR, mask_desc.height == 1, false,
@@ -219,7 +225,8 @@ GLBlendPyrShader::prepare_arguments (const SmartPtr<Worker::Arguments> &base, GL
     const GLBufferDesc &out_desc = args->out_glbuf->get_buffer_desc ();
     const GLBufferDesc &mask_desc = args->mask_glbuf->get_buffer_desc ();
     XCAM_FAIL_RETURN (
-        ERROR, check_desc (in0_desc, in1_desc, out_desc, mask_desc), XCAM_RETURN_ERROR_PARAM,
+        ERROR, check_desc (in0_desc, in1_desc, out_desc, mask_desc, args->in0_area, args->in1_area, args->out_area),
+        XCAM_RETURN_ERROR_PARAM,
         "GLBlendPyrShader(%s) check buffer description failed", XCAM_STR (get_name ()));
 
     cmds.push_back (new GLCmdBindBufRange (args->in0_glbuf, 0, NV12PlaneYIdx));
@@ -231,12 +238,27 @@ GLBlendPyrShader::prepare_arguments (const SmartPtr<Worker::Arguments> &base, GL
     cmds.push_back (new GLCmdBindBufBase (args->mask_glbuf, 6));
 
     size_t unit_bytes = sizeof (uint32_t) * 2;
-    uint32_t in_img_width = XCAM_ALIGN_UP (in0_desc.width, unit_bytes) / unit_bytes;
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_width", in_img_width));
+    uint32_t in0_img_width = XCAM_ALIGN_UP (in0_desc.width, unit_bytes) / unit_bytes;
+    uint32_t in1_img_width = XCAM_ALIGN_UP (in1_desc.width, unit_bytes) / unit_bytes;
+    uint32_t out_img_width = XCAM_ALIGN_UP (out_desc.width, unit_bytes) / unit_bytes;
+
+    uint32_t blend_width = XCAM_ALIGN_UP (mask_desc.width, unit_bytes) / unit_bytes;
+    uint32_t in0_offset_x = XCAM_ALIGN_UP (args->in0_area.pos_x, unit_bytes) / unit_bytes;
+    uint32_t in1_offset_x = XCAM_ALIGN_UP (args->in1_area.pos_x, unit_bytes) / unit_bytes;
+    uint32_t out_offset_x = XCAM_ALIGN_UP (args->out_area.pos_x, unit_bytes) / unit_bytes;
+
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("in0_img_width", in0_img_width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("in1_img_width", in1_img_width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("out_img_width", out_img_width));
+
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("blend_width", blend_width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("in0_offset_x", in0_offset_x));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("in1_offset_x", in1_offset_x));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("out_offset_x", out_offset_x));
 
     GLGroupsSize groups_size;
-    groups_size.x = XCAM_ALIGN_UP (in_img_width, 8) / 8;
-    groups_size.y = XCAM_ALIGN_UP (in0_desc.height, 16) / 16;
+    groups_size.x = XCAM_ALIGN_UP (args->in0_area.width, 8) / 8;
+    groups_size.y = XCAM_ALIGN_UP (args->in0_area.height, 16) / 16;
     groups_size.z = 1;
 
     SmartPtr<GLComputeProgram> prog;
