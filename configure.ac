@@ -165,7 +165,12 @@ fi
 # check avx
 ENABLE_AVX512=0
 if test "$enable_avx512" = "yes"; then
-    ENABLE_AVX512=1
+    AVX512_COUNT=`grep -c avx512 /proc/cpuinfo`
+    if test "$AVX512_COUNT" -gt 0; then
+        ENABLE_AVX512=1
+    else
+        AC_MSG_ERROR(The processor does not support AVX512 instructions)
+    fi
 fi
 
 # check open sence graph
