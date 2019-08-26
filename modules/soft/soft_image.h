@@ -31,7 +31,11 @@
 #include <immintrin.h>
 #endif
 
+#if ENABLE_AVX512
 #define XCAM_SOFT_WORKUNIT_PIXELS 16
+#else
+#define XCAM_SOFT_WORKUNIT_PIXELS 8
+#endif
 
 namespace XCam {
 

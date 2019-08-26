@@ -270,8 +270,8 @@ GeoMapDualConstTask::work_range (const SmartPtr<Arguments> &base, const WorkRang
         for (uint32_t x = range.pos[0]; x < range.pos[0] + range.pos_len[0]; ++x)
         {
             uint32_t out_x = x * XCAM_SOFT_WORKUNIT_PIXELS, out_y = y * 2;
-            Float2 &factor = (out_x + 4 < out_center.x) ? left_factor : right_factor;
-            Float2 &step = (out_x + 4 < out_center.x) ? left_step : right_step;
+            Float2 &factor = (out_x + XCAM_SOFT_WORKUNIT_PIXELS / 2 < out_center.x) ? left_factor : right_factor;
+            Float2 &step = (out_x + XCAM_SOFT_WORKUNIT_PIXELS / 2 < out_center.x) ? left_step : right_step;
 
             // calculate XCAM_GEO_MAP_WORKUNIT_X * 2 luma, center aligned
             Float2 out_pos (out_x, out_y);
@@ -295,6 +295,7 @@ GeoMapDualCurveTask::GeoMapDualCurveTask (const SmartPtr<Worker::Callback> &cb)
     , _right_factors (NULL)
     , _left_steps (NULL)
     , _right_steps (NULL)
+    , _initialized (false)
 {
     set_work_unit (XCAM_SOFT_WORKUNIT_PIXELS, 2);
 }
@@ -348,7 +349,7 @@ static void calc_cur_row_factor (
     cur_row_factor.y = factor.y;
 }
 
-void
+bool
 GeoMapDualCurveTask::set_factors (SmartPtr<GeoMapDualCurveTask::Args> args, uint32_t size) {
     if (_left_factors == NULL) {
         _left_factors = new Float2[size];
@@ -358,16 +359,6 @@ GeoMapDualCurveTask::set_factors (SmartPtr<GeoMapDualCurveTask::Args> args, uint
         _right_factors = new Float2[size];
         XCAM_ASSERT (_right_factors);
     }
-
-    float ym = _scaled_height * 0.5f;
-    for (uint32_t y = 0; y < size; ++y) {
-        calc_cur_row_factor (y, ym, _left_std_factor, _scaled_height, args->left_factor, _left_factors[y]);
-        calc_cur_row_factor (y, ym, _right_std_factor, _scaled_height, args->right_factor, _right_factors[y]);
-    }
-}
-
-bool
-GeoMapDualCurveTask::set_steps (uint32_t size) {
     if (_left_steps == NULL) {
         _left_steps =  new Float2[size];
         XCAM_ASSERT (_left_steps);
@@ -375,6 +366,12 @@ GeoMapDualCurveTask::set_steps (uint32_t size) {
     if (_right_steps == NULL) {
         _right_steps =  new Float2[size];
         XCAM_ASSERT (_right_steps);
+    }
+
+    float ym = _scaled_height * 0.5f;
+    for (uint32_t y = 0; y < size; ++y) {
+        calc_cur_row_factor (y, ym, _left_std_factor, _scaled_height, args->left_factor, _left_factors[y]);
+        calc_cur_row_factor (y, ym, _right_std_factor, _scaled_height, args->right_factor, _right_factors[y]);
     }
 
     for (uint32_t y = 0; y < size; ++y) {
@@ -392,14 +389,16 @@ GeoMapDualCurveTask::set_steps (uint32_t size) {
         _right_steps[y] = Float2(1.0f, 1.0f) / _right_factors[y];
     }
 
+    _initialized = true;
     return true;
 }
 
 XCamReturn
 GeoMapDualCurveTask::work_range (const SmartPtr<Arguments> &base, const WorkRange &range)
 {
-    static const Uchar zero_luma_byte[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    static const Uchar2 zero_uv_byte[4] = {{128, 128}, {128, 128}, {128, 128}, {128, 128}};
+    static const Uchar zero_luma_byte[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    static const Uchar2 zero_uv_byte[8] = {{128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}};
+
     SmartPtr<GeoMapDualCurveTask::Args> args = base.dynamic_cast_ptr<GeoMapDualCurveTask::Args> ();
     XCAM_ASSERT (args.ptr ());
     XCAM_ASSERT (
@@ -413,8 +412,10 @@ GeoMapDualCurveTask::work_range (const SmartPtr<Arguments> &base, const WorkRang
     XCAM_ASSERT (out_luma && out_uv);
     XCAM_ASSERT (lut);
 
-    set_factors (args, out_luma->get_height ());
-    set_steps (out_luma->get_height ());
+    if (!_initialized) {
+        SmartLock locker (_mutex);
+        set_factors (args, out_luma->get_height ());
+    }
 
     Float2 out_center ((out_luma->get_width () - 1.0f ) / 2.0f, (out_luma->get_height () - 1.0f ) / 2.0f);
     Float2 lut_center ((lut->get_width () - 1.0f) / 2.0f, (lut->get_height () - 1.0f) / 2.0f);
@@ -427,9 +428,9 @@ GeoMapDualCurveTask::work_range (const SmartPtr<Arguments> &base, const WorkRang
     for (uint32_t y = range.pos[1]; y < range.pos[1] + range.pos_len[1]; ++y)
         for (uint32_t x = range.pos[0]; x < range.pos[0] + range.pos_len[0]; ++x)
         {
-            uint32_t out_x = x * 8, out_y = y * 2;
-            Float2 &factor = (out_x + 4 < out_center.x) ? _left_factors[out_y] : _right_factors[out_y];
-            Float2 &step = (out_x + 4 < out_center.x) ? _left_steps[out_y] : _right_steps[out_y];
+            uint32_t out_x = x * XCAM_SOFT_WORKUNIT_PIXELS, out_y = y * 2;
+            Float2 &factor = (out_x + XCAM_SOFT_WORKUNIT_PIXELS / 2 < out_center.x) ? _left_factors[out_y] : _right_factors[out_y];
+            Float2 &step = (out_x + XCAM_SOFT_WORKUNIT_PIXELS / 2 < out_center.x) ? _left_steps[out_y] : _right_steps[out_y];
 
             // calculate 8x2 luma, center aligned
             Float2 out_pos (out_x, out_y);

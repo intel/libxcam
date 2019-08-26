@@ -106,8 +106,7 @@ public:
     void set_right_std_factor (float x, float y);
 
 private:
-    void set_factors (SmartPtr<GeoMapDualCurveTask::Args> args, uint32_t size);
-    bool set_steps (uint32_t size);
+    bool set_factors (SmartPtr<GeoMapDualCurveTask::Args> args, uint32_t size);
 
     virtual XCamReturn work_range (const SmartPtr<Arguments> &args, const WorkRange &range);
 
@@ -121,6 +120,8 @@ private:
     Float2       *_right_factors;
     Float2       *_left_steps;
     Float2       *_right_steps;
+    bool         _initialized;
+    Mutex        _mutex;
 };
 
 }
