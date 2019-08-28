@@ -351,21 +351,26 @@ static void calc_cur_row_factor (
 
 bool
 GeoMapDualCurveTask::set_factors (SmartPtr<GeoMapDualCurveTask::Args> args, uint32_t size) {
-    if (_left_factors == NULL) {
-        _left_factors = new Float2[size];
-        XCAM_ASSERT (_left_factors);
-    }
-    if (_right_factors == NULL) {
-        _right_factors = new Float2[size];
-        XCAM_ASSERT (_right_factors);
-    }
-    if (_left_steps == NULL) {
-        _left_steps =  new Float2[size];
-        XCAM_ASSERT (_left_steps);
-    }
-    if (_right_steps == NULL) {
-        _right_steps =  new Float2[size];
-        XCAM_ASSERT (_right_steps);
+    if (!_initialized) {
+        SmartLock locker (_mutex);
+
+        if (_left_factors == NULL) {
+            _left_factors = new Float2[size];
+            XCAM_ASSERT (_left_factors);
+        }
+        if (_right_factors == NULL) {
+            _right_factors = new Float2[size];
+            XCAM_ASSERT (_right_factors);
+        }
+        if (_left_steps == NULL) {
+            _left_steps =  new Float2[size];
+            XCAM_ASSERT (_left_steps);
+        }
+        if (_right_steps == NULL) {
+            _right_steps =  new Float2[size];
+            XCAM_ASSERT (_right_steps);
+        }
+        _initialized = true;
     }
 
     float ym = _scaled_height * 0.5f;
@@ -389,7 +394,6 @@ GeoMapDualCurveTask::set_factors (SmartPtr<GeoMapDualCurveTask::Args> args, uint
         _right_steps[y] = Float2(1.0f, 1.0f) / _right_factors[y];
     }
 
-    _initialized = true;
     return true;
 }
 
@@ -412,10 +416,7 @@ GeoMapDualCurveTask::work_range (const SmartPtr<Arguments> &base, const WorkRang
     XCAM_ASSERT (out_luma && out_uv);
     XCAM_ASSERT (lut);
 
-    if (!_initialized) {
-        SmartLock locker (_mutex);
-        set_factors (args, out_luma->get_height ());
-    }
+    set_factors (args, out_luma->get_height ());
 
     Float2 out_center ((out_luma->get_width () - 1.0f ) / 2.0f, (out_luma->get_height () - 1.0f ) / 2.0f);
     Float2 lut_center ((lut->get_width () - 1.0f) / 2.0f, (lut->get_height () - 1.0f) / 2.0f);
