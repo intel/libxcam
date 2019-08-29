@@ -467,15 +467,16 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar *array) const
     __m256 const_one_float = _mm256_set1_ps (1.0f);
     __m256i const_pitch = _mm256_set1_epi32 (_pitch);
     __m256i const_one_int = _mm256_set1_epi32 (1);
+    __m256i index_x = _mm256_setr_epi32 (0, 2, 4, 6, 8, 10, 12, 14);
+    __m256i index_y = _mm256_setr_epi32 (1, 3, 5, 7, 9, 11, 13, 15);
 
     for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS / 8; i++) {
         // load 8 interpolate pos ((8 x float2) x 32bit)
         __m512 interp_pos = _mm512_loadu_ps (&pos[8 * i]);
         __m512 interp_pos_xy = _mm512_floor_ps (interp_pos);
         __m512 interp_weight = _mm512_sub_ps (interp_pos, interp_pos_xy);
-        float* weight = (float*)&interp_weight;
-        __m256 weight_x = _mm256_setr_ps (weight[0], weight[2], weight[4], weight[6], weight[8], weight[10], weight[12], weight[14]);
-        __m256 weight_y = _mm256_setr_ps (weight[1], weight[3], weight[5], weight[7], weight[9], weight[11], weight[13], weight[15]);
+        __m256 weight_x = _mm256_i32gather_ps ((float const*)(&interp_weight), index_x, 4);
+        __m256 weight_y = _mm256_i32gather_ps ((float const*)(&interp_weight), index_y, 4);
 
         int32_t pos_x0 = (int32_t)(pos[8 * i].x);
         border_check_x (pos_x0);
@@ -487,9 +488,8 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar *array) const
                                         0, pos_xy[1], 0, pos_xy[1]);
 
         __m512i pos_index = _mm512_cvtps_epi32 (_mm512_sub_ps (interp_pos_xy, pos_00));
-        int32_t* idx = (int32_t*) &pos_index;
-        __m256i pos_idx_x = _mm256_setr_epi32 (idx[0], idx[2], idx[4], idx[6], idx[8], idx[10], idx[12], idx[14]);
-        __m256i pos_idx_y = _mm256_setr_epi32 (idx[1], idx[3], idx[5], idx[7], idx[9], idx[11], idx[13], idx[15]);
+        __m256i pos_idx_x = _mm256_i32gather_epi32 ((int32_t const*)(&pos_index), index_x, 4);
+        __m256i pos_idx_y = _mm256_i32gather_epi32 ((int32_t const*)(&pos_index), index_y, 4);
 
         int32_t pos_y0 = (int32_t)(pos[8 * i].y);
         border_check_y (pos_y0);
@@ -541,6 +541,8 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar2 *array) const
     __m512 const_one_float = _mm512_set1_ps (1.0f);
     __m256i const_pitch = _mm256_set1_epi32 (_pitch / 2);
     __m256i const_one_int = _mm256_set1_epi32 (1);
+    __m256i index_x = _mm256_setr_epi32 (0, 2, 4, 6, 8, 10, 12, 14);
+    __m256i index_y = _mm256_setr_epi32 (1, 3, 5, 7, 9, 11, 13, 15);
 
     // load 8 interpolate pos ((8 x float2) x 32bit)
     __m512 interp_pos = _mm512_loadu_ps (pos);
@@ -561,9 +563,8 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar2 *array) const
                                     0, pos_xy[1], 0, pos_xy[1]);
 
     __m512i pos_index = _mm512_cvtps_epi32 (_mm512_sub_ps (interp_pos_xy, pos_00));
-    int32_t* idx = (int32_t*) &pos_index;
-    __m256i pos_idx_x = _mm256_setr_epi32 (idx[0], idx[2], idx[4], idx[6], idx[8], idx[10], idx[12], idx[14]);
-    __m256i pos_idx_y = _mm256_setr_epi32 (idx[1], idx[3], idx[5], idx[7], idx[9], idx[11], idx[13], idx[15]);
+    __m256i pos_idx_x = _mm256_i32gather_epi32 ((int32_t const*)(&pos_index), index_x, 4);
+    __m256i pos_idx_y = _mm256_i32gather_epi32 ((int32_t const*)(&pos_index), index_y, 4);
 
     int32_t pos_y0 = (int32_t)(pos[0].y);
     border_check_y (pos_y0);
