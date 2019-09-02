@@ -90,20 +90,26 @@ error_string (cl_int code)
         CASE (CL_INVALID_BUFFER_SIZE);
         CASE (CL_INVALID_MIP_LEVEL);
         CASE (CL_INVALID_GLOBAL_WORK_SIZE);
+#ifdef CL_VERSION_1_1
         CASE (CL_INVALID_PROPERTY);
+#endif
+#ifdef CL_VERSION_1_2
         CASE (CL_INVALID_IMAGE_DESCRIPTOR);
         CASE (CL_INVALID_COMPILER_OPTIONS);
         CASE (CL_INVALID_LINKER_OPTIONS);
         CASE (CL_INVALID_DEVICE_PARTITION_COUNT);
+#endif
+#ifdef CL_VERSION_2_0
         CASE (CL_INVALID_PIPE_SIZE);
         CASE (CL_INVALID_DEVICE_QUEUE);
-#if CL_VERSION_2_2
+#endif
+#ifdef CL_VERSION_2_2
         CASE (CL_INVALID_SPEC_ID);
         CASE (CL_MAX_SIZE_RESTRICTION_EXCEEDED);
 #endif
-        default:
-            snprintf (str, sizeof (str), "unknown code:%d", code);
-            XCAM_LOG_ERROR ("%s", str);
+    default:
+        snprintf (str, sizeof (str), "unknown code:%d", code);
+        XCAM_LOG_ERROR ("%s", str);
     }
 
     return str;
