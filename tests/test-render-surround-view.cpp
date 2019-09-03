@@ -680,26 +680,29 @@ int main (int argc, char *argv[])
     printf ("car model name:\t\t%s\n", car_name != NULL ? car_name : "Not specified, use default model");
     printf ("loop count:\t\t%d\n", loop);
 
-#if HAVE_GLES
-    SmartPtr<EGLBase> egl;
     if (module == SVModuleGLES) {
+#if HAVE_GLES
+        if (scale_mode == ScaleDualCurve) {
+            XCAM_LOG_WARNING ("GLES module does not support Dual Curve scale mode currently, change to Single Const scale mode");
+            scale_mode = ScaleSingleConst;
+        }
+        SmartPtr<EGLBase> egl;
         egl = new EGLBase ();
         XCAM_ASSERT (egl.ptr ());
         XCAM_FAIL_RETURN (ERROR, egl->init (), -1, "init EGL failed");
-    }
 #else
-    if (module == SVModuleGLES) {
-        XCAM_LOG_ERROR ("GLES module is unsupported");
-        return -1;
-    }
+        if (module == SVModuleGLES) {
+            XCAM_LOG_ERROR ("GLES module is unsupported");
+            return -1;
+        }
 #endif
+    }
 
     if (module == SVModuleVulkan) {
 #if HAVE_VULKAN
-        scale_mode = ScaleSingleConst;
         if (scale_mode != ScaleSingleConst) {
-            XCAM_LOG_ERROR ("vulkan module only support singleconst scale mode currently");
-            return -1;
+            XCAM_LOG_WARNING ("vulkan module only support singleconst scale mode currently, change to Single Const scale mode");
+            scale_mode = ScaleSingleConst;
         }
 
         SmartPtr<VKDevice> vk_dev = VKDevice::default_device ();
