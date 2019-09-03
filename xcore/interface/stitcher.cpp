@@ -258,24 +258,24 @@ Stitcher::init_camera_info ()
             info.round_angle_start = (i * 360.0f / _camera_num) - info.angle_range / 2.0f;
         }
     } else {
-        std::string cfg_path = std::getenv (FISHEYE_CONFIG_ENV_VAR);
+        const char* cfg_path = std::getenv (FISHEYE_CONFIG_ENV_VAR);
         XCAM_FAIL_RETURN (
-            ERROR, !cfg_path.empty (), XCAM_RETURN_ERROR_PARAM,
+            ERROR, cfg_path, XCAM_RETURN_ERROR_PARAM,
             "FISHEYE_CONFIG_PATH is empty, export FISHEYE_CONFIG_PATH first");
-        XCAM_LOG_INFO ("stitcher calibration config path: %s", cfg_path.c_str ());
+        XCAM_LOG_INFO ("stitcher calibration config path: %s", cfg_path);
 
         CalibrationParser parser;
         char path[XCAM_STITCH_NAME_LEN] = {'\0'};
         for (uint32_t i = 0; i < _camera_num; ++i) {
             CameraInfo &info = _camera_info[i];
 
-            snprintf (path, XCAM_STITCH_NAME_LEN, "%s/%s", cfg_path.c_str (), _instr_names[i]);
+            snprintf (path, XCAM_STITCH_NAME_LEN, "%s/%s", cfg_path, _instr_names[i]);
             XCamReturn ret = parser.parse_intrinsic_file (path, info.calibration.intrinsic);
             XCAM_FAIL_RETURN (
                 ERROR, ret == XCAM_RETURN_NO_ERROR, XCAM_RETURN_ERROR_PARAM,
                 "stitcher parse intrinsic params(%s) failed", path);
 
-            snprintf (path, XCAM_STITCH_NAME_LEN, "%s/%s", cfg_path.c_str (), _exstr_names[i]);
+            snprintf (path, XCAM_STITCH_NAME_LEN, "%s/%s", cfg_path, _exstr_names[i]);
             ret = parser.parse_extrinsic_file (path, info.calibration.extrinsic);
             XCAM_FAIL_RETURN (
                 ERROR, ret == XCAM_RETURN_NO_ERROR, XCAM_RETURN_ERROR_PARAM,
