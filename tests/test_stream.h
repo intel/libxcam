@@ -364,19 +364,32 @@ Stream::open_fifo (int flag)
 {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
-    unlink (_file_name);
-    mkfifo (_file_name, S_IFIFO | 0666);
-    if (0 == errno) {
+    if (0 == mkfifo (_file_name, S_IFIFO | 0666)) {
         _fifo = open (_file_name, O_WRONLY);
-        if (0 != errno) {
-            ret = XCAM_RETURN_ERROR_FILE;
-            XCAM_LOG_ERROR ("open FIFO (%s) failed: %s", _file_name, strerror (errno));
-        }
     } else {
+        if (EEXIST == errno) {
+            XCAM_LOG_WARNING ("FIFO exist (%s) : %s", _file_name, strerror (errno));
+            if (0 == unlink (_file_name)) {
+                if (0 == mkfifo (_file_name, S_IFIFO | 0666)) {
+                    _fifo = open (_file_name, O_WRONLY);
+                } else {
+                    ret = XCAM_RETURN_ERROR_FILE;
+                    XCAM_LOG_ERROR ("create FIFO (%s) failed: %s", _file_name, strerror (errno));
+                }
+            } else {
+                ret = XCAM_RETURN_ERROR_FILE;
+                XCAM_LOG_ERROR ("delete FIFO (%s) failed: %s", _file_name, strerror (errno));
+            }
+        } else {
+            ret = XCAM_RETURN_ERROR_FILE;
+            XCAM_LOG_ERROR ("create FIFO (%s) failed: %s", _file_name, strerror (errno));
+        }
+    }
+
+    if (-1 == _fifo) {
         ret = XCAM_RETURN_ERROR_FILE;
         XCAM_LOG_ERROR ("create FIFO (%s) failed: %s", _file_name, strerror (errno));
     }
-
     return ret;
 }
 
@@ -384,7 +397,6 @@ XCamReturn
 Stream::close_fifo ()
 {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
-
     if (-1 != _fifo) {
         close (_fifo);
     }
