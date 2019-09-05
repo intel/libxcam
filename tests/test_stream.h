@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  * Author: Yinhang Liu <yinhangx.liu@intel.com>
+ * Author: Zong Wei <wei.zong@intel.com>
  */
 
 #ifndef XCAM_TEST_STREAM_H
@@ -26,6 +27,9 @@
 #if (!defined(ANDROID) && (HAVE_OPENCV))
 #include "ocv/cv_utils.h"
 #endif
+
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #define XCAM_TEST_STREAM_DEBUG 0
 
@@ -47,7 +51,8 @@ namespace XCam {
 enum TestFileFormat {
     FileNone,
     FileNV12,
-    FileMP4
+    FileMP4,
+    FileFIFO
 };
 
 #define PUSH_STREAM(Type, streams, file_name) \
@@ -95,12 +100,16 @@ public:
 
     XCamReturn open_reader (const char *option);
     XCamReturn open_writer (const char *option);
-    XCamReturn close ();
+    XCamReturn close_file ();
     XCamReturn rewind ();
 
     XCamReturn read_buf ();
     XCamReturn write_buf (char *frame_str = NULL);
     virtual XCamReturn create_buf_pool (uint32_t reserve_count) = 0;
+
+    XCamReturn open_fifo (int flag);
+    XCamReturn close_fifo ();
+    XCamReturn write_fifo (const SmartPtr<VideoBuffer> &buf);
 
 #if XCAM_TEST_OPENCV
     void debug_write_image (char *img_name, char *frame_str = NULL, char *idx_str = NULL);
@@ -129,6 +138,7 @@ private:
     SmartPtr<BufferPool>     _pool;
 
     ImageFileHandle          _file;
+    int                      _fifo;
 #if XCAM_TEST_OPENCV
     cv::VideoWriter          _writer;
 #endif
@@ -139,6 +149,7 @@ Stream::Stream (const char *file_name, uint32_t width, uint32_t height)
     : _file_name (NULL)
     , _width (width)
     , _height (height)
+    , _fifo (-1)
     , _format (FileNV12)
 {
     if (file_name)
@@ -153,6 +164,8 @@ Stream::~Stream ()
         xcam_free (_file_name);
         _file_name = NULL;
     }
+
+    close_fifo ();
 }
 
 void
@@ -196,6 +209,10 @@ Stream::open_writer (const char *option)
         XCAM_LOG_ERROR ("stream(%s) unsupported MP4 format without opencv", _file_name);
         return XCAM_RETURN_ERROR_PARAM;
 #endif
+    } else if (_format == FileFIFO) {
+        XCamReturn ret = open_fifo (0666);
+        XCAM_FAIL_RETURN (
+            ERROR, ret == XCAM_RETURN_NO_ERROR, ret, "stream(%s) open FIFO failed", _file_name);
     } else {
         XCAM_LOG_ERROR ("stream(%s) invalid file format: %d", _file_name, (int)_format);
         return XCAM_RETURN_ERROR_PARAM;
@@ -205,7 +222,7 @@ Stream::open_writer (const char *option)
 }
 
 XCamReturn
-Stream::close ()
+Stream::close_file ()
 {
     return _file.close ();
 }
@@ -239,6 +256,8 @@ Stream::write_buf (char *frame_str) {
         XCAM_LOG_ERROR ("stream(%s) unsupported MP4 format without opencv", _file_name);
         return XCAM_RETURN_ERROR_PARAM;
 #endif
+    } else if (_format == FileFIFO) {
+        write_fifo (_buf);
     } else {
         XCAM_LOG_ERROR ("stream(%s) invalid file format: %d", _file_name, (int)_format);
         return XCAM_RETURN_ERROR_PARAM;
@@ -276,6 +295,8 @@ Stream::estimate_file_format ()
         XCAM_LOG_ERROR ("stream(%s) unsupported MP4 format without opencv", _file_name);
         return XCAM_RETURN_ERROR_PARAM;
 #endif
+    } else if (!strcasecmp (suffix, "fifo")) {
+        _format = FileFIFO;
     } else {
         XCAM_LOG_ERROR ("stream(%s) invalid file format: %s", _file_name, suffix);
         return XCAM_RETURN_ERROR_PARAM;
@@ -337,6 +358,66 @@ Stream::debug_write_image (char *img_name, char *frame_str, char *idx_str)
     cv::imwrite (img_name, mat);
 }
 #endif
+
+XCamReturn
+Stream::open_fifo (int flag)
+{
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    unlink (_file_name);
+    mkfifo (_file_name, S_IFIFO | 0666);
+    if (0 == errno) {
+        _fifo = open (_file_name, O_WRONLY);
+        if (0 != errno) {
+            ret = XCAM_RETURN_ERROR_FILE;
+            XCAM_LOG_ERROR ("open FIFO (%s) failed: %s", _file_name, strerror (errno));
+        }
+    } else {
+        ret = XCAM_RETURN_ERROR_FILE;
+        XCAM_LOG_ERROR ("create FIFO (%s) failed: %s", _file_name, strerror (errno));
+    }
+
+    return ret;
+}
+
+XCamReturn
+Stream::close_fifo ()
+{
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    if (-1 != _fifo) {
+        close (_fifo);
+    }
+    unlink (_file_name);
+
+    return ret;
+}
+
+XCamReturn
+Stream::write_fifo (const SmartPtr<VideoBuffer> &buf)
+{
+    const VideoBufferInfo info = buf->get_video_info ();
+    VideoBufferPlanarInfo planar;
+    uint8_t *memory = NULL;
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    XCAM_ASSERT (_fifo != -1);
+
+    memory = buf->map ();
+    for (uint32_t index = 0; index < info.components; index++) {
+        info.get_planar_info (planar, index);
+        uint32_t line_bytes = planar.width * planar.pixel_bytes;
+
+        for (uint32_t i = 0; i < planar.height; i++) {
+            if (write (_fifo, memory + info.offsets [index] + i * info.strides [index], line_bytes) != line_bytes) {
+                XCAM_LOG_ERROR ("write FIFO failed, size doesn't match");
+                ret = XCAM_RETURN_ERROR_FILE;
+            }
+        }
+    }
+    buf->unmap ();
+    return ret;
+}
 
 }
 #endif // XCAM_TEST_STREAM_H
