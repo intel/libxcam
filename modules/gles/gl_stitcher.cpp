@@ -55,6 +55,13 @@ dump_buf (const SmartPtr<VideoBuffer> buf, ...) {
 }
 #endif
 
+static inline bool complete_stitch (Stitcher *stitcher, uint32_t frame_count)
+{
+     return (stitcher->get_fm_mode () == FMNone ||
+             stitcher->get_fm_status () != FMStatusFMFirst ||
+             frame_count >= stitcher->get_fm_frames ());
+}
+
 namespace GLStitcherPriv {
 
 DECLARE_HANDLER_CALLBACK (CbGeoMap, GLStitcher, geomap_done);
@@ -779,10 +786,7 @@ Overlap::find_blender_param_in_map (
 XCamReturn
 StitcherImpl::start_overlap (uint32_t idx, const SmartPtr<BlenderParam> &param)
 {
-    const uint32_t fm_frames = _stitcher->get_fm_frames ();
-    FeatureMatchStatus fm_status = _stitcher->get_fm_status ();
-
-    if (fm_status != FMStatusFMFirst || param->stitch_param->frame_count >= fm_frames) {
+    if (complete_stitch (_stitcher, param->stitch_param->frame_count)) {
         XCamReturn ret = _overlaps[idx].blender->execute_buffer (param, false);
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,
@@ -790,8 +794,9 @@ StitcherImpl::start_overlap (uint32_t idx, const SmartPtr<BlenderParam> &param)
     }
 
 #if HAVE_OPENCV
-    if (_stitcher->get_fm_mode ()) {
-        if (fm_status != FMStatusWholeWay && param->stitch_param->frame_count >= fm_frames)
+    if (_stitcher->get_fm_mode () != FMNone) {
+        if (_stitcher->get_fm_status () != FMStatusWholeWay &&
+                param->stitch_param->frame_count >= _stitcher->get_fm_frames ())
             return XCAM_RETURN_NO_ERROR;
 
         XCamReturn ret = start_feature_match (param->in_buf, param->in1_buf, idx);
@@ -1072,9 +1077,11 @@ GLStitcher::geomap_done (
     if (!xcam_ret_is_ok (ret))
         XCAM_LOG_ERROR ("start_overlaps failed");
 
-    ret = _impl->start_copier (param, geomap_param->idx, geomap_param->out_buf);
-    if (!xcam_ret_is_ok (ret))
-        XCAM_LOG_ERROR ("start_copier failed");
+    if (complete_stitch (this, param->frame_count)) {
+        ret = _impl->start_copier (param, geomap_param->idx, geomap_param->out_buf);
+        if (!xcam_ret_is_ok (ret))
+            XCAM_LOG_ERROR ("start_copier failed");
+    }
 }
 
 void

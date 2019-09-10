@@ -62,6 +62,12 @@ static void stitcher_dump_buf (const SmartPtr<VideoBuffer> buf, ...) {
 }
 #endif
 
+static inline bool complete_stitch (Stitcher *stitcher, uint32_t frame_count)
+{
+     return (stitcher->get_fm_mode () == FMNone ||
+             stitcher->get_fm_status () != FMStatusFMFirst ||
+             frame_count >= stitcher->get_fm_frames ());
+}
 
 namespace SoftStitcherPriv {
 
@@ -855,10 +861,7 @@ StitcherImpl::start_feature_match (
 XCamReturn
 StitcherImpl::start_overlap_task (uint32_t idx, const SmartPtr<BlenderParam> &param)
 {
-    const uint32_t fm_frames = _stitcher->get_fm_frames ();
-    FeatureMatchStatus fm_status = _stitcher->get_fm_status ();
-
-    if (fm_status != FMStatusFMFirst || param->stitch_param->frame_count >= fm_frames) {
+    if (complete_stitch (_stitcher, param->stitch_param->frame_count)) {
         XCamReturn ret = _overlaps[idx].blender->execute_buffer (param, false);
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,
@@ -866,8 +869,9 @@ StitcherImpl::start_overlap_task (uint32_t idx, const SmartPtr<BlenderParam> &pa
     }
 
 #if ENABLE_FEATURE_MATCH
-    if (_stitcher->get_fm_mode ()) {
-        if (fm_status != FMStatusWholeWay && param->stitch_param->frame_count >= fm_frames)
+    if (_stitcher->get_fm_mode () != FMNone) {
+        if (_stitcher->get_fm_status () != FMStatusWholeWay &&
+                param->stitch_param->frame_count >= _stitcher->get_fm_frames ())
             return XCAM_RETURN_NO_ERROR;
 
         XCamReturn ret = start_feature_match (param->in_buf, param->in1_buf, idx);
@@ -1100,7 +1104,7 @@ SoftStitcher::start_task_count (const SmartPtr<SoftStitcher::StitcherParam> &par
     }
 
     int32_t count = get_camera_num ();
-    if (get_fm_status () != FMStatusFMFirst || param->frame_count >= get_fm_frames ()) {
+    if (complete_stitch (this, param->frame_count)) {
         count += get_copy_area ().size ();
     }
 
@@ -1130,7 +1134,16 @@ SoftStitcher::geomap_done (
 
     //start both blender and feature match
     XCamReturn ret = _impl->start_overlap_tasks (param, geomap_param->idx, geomap_param->out_buf);
-    if (get_fm_status () == FMStatusFMFirst && param->frame_count < get_fm_frames ()) {
+    if (!xcam_ret_is_ok (ret)) {
+        work_broken (param, ret);
+    }
+
+    if (complete_stitch (this, param->frame_count)) {
+        ret = _impl->start_copy_tasks (param, geomap_param->idx, geomap_param->out_buf);
+        if (!xcam_ret_is_ok (ret)) {
+            work_broken (param, ret);
+        }
+    } else {
         if (!check_work_continue (param, error)) {
             _impl->remove_task_count (param);
             return;
@@ -1138,16 +1151,6 @@ SoftStitcher::geomap_done (
         if (_impl->dec_task_count (param) == 0) {
             work_well_done (param, error);
         }
-        return;
-    }
-
-    if (!xcam_ret_is_ok (ret)) {
-        work_broken (param, ret);
-    }
-
-    ret = _impl->start_copy_tasks (param, geomap_param->idx, geomap_param->out_buf);
-    if (!xcam_ret_is_ok (ret)) {
-        work_broken (param, ret);
     }
 }
 
