@@ -20,7 +20,8 @@ OpenCL is used to improve performance in different platforms.
          - Quality and performance improved (OpenCL/CPU/GLES).
          - CPU version upstreamed into AOSP for automotive surround view.
          - Enable Vulkan to improve performance.
-      - 360 video stitching (Equirectangular mode via OpenCL)
+      - 360 video stitching (Equirectangular mode via OpenCL/CPU)
+        - Support 8K 3-cameras video stream stitching.
         - Support 2-fisheye (>180 degree) video stream stitching.
         - Performance and quality improved.
       - DNN inference framework
