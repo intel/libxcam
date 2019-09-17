@@ -28,12 +28,6 @@
 #undef XCAM_CL_MAX_EVENT_SIZE
 #define XCAM_CL_MAX_EVENT_SIZE 256
 
-#define OCL_EXT_NAME_CREATE_BUFFER_FROM_LIBVA_INTEL "clCreateBufferFromLibvaIntel"
-#define OCL_EXT_NAME_CREATE_BUFFER_FROM_FD_INTEL    "clCreateBufferFromFdINTEL"
-#define OCL_EXT_NAME_CREATE_IMAGE_FROM_LIBVA_INTEL  "clCreateImageFromLibvaIntel"
-#define OCL_EXT_NAME_CREATE_IMAGE_FROM_FD_INTEL     "clCreateImageFromFdINTEL"
-#define OCL_EXT_NAME_GET_MEM_OBJECT_FD_INTEL        "clGetMemObjectFdIntel"
-
 namespace XCam {
 
 class CLKernel;

@@ -20,10 +20,6 @@
 
 #include "cl_utils.h"
 #include "image_file_handle.h"
-#if HAVE_LIBDRM
-#include "intel/cl_intel_context.h"
-#include "intel/cl_va_memory.h"
-#endif
 
 namespace XCam {
 
@@ -84,25 +80,11 @@ convert_to_clbuffer (
     const SmartPtr<CLContext> &context,
     const SmartPtr<VideoBuffer> &buf)
 {
-    SmartPtr<CLBuffer> cl_buf;
-
-    SmartPtr<CLVideoBuffer> cl_video_buf = buf.dynamic_cast_ptr<CLVideoBuffer> ();
-    if (cl_video_buf.ptr ()) {
-        cl_buf = cl_video_buf;
-    }
-#if HAVE_LIBDRM
-    else {
-        SmartPtr<DrmBoBuffer> bo_buf = buf.dynamic_cast_ptr<DrmBoBuffer> ();
-        SmartPtr<CLIntelContext> ctx = context.dynamic_cast_ptr<CLIntelContext> ();
-        XCAM_ASSERT (bo_buf.ptr () && ctx.ptr ());
-
-        cl_buf = new CLVaBuffer (ctx, bo_buf);
-    }
-#else
     XCAM_UNUSED (context);
-#endif
 
-    XCAM_FAIL_RETURN (WARNING, cl_buf.ptr (), NULL, "convert to clbuffer failed");
+    SmartPtr<CLBuffer> cl_buf = buf.dynamic_cast_ptr<CLVideoBuffer> ();
+    XCAM_FAIL_RETURN (ERROR, cl_buf.ptr (), NULL, "convert to clbuffer failed");
+
     return cl_buf;
 }
 
@@ -114,42 +96,26 @@ convert_to_climage (
     uint32_t offset,
     cl_mem_flags flags)
 {
-    SmartPtr<CLImage> cl_image;
+    SmartPtr<CLBuffer> cl_buf = buf.dynamic_cast_ptr<CLVideoBuffer> ();
+    XCAM_FAIL_RETURN (ERROR, cl_buf.ptr (), NULL, "convert to clbuffer failed");
 
-    SmartPtr<CLVideoBuffer> cl_video_buf = buf.dynamic_cast_ptr<CLVideoBuffer> ();
-    if (cl_video_buf.ptr ()) {
-        SmartPtr<CLBuffer> cl_buf;
+    if (offset != 0) {
+        uint32_t row_pitch = (desc.row_pitch != 0) ? desc.row_pitch :
+                             (CLImage::calculate_pixel_bytes (desc.format) *
+                                 XCAM_ALIGN_UP (desc.width, XCAM_CL_IMAGE_ALIGNMENT_X));
+        uint32_t size = row_pitch * desc.height;
 
-        if (offset == 0) {
-            cl_buf = cl_video_buf;
-        } else {
-            uint32_t row_pitch = (desc.row_pitch != 0) ? desc.row_pitch :
-                                 (CLImage::calculate_pixel_bytes (desc.format) *
-                                     XCAM_ALIGN_UP (desc.width, XCAM_CL_IMAGE_ALIGNMENT_X));
-            uint32_t size = row_pitch * desc.height;
-
-            cl_buf = new CLSubBuffer (context, cl_video_buf, flags, offset, size);
-            if (!cl_buf->is_valid ()) {
-                XCAM_LOG_ERROR (
-                   "create CLSubBuffer failed, row_pitch:%d offset:%d size:%d", row_pitch, offset, size);
-            }
+        cl_buf = new CLSubBuffer (context, cl_buf, flags, offset, size);
+        if (!cl_buf->is_valid ()) {
+            XCAM_LOG_ERROR (
+               "create CLSubBuffer failed, row_pitch:%d offset:%d size:%d", row_pitch, offset, size);
         }
-
-        cl_image = new CLImage2D (context, desc, flags, cl_buf);
     }
-#if HAVE_LIBDRM
-    else {
-        SmartPtr<DrmBoBuffer> bo_buf = buf.dynamic_cast_ptr<DrmBoBuffer> ();
-        SmartPtr<CLIntelContext> ctx = context.dynamic_cast_ptr<CLIntelContext> ();
-        XCAM_ASSERT (bo_buf.ptr () && ctx.ptr ());
 
-        cl_image = new CLVaImage (ctx, bo_buf, desc, offset);
-    }
-#endif
-
+    SmartPtr<CLImage> cl_image = new CLImage2D (context, desc, flags, cl_buf);
     XCAM_FAIL_RETURN (
         ERROR,
-        cl_image->is_valid (),
+        cl_image.ptr () && cl_image->is_valid (),
         NULL,
         "convert to climage failed, image desc width:%d height:%d row_pitch:%d slice_pitch:%d array_size:%d size:%d",
         desc.width, desc.height, desc.row_pitch, desc.slice_pitch, desc.array_size, desc.size);

@@ -144,10 +144,10 @@ if test "$enable_drm" = "yes"; then
     PKG_CHECK_MODULES(LIBDRM, [libdrm], [HAVE_LIBDRM=1], [HAVE_LIBDRM=0])
 fi
 
-# check libcl
+# check OpenCL
 HAVE_LIBCL=0
 if test "$enable_libcl" = "yes"; then
-    PKG_CHECK_MODULES(LIBCL, [libcl], [HAVE_LIBCL=1], [HAVE_LIBCL=0])
+    PKG_CHECK_MODULES(LIBCL, [OpenCL], [HAVE_LIBCL=1], [HAVE_LIBCL=0])
 fi
 
 # check gl
@@ -206,28 +206,10 @@ if test "$enable_dnn" = "yes"; then
     ENABLE_DNN=1
 fi
 
-if test "$enable_libcl" = "yes" && test "$HAVE_LIBCL" -eq 0; then
-    PKG_CHECK_MODULES(LIBCL, [OpenCL], [HAVE_LIBCL=1], [HAVE_LIBCL=0])
-fi
-
 if test "$HAVE_LIBCL" -eq 1; then
     AC_CHECK_PROGS([GAWK], [gawk], [no])
     if test "x$GAWK" = "xno"; then
         AC_MSG_ERROR([gawk not found])
-    fi
-
-    if test "$HAVE_LIBDRM" -eq 1; then
-        HAVE_CL_INTEL_H=1
-        AC_CHECK_HEADERS([CL/cl_intel.h], [HAVE_CL_INTEL_H=1], [HAVE_CL_INTEL_H=0])
-        if test "$HAVE_CL_INTEL_H" -eq 0; then
-            # https://raw.githubusercontent.com/intel/beignet/Release_v1.3/include/CL/cl_intel.h
-            XCAM_WGET(
-                [https://cgit.freedesktop.org/beignet/plain/include/CL/cl_intel.h?id=Release_v1.3.0],
-                [./ext/beignet/include/CL/cl_intel.h],
-                [6a6619073cb35e6987b7379a5a1a1497])
-
-            CPPFLAGS="$CPPFLAGS -I\$(top_srcdir)/ext/beignet/include"
-        fi
     fi
 fi
 

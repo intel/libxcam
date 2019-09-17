@@ -75,8 +75,6 @@ xcam_ocl_sources = \
 
 if HAVE_LIBDRM
 xcam_ocl_sources += \
-    intel/cl_intel_context.cpp \
-    intel/cl_va_memory.cpp     \
     cl_image_bo_buffer.cpp     \
     $(NULL)
 endif
@@ -144,8 +142,6 @@ nobase_libxcam_oclinclude_HEADERS = \
 
 if HAVE_LIBDRM
 nobase_libxcam_oclinclude_HEADERS += \
-    intel/cl_intel_context.h \
-    intel/cl_va_memory.h     \
     cl_image_bo_buffer.h     \
     $(NULL)
 endif

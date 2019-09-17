@@ -21,9 +21,6 @@
 #include "cl_utils.h"
 #include "cl_memory.h"
 #include "cl_error.h"
-#if HAVE_LIBDRM
-#include "intel/cl_va_memory.h"
-#endif
 
 namespace XCam {
 
@@ -78,13 +75,6 @@ CLMemory::~CLMemory ()
 int32_t
 CLMemory::export_fd ()
 {
-    if (_mem_fd >= 0)
-        return _mem_fd;
-
-#if HAVE_LIBDRM
-    SmartPtr<CLIntelContext> context = _context.dynamic_cast_ptr<CLIntelContext> ();
-    _mem_fd = context->export_mem_fd (_mem_id);
-#endif
     if (_mem_fd < 0)
         XCAM_LOG_ERROR ("invalid fd:%d", _mem_fd);
 
@@ -548,7 +538,7 @@ CLImage2D::CLImage2D (
     CLImageDesc cl_desc;
 
     if (!video_info_2_cl_image_desc (video_info, cl_desc)) {
-        XCAM_LOG_WARNING ("CLVaImage create va image failed on default videoinfo");
+        XCAM_LOG_WARNING ("CLImage2D convert video_info to cl_image_info failed");
         return;
     }
 
@@ -626,7 +616,7 @@ CLImage2DArray::CLImage2DArray (
     XCAM_ASSERT (video_info.components >= 2);
 
     if (!video_info_2_cl_image_desc (video_info, cl_desc)) {
-        XCAM_LOG_WARNING ("CLVaImage create va image failed on default videoinfo");
+        XCAM_LOG_WARNING ("CLImage2D convert video_info to cl_image_info failed");
         return;
     }
     XCAM_ASSERT (cl_desc.array_size >= 2);
