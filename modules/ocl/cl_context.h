@@ -33,10 +33,6 @@ class CLKernel;
 class CLDevice;
 class CLCommandQueue;
 
-class CLVaBuffer;
-class CLVaImage;
-class CLIntelContext;
-
 /* default context:
  *  SmartPtr<CLContext> context = CLDevice::instance()->get_context();
  */
@@ -53,10 +49,6 @@ class CLContext {
     friend class CLImage;
     friend class CLImage2D;
     friend class CLImage2DArray;
-
-    friend class CLVaBuffer;
-    friend class CLVaImage;
-    friend class CLIntelContext;
 
 public:
     enum KernelBuildType {
