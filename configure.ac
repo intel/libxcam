@@ -365,6 +365,12 @@ AM_CONDITIONAL([ENABLE_SMART_LIB], [test "$ENABLE_SMART_LIB" -eq 1])
 
 # check atomisp headers
 USE_LOCAL_ATOMISP=0
+if test "$enable_aiq" = "yes"; then
+AC_MSG_NOTICE(update atomisp submodule)
+git submodule sync
+git submodule init
+git submodule update
+
 #AC_CHECK_HEADERS([linux/atomisp.h], [USE_LOCAL_ATOMISP=0], [USE_LOCAL_ATOMISP=1])
 AC_CACHE_CHECK([for linux/atomisp.h],
     ac_cv_have_atomisp_headers, [
@@ -375,7 +381,7 @@ AC_CACHE_CHECK([for linux/atomisp.h],
     AC_COMPILE_IFELSE(
         [AC_LANG_PROGRAM(
             [[#ifndef __user
-              #define __user 
+              #define __user
               #endif
               #include <stdint.h>
               #include <stdio.h>
@@ -388,7 +394,7 @@ AC_CACHE_CHECK([for linux/atomisp.h],
     CPPFLAGS="$saved_CPPFLAGS"
     LIBS="$saved_LIBS"
 ])
-
+fi
 
 # build gstreamer plugin
 GST_API_VERSION=1.0
