@@ -62,7 +62,7 @@ OpenCL is used to improve performance in different platforms.
   * If --enable-gst, need install libgstreamer1.0-dev, libgstreamer-plugins-base1.0-dev
   * If --enable-aiq, need get ia_imaging lib which we don't support
   * If --enable-libcl, need compile or install [OpenCL](https://github.com/intel/compute-runtime) driver
-  * If --enable-opencv, suggest [OpenCV](http://opencv.org) versions [3.0.0 - 3.4.3] (or: [OpenCV Wiki](https://github.com/opencv/opencv/wiki))
+  * If --enable-opencv, suggest [OpenCV](http://opencv.org) versions [3.0.0 - 4.0.0) (or: [OpenCV Wiki](https://github.com/opencv/opencv/wiki))
   * If --enable-render, need compile [OpenSceneGraph](https://github.com/openscenegraph/OpenSceneGraph) library with configure option "-DOSG_WINDOWING_SYSTEM=X11"
   * If --enable-gles, need to install [Mesa3D](https://www.mesa3d.org) library
   * If --enable-vulkan, need to install [Mesa3D](https://www.mesa3d.org) library
