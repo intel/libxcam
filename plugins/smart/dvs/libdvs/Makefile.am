@@ -1,17 +1,17 @@
-noinst_LIBRARIES = libxcam_dvs.a
+noinst_LTLIBRARIES = libxcam_dvs.la
 
-libxcam_dvs_a_SOURCES = \
+libxcam_dvs_la_SOURCES = \
     libdvs.cpp     \
     stabilizer.cpp \
     $(NULL)
 
-libxcam_dvs_a_CXXFLAGS = \
+libxcam_dvs_la_CXXFLAGS = \
     $(XCAM_CXXFLAGS)      \
     $(OPENCV_CFLAGS)      \
     -I$(top_srcdir)/xcore \
     $(NULL)
 
-libxcam_dvs_a_LIBADD = \
+libxcam_dvs_la_LIBADD = \
     $(top_builddir)/xcore/libxcam_core.la \
     $(NULL)
 
@@ -27,6 +27,6 @@ test_image_stabilization_CXXFLAGS = \
     $(NULL)
 
 test_image_stabilization_LDADD = \
-    libxcam_dvs.a  \
+    libxcam_dvs.la \
     $(OPENCV_LIBS) \
     $(NULL)

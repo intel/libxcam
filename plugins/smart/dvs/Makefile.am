@@ -10,10 +10,10 @@ XCAM_PLUGIN_DVS_CXXFLAGS = \
     $(NULL)
 
 XCAM_PLUGIN_DVS_LIBS = \
-    $(OPENCV_LIBS)                                         \
-    $(top_builddir)/xcore/libxcam_core.la                  \
-    $(top_builddir)/modules/ocl/libxcam_ocl.la             \
-    $(top_builddir)/plugins/smart/dvs/libdvs/libxcam_dvs.a \
+    $(OPENCV_LIBS)                                          \
+    $(top_builddir)/xcore/libxcam_core.la                   \
+    $(top_builddir)/modules/ocl/libxcam_ocl.la              \
+    $(top_builddir)/plugins/smart/dvs/libdvs/libxcam_dvs.la \
     $(NULL)
 
 if HAVE_LIBDRM
