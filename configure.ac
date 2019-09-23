@@ -206,7 +206,7 @@ if test "$enable_dnn" = "yes"; then
     ENABLE_DNN=1
 fi
 
-if test "$HAVE_LIBCL" -eq 1; then
+if test "$HAVE_LIBCL" -eq 1 || test "$HAVE_GLES" -eq 1; then
     AC_CHECK_PROGS([GAWK], [gawk], [no])
     if test "x$GAWK" = "xno"; then
         AC_MSG_ERROR([gawk not found])
