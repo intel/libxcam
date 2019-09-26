@@ -12,7 +12,7 @@ AC_INIT([libxcam], [xcam_version], [feng.yuan@intel.com], [libxcam])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 
-#xcam version
+# xcam version
 XCAM_MAJOR_VERSION=xcam_major_version
 XCAM_MINOR_VERSION=xcam_minor_version
 XCAM_MICRO_VERSION=xcam_micro_version
@@ -27,12 +27,16 @@ XCAM_LT_LDFLAGS="-version-number $XCAM_LT_VERSION"
 AC_SUBST(XCAM_LT_VERSION)
 AC_SUBST(XCAM_LT_LDFLAGS)
 
-#xcam required OpenCV version [XCAM_REQUIRE_CV_MIN, XCAM_REQUIRE_CV_MAX)
+# xcam required OpenCV version [XCAM_REQUIRE_CV_MIN, XCAM_REQUIRE_CV_MAX)
 XCAM_REQUIRE_CV_MIN=3.0.0
 XCAM_REQUIRE_CV_MAX=4.0.0
 
-#xcam required OpenSceneGraph version
+# xcam required OpenSceneGraph version
 XCAM_REQUIRE_OSG_MIN=3.3.2
+
+# xcam gstreamer version
+GST_API_VERSION=1.0
+GST_VERSION_MIN=1.2.3
 
 # Checks for programs.
 AC_PROG_CC
@@ -41,426 +45,75 @@ AC_PROG_INSTALL
 PKG_PROG_PKG_CONFIG
 LT_INIT
 
-AC_ARG_ENABLE(debug,
-    AS_HELP_STRING([--enable-debug],
-                   [enable debug, @<:@default=no@:>@]),
-    [], [enable_debug="no"])
-AM_CONDITIONAL([DEBUG], [test "$enable_debug" = "yes"])
-
-AC_ARG_ENABLE(profiling,
-    AS_HELP_STRING([--enable-profiling],
-                   [enable profiling, @<:@default=no@:>@]),
-    [], [enable_profiling="no"])
-
-AC_ARG_ENABLE(drm,
-    AS_HELP_STRING([--enable-drm],
-                   [enable drm buffer, @<:@default=no@:>@]),
-    [], [enable_drm="no"])
-
-AC_ARG_ENABLE([aiq],
-    AS_HELP_STRING([--enable-aiq],
-                   [enable Aiq 3A algorithm build, @<:@default=no@:>@]),
-    [], [enable_aiq="no"])
-
-AC_ARG_ENABLE([gst],
-    AS_HELP_STRING([--enable-gst],
-                   [enable gstreamer plugin build, @<:@default=no@:>@]),
-    [], [enable_gst="no"])
-
-AC_ARG_ENABLE(libcl,
-    AS_HELP_STRING([--enable-libcl],
-                   [enable libcl image processor, @<:@default=yes@:>@]),
-    [], [enable_libcl="yes"])
-
-AC_ARG_ENABLE([gles],
-    AS_HELP_STRING([--enable-gles],
-                   [enable gles, @<:@default=no@:>@]),
-    [], [enable_gles="no"])
-
-AC_ARG_ENABLE([vulkan],
-    AS_HELP_STRING([--enable-vulkan],
-                   [enable vulkan, @<:@default=no@:>@]),
-    [], [enable_vulkan="no"])
-
-AC_ARG_ENABLE([avx512],
-    AS_HELP_STRING([--enable-avx512],
-                   [enable avx512, @<:@default=no@:>@]),
-    [], [enable_avx512="no"])
-
-AC_ARG_ENABLE(opencv,
-    AS_HELP_STRING([--enable-opencv],
-                   [enable opencv library, @<:@default=no@:>@]),
-    [], [enable_opencv="no"])
-
-AC_ARG_ENABLE(capi,
-    AS_HELP_STRING([--enable-capi],
-                   [enable libxcam-capi library, @<:@default=no@:>@]),
-    [], [enable_capi="no"])
-
-AC_ARG_ENABLE([render],
-    AS_HELP_STRING([--enable-render],
-                   [enable texture render with OpenSceneGraph library, @<:@default=no@:>@]),
-    [], [enable_render="no"])
-
-AC_ARG_ENABLE([dnn],
-    AS_HELP_STRING([--enable-dnn],
-                   [enable dnn with OpenVino library, @<:@default=no@:>@]),
-    [], [enable_dnn="no"])
-
-# documentation
-AC_ARG_ENABLE(docs,
-    [AC_HELP_STRING([--enable-docs],
-                    [build Doxygen documentation @<:@default=no@:>@])],
-    [], [enable_docs="no"])
-
-AC_ARG_ENABLE([3alib],
-    AS_HELP_STRING([--enable-3alib],
-                   [enable 3A lib build, @<:@default=no@:>@]),
-    [], [enable_3alib="no"])
-
-AC_ARG_ENABLE([smartlib],
-    AS_HELP_STRING([--enable-smartlib],
-                   [enable smart analysis lib build, @<:@default=no@:>@]),
-    [], [enable_smartlib="no"])
-
-# Check for Doxygen
-if test "$enable_docs" = "yes"; then
-    AC_CHECK_TOOL([DOXYGEN], [doxygen], [no])
-    if test "$DOXYGEN" = "no"; then
-       enable_docs="no"
-    fi
-fi
-AM_CONDITIONAL(ENABLE_DOCS, test "$enable_docs" = "yes")
-
-# check profiling
-ENABLE_PROFILING=0
-if test "$enable_profiling" = "yes"; then
-    ENABLE_PROFILING=1
-fi
-
-# check drm
-HAVE_LIBDRM=0
-if test "$enable_drm" = "yes"; then
-    PKG_CHECK_MODULES(LIBDRM, [libdrm], [HAVE_LIBDRM=1], [HAVE_LIBDRM=0])
-fi
-
-# check OpenCL
-HAVE_LIBCL=0
-if test "$enable_libcl" = "yes"; then
-    PKG_CHECK_MODULES(LIBCL, [OpenCL], [HAVE_LIBCL=1], [HAVE_LIBCL=0])
-fi
-
-# check gl
-HAVE_GLES=0
-if test "$enable_gles" = "yes"; then
-    PKG_CHECK_MODULES(LIBGL, [gl], [HAVE_GLES=1], [HAVE_GLES=0])
-fi
-
-# check vulkan
-HAVE_VULKAN=0
-if test "$enable_vulkan" = "yes"; then
-    PKG_CHECK_MODULES(LIBVULKAN, [vulkan], [HAVE_VULKAN=1], [HAVE_VULKAN=0])
-fi
-
-# check avx
-ENABLE_AVX512=0
-if test "$enable_avx512" = "yes"; then
-    AVX512_COUNT=`grep -c avx512 /proc/cpuinfo`
-    if test "$AVX512_COUNT" -gt 0; then
-        ENABLE_AVX512=1
-    else
-        AC_MSG_ERROR(The processor does not support AVX512 instructions)
-    fi
-fi
-
-# check open sence graph
-ENABLE_RENDER=0
-if test "$enable_render" = "yes"; then
-    PKG_CHECK_MODULES(
-        [LIBOSG],
-        [openscenegraph-osg >= $XCAM_REQUIRE_OSG_MIN],
-        [HAVE_OSG=1],
-        [HAVE_OSG=0])
-
-    XCAM_OSG_VERSION=`$PKG_CONFIG --modversion openscenegraph-osg`
-    AC_MSG_NOTICE(OpenSceneGraph version: $XCAM_OSG_VERSION)
-
-    if test "$HAVE_OSG" -eq 1; then
-        ENABLE_RENDER=1
-    else
-        AC_MSG_WARN(OpenSceneGraph required version: >= $XCAM_REQUIRE_OSG_MIN)
-        ENABLE_RENDER=0
-    fi
-fi
-
-ENABLE_DNN=0
-if test "$enable_dnn" = "yes"; then
-    if test -z $OPENVINO_IE_INC_PATH; then
-        AC_MSG_WARN(Please export OPENVINO_IE_INC_PATH environment variables)
-        AC_MSG_ERROR(OpenVino inc path has not been set ... disable DNN module!)
-    fi
-    if test -z $OPENVINO_IE_LIBS_PATH; then
-        AC_MSG_WARN(Please export OPENVINO_IE_LIBS_PATH environment variables)
-        AC_MSG_ERROR(OpenVino library path has not been set ... disable DNN module!)
-    fi
-    ENABLE_DNN=1
-fi
-
-if test "$HAVE_LIBCL" -eq 1 || test "$HAVE_GLES" -eq 1; then
-    AC_CHECK_PROGS([GAWK], [gawk], [no])
-    if test "x$GAWK" = "xno"; then
-        AC_MSG_ERROR([gawk not found])
-    fi
-fi
-
-# check opencv version
-HAVE_OPENCV=0
-if test "$enable_opencv" = "yes"; then
-    XCAM_CV_VERSION=`opencv_version`
-    if test -z $XCAM_CV_VERSION; then
-        XCAM_CV_VERSION=`$PKG_CONFIG --modversion opencv`
-    fi
-    AC_MSG_NOTICE(OpenCV version: $XCAM_CV_VERSION)
-
-    XCAM_CV_MAJOR_VERSION=`echo $XCAM_CV_VERSION | cut -d '.' -f 1`
-
-    opencv_module=opencv
-    if test $XCAM_CV_MAJOR_VERSION -ge 4; then
-        opencv_module=opencv$XCAM_CV_MAJOR_VERSION
-    fi
-
-    PKG_CHECK_MODULES(
-        [OPENCV],
-        [$opencv_module >= $XCAM_REQUIRE_CV_MIN $opencv_module < $XCAM_REQUIRE_CV_MAX],
-        [HAVE_OPENCV=1],
-        [AC_MSG_ERROR(OpenCV required version: >= $XCAM_REQUIRE_CV_MIN && < $XCAM_REQUIRE_CV_MAX)])
-fi
-
-# check opencv videostab module
-ENABLE_DVS=0
-if test "$HAVE_OPENCV" -eq 1; then
-    AC_LANG(C++)
-    saved_CPPFLAGS="$CPPFLAGS"
-    CPPFLAGS="$CPPFLAGS $OPENCV_CFLAGS"
-    saved_LIBS="$LIBS"
-    LIBS="$LIBS $OPENCV_LIBS"
-    AC_CHECK_HEADER([opencv2/videostab.hpp], [ENABLE_DVS=1], [ENABLE_DVS=0])
-    CPPFLAGS="$saved_CPPFLAGS"
-    LIBS="$saved_LIBS"
-fi
-
-# check dvs opencl path
-ENABLE_DVS_CL_PATH=0
-if test "$HAVE_OPENCV" -eq 1; then
-    AC_LANG(C++)
-    saved_CPPFLAGS="$CPPFLAGS"
-    CPPFLAGS="$CPPFLAGS $OPENCV_CFLAGS"
-    saved_LIBS="$LIBS"
-    LIBS="$LIBS $OPENCV_LIBS"
-    AC_COMPILE_IFELSE(
-        [AC_LANG_PROGRAM(
-            [[#include <opencv2/core.hpp>
-              #include <opencv2/opencv.hpp>
-            ]],
-            [[cv::UMat frame0;
-              cv::UMat frame1;
-              cv::videostab::MotionEstimatorRansacL2 est;
-              cv::videostab::KeypointBasedMotionEstimator kpest(&est);
-              kpest.estimate(frame0, frame1);
-            ]]
-           )],
-        [ENABLE_DVS_CL_PATH=1],
-        [ENABLE_DVS_CL_PATH=0]
-    )
-    CPPFLAGS="$saved_CPPFLAGS"
-    LIBS="$saved_LIBS"
-fi
-
-# check capi build
-ENABLE_CAPI=0
-if test "$enable_capi" = "yes" && test "$HAVE_LIBCL" -eq 1; then
-    AC_MSG_NOTICE(enable capi && have libcl: $HAVE_LIBCL)
-    ENABLE_CAPI=1
-fi
-
-# check AIQ
-ENABLE_IA_AIQ=0
-USE_LOCAL_AIQ=0
-if test "$enable_aiq" = "yes"; then
-    ENABLE_IA_AIQ=1
-    PKG_CHECK_MODULES(IA_AIQ, ia_imaging,
-        PKG_CHECK_EXISTS(ia_imaging >= 2.7,
-            AC_DEFINE(HAVE_AIQ_2_7, 1, [defined if module ia_imaging >= v2.0_007 is found])
-        ),
-        [USE_LOCAL_AIQ=1]
-    )
-
-    if test "$USE_LOCAL_AIQ" -eq 1; then
-        #check HAVE_AIQ_2_7
-        AC_CACHE_CHECK([for ext/ia_imaging >=v2.0_007],
-            ac_cv_have_aiq_2_7, [
-            saved_CPPFLAGS="$CPPFLAGS"
-            CPPFLAGS="$CPPFLAGS -I./ext/ia_imaging/include"
-            saved_LIBS="$LIBS"
-            LIBS="$LIBS"
-            AC_COMPILE_IFELSE(
-                [AC_LANG_PROGRAM(
-                    [[#include <stdint.h>
-                      #include <stdio.h>
-                      #include "ia_aiq_types.h"
-                    ]],
-                    [[ia_aiq_ae_results ae_result;
-                      ae_result.flashes = NULL;
-                    ]]
-                   )],
-                [ac_cv_have_aiq_2_7="yes"],
-                [ac_cv_have_aiq_2_7="no"]
-            )
-            CPPFLAGS="$saved_CPPFLAGS"
-            LIBS="$saved_LIBS"
-        ])
-
-        if test "$ac_cv_have_aiq_2_7" = "yes"; then
-            AC_DEFINE(HAVE_AIQ_2_7, 1, [defined if ia_imaging >= v2.0_007 is found])
-        fi
-    fi
-
-    if test "$USE_LOCAL_AIQ" -eq 0; then
-        IA_IMAGING_CFLAGS="$IA_AIQ_CFLAGS"
-        IA_IMAGING_LIBS="$IA_AIQ_LIBS"
-    else
-        IA_IMAGING_CFLAGS="-I\$(top_srcdir)/ext/ia_imaging/include"
-        IA_IMAGING_LIBS="-L\$(top_srcdir)/ext/ia_imaging/lib -lia_aiq -lia_isp_2_2 -lia_cmc_parser -lia_mkn -lia_nvm -lia_exc -lia_log"
-    fi
-    AC_SUBST(IA_IMAGING_CFLAGS)
-    AC_SUBST(IA_IMAGING_LIBS)
-    LIBS="$LIBS $IA_IMAGING_LIBS"
-fi
-
-# check 3a lib build
-ENABLE_3ALIB=0
-if test "$enable_3alib" = "yes"; then
-    ENABLE_3ALIB=1
-fi
-AM_CONDITIONAL([ENABLE_3ALIB], [test "$ENABLE_3ALIB" -eq 1])
-
-# check smart analysis lib build
-ENABLE_SMART_LIB=0
-if test "$enable_smartlib" = "yes"; then
-    ENABLE_SMART_LIB=1
-fi
-AM_CONDITIONAL([ENABLE_SMART_LIB], [test "$ENABLE_SMART_LIB" -eq 1])
-
-# check atomisp headers
-USE_LOCAL_ATOMISP=0
-if test "$enable_aiq" = "yes"; then
-AC_MSG_NOTICE(update atomisp submodule)
-git submodule sync
-git submodule init
-git submodule update
-
-#AC_CHECK_HEADERS([linux/atomisp.h], [USE_LOCAL_ATOMISP=0], [USE_LOCAL_ATOMISP=1])
-AC_CACHE_CHECK([for linux/atomisp.h],
-    ac_cv_have_atomisp_headers, [
-    saved_CPPFLAGS="$CPPFLAGS"
-    CPPFLAGS="$CPPFLAGS"
-    saved_LIBS="$LIBS"
-    LIBS="$LIBS"
-    AC_COMPILE_IFELSE(
-        [AC_LANG_PROGRAM(
-            [[#ifndef __user
-              #define __user
-              #endif
-              #include <stdint.h>
-              #include <stdio.h>
-              #include <linux/atomisp.h>]],
-            [[struct atomisp_parm param;]]
-           )],
-        [ac_cv_have_atomisp_headers="yes"],
-        [ac_cv_have_atomisp_headers="no" USE_LOCAL_ATOMISP=1]
-    )
-    CPPFLAGS="$saved_CPPFLAGS"
-    LIBS="$saved_LIBS"
-])
-fi
-
-# build gstreamer plugin
-GST_API_VERSION=1.0
-GST_VERSION_REQUIRED=1.2.3
-ENABLE_GST=0
-if test "$enable_gst" = "yes"; then
-    ENABLE_GST=1
-    PKG_CHECK_MODULES([GST], [gstreamer-$GST_API_VERSION >= $GST_VERSION_REQUIRED])
-    PKG_CHECK_MODULES([GST_ALLOCATOR], [gstreamer-allocators-$GST_API_VERSION >= $GST_VERSION_REQUIRED])
-    PKG_CHECK_MODULES([GST_VIDEO], [gstreamer-video-$GST_API_VERSION >= $GST_VERSION_REQUIRED])
-fi
-AM_CONDITIONAL([ENABLE_GST], [test "$ENABLE_GST" -eq 1])
-
-dnl set XCAM_CFLAGS and XCAM_CXXFLAGS
+# set XCAM_CFLAGS and XCAM_CXXFLAGS
 XCAM_CFLAGS=" -fPIC -Wall -fstack-protector"
-if test "$enable_debug" = "yes"; then
-    XCAM_CFLAGS="$XCAM_CFLAGS -g -DDEBUG"
-fi
+XCAM_IF($enable_debug, yes, XCAM_CFLAGS="$XCAM_CFLAGS -g -DDEBUG")
 XCAM_CXXFLAGS="$XCAM_CFLAGS -std=c++0x"
 AC_SUBST(XCAM_CFLAGS)
 AC_SUBST(XCAM_CXXFLAGS)
 
+XCAM_ARG_ENABLE(debug, --enable-debug, enable_debug, no, enable debug)
+XCAM_ARG_ENABLE(profiling, --enable-profiling, enable_profiling, no, enable profiling)
+XCAM_ARG_ENABLE(drm, --enable-drm, enable_drm, no, enable drm buffer)
+XCAM_ARG_ENABLE(aiq, --enable-aiq, enable_aiq, no, enable Aiq 3A algorithm)
+XCAM_ARG_ENABLE(gst, --enable-gst, enable_gst, no, enable gstreamer plugin)
+XCAM_ARG_ENABLE(libcl, --enable-libcl, enable_libcl, yes, enable libcl image processor)
+XCAM_ARG_ENABLE(gles, --enable-gles, enable_gles, no, enable gles)
+XCAM_ARG_ENABLE(vulkan, --enable-vulkan, enable_vulkan, no, enable vulkan)
+XCAM_ARG_ENABLE(avx512, --enable-avx512, enable_avx512, no, enable avx512)
+XCAM_ARG_ENABLE(opencv, --enable-opencv, enable_opencv, no, enable opencv library)
+XCAM_ARG_ENABLE(capi, --enable-capi, enable_capi, no, enable libxcam-capi library)
+XCAM_ARG_ENABLE(render, --enable-render, enable_render, no, enable texture render with OpenSceneGraph library)
+XCAM_ARG_ENABLE(dnn, --enable-dnn, enable_dnn, no, enable dnn with OpenVino library)
+XCAM_ARG_ENABLE(docs, --enable-docs, enable_docs, no, build Doxygen documentation)
+XCAM_ARG_ENABLE(3alib, --enable-3alib, enable_3alib, no, enable 3A library)
+XCAM_ARG_ENABLE(smartlib, --enable-smartlib, enable_smartlib, no, enable smart analysis library)
+
+XCAM_CHECK_MODULE($enable_drm, libdrm, LIBDRM, HAVE_LIBDRM=1, HAVE_LIBDRM=0)
+XCAM_CHECK_MODULE($enable_libcl, OpenCL, LIBCL, HAVE_LIBCL=1, HAVE_LIBCL=0)
+XCAM_CHECK_MODULE($enable_gles, gl, LIBGL, HAVE_GLES=1, HAVE_GLES=0)
+XCAM_CHECK_MODULE($enable_vulkan, vulkan, LIBVULKAN, HAVE_VULKAN=1, HAVE_VULKAN=0)
+
+XCAM_CHECK_GAWK($HAVE_LIBCL, $HAVE_GLES)
+XCAM_CHECK_DOXYGEN($enable_docs, [], enable_docs="no")
+XCAM_CHECK_AVX512($enable_avx512, ENABLE_AVX512=1, ENABLE_AVX512=0)
+XCAM_CHECK_OSG($enable_render, $XCAM_REQUIRE_OSG_MIN, ENABLE_RENDER=1, ENABLE_RENDER=0)
+XCAM_CHECK_DNN($enable_dnn, $OPENVINO_IE_INC_PATH, $OPENVINO_IE_LIBS_PATH, ENABLE_DNN=1, ENABLE_DNN=0)
+XCAM_CHECK_OPENCV($enable_opencv, $XCAM_REQUIRE_CV_MIN, $XCAM_REQUIRE_CV_MAX, HAVE_OPENCV=1, HAVE_OPENCV=0)
+XCAM_CHECK_OCV_VIDEOSTAB($HAVE_OPENCV, ENABLE_DVS=1, ENABLE_DVS=0)
+XCAM_CHECK_DVS_OCL($HAVE_OPENCV, ENABLE_DVS_CL_PATH=1, ENABLE_DVS_CL_PATH=0)
+XCAM_CHECK_GST($enable_gst, $GST_API_VERSION, $GST_VERSION_MIN, ENABLE_GST=1, ENABLE_GST=0)
+XCAM_CHECK_CAPI($enable_capi, $HAVE_LIBCL, ENABLE_CAPI=1, ENABLE_CAPI=0)
+XCAM_CHECK_AIQ($enable_aiq, ENABLE_IA_AIQ=1, ENABLE_IA_AIQ=0, USE_LOCAL_AIQ=1, USE_LOCAL_AIQ=0)
+XCAM_CHECK_LOCAL_ATOMISP($enable_aiq, USE_LOCAL_ATOMISP=1, USE_LOCAL_ATOMISP=0)
+
+XCAM_IF($enable_profiling, yes, ENABLE_PROFILING=1, ENABLE_PROFILING=0)
+XCAM_IF($enable_3alib, yes, ENABLE_3ALIB=1, ENABLE_3ALIB=0)
+XCAM_IF($enable_smartlib, yes, ENABLE_SMART_LIB=1, ENABLE_SMART_LIB=0)
+
 # define macor in config.h
-AC_DEFINE_UNQUOTED([ENABLE_PROFILING], $ENABLE_PROFILING,
-    [enable profiling])
+XCAM_DEFINE_MACOR(ENABLE_PROFILING, $ENABLE_PROFILING, enable profiling)
+XCAM_DEFINE_MACOR(HAVE_LIBDRM, $HAVE_LIBDRM, have libdrm)
+XCAM_DEFINE_MACOR(HAVE_LIBCL, $HAVE_LIBCL, have libcl)
+XCAM_DEFINE_MACOR(HAVE_GLES, $HAVE_GLES, have gles)
+XCAM_DEFINE_MACOR(HAVE_VULKAN, $HAVE_VULKAN, have vulkan)
+XCAM_DEFINE_MACOR(ENABLE_AVX512, $ENABLE_AVX512, have avx instruction)
+XCAM_DEFINE_MACOR(ENABLE_RENDER, $ENABLE_RENDER, enable texture render)
+XCAM_DEFINE_MACOR(ENABLE_DNN, $ENABLE_DNN, have dnn)
+XCAM_DEFINE_MACOR(HAVE_OPENCV, $HAVE_OPENCV, have opencv)
+XCAM_DEFINE_MACOR(ENABLE_DVS, $ENABLE_DVS, have dvs)
+XCAM_DEFINE_MACOR(ENABLE_DVS_CL_PATH, $ENABLE_DVS_CL_PATH, enable dvs cl path)
+XCAM_DEFINE_MACOR(ENABLE_CAPI, $ENABLE_CAPI, enable capi)
+XCAM_DEFINE_MACOR(HAVE_IA_AIQ, $ENABLE_IA_AIQ, have aiq binary)
 
-AC_DEFINE_UNQUOTED([HAVE_LIBDRM], $HAVE_LIBDRM,
-    [have libdrm])
-AM_CONDITIONAL([HAVE_LIBDRM], [test "$HAVE_LIBDRM" -eq 1])
-
-AC_DEFINE_UNQUOTED([HAVE_LIBCL], $HAVE_LIBCL,
-    [have libcl])
-AM_CONDITIONAL([HAVE_LIBCL], [test "$HAVE_LIBCL" -eq 1])
-
-AC_DEFINE_UNQUOTED([HAVE_GLES], $HAVE_GLES,
-    [have gles])
-AM_CONDITIONAL([HAVE_GLES], [test "$HAVE_GLES" -eq 1])
-
-AC_DEFINE_UNQUOTED([HAVE_VULKAN], $HAVE_VULKAN,
-    [have vulkan])
-AM_CONDITIONAL([HAVE_VULKAN], [test "$HAVE_VULKAN" -eq 1])
-
-AC_DEFINE_UNQUOTED([ENABLE_AVX512], $ENABLE_AVX512,
-    [have avx instruction])
-AM_CONDITIONAL([ENABLE_AVX512], [test "$ENABLE_AVX512" -eq 1])
-
-AC_DEFINE_UNQUOTED([ENABLE_RENDER], $ENABLE_RENDER,
-    [enable texture render])
-AM_CONDITIONAL([ENABLE_RENDER], [test "$ENABLE_RENDER" -eq 1])
-
-AC_DEFINE_UNQUOTED([ENABLE_DNN], $ENABLE_DNN,
-    [enable dnn])
-AM_CONDITIONAL([ENABLE_DNN], [test "$ENABLE_DNN" -eq 1])
-
-AC_DEFINE_UNQUOTED([HAVE_OPENCV], $HAVE_OPENCV,
-    [have opencv])
-AM_CONDITIONAL([HAVE_OPENCV], [test "$HAVE_OPENCV" -eq 1])
-
-AC_DEFINE_UNQUOTED([ENABLE_DVS], $ENABLE_DVS,
-    [enable dvs])
-AM_CONDITIONAL([ENABLE_DVS], [test "$ENABLE_DVS" -eq 1])
-
-AC_DEFINE_UNQUOTED([ENABLE_DVS_CL_PATH], $ENABLE_DVS_CL_PATH,
-    [enable dvs cl path])
-AM_CONDITIONAL([ENABLE_DVS_CL_PATH], [test "$ENABLE_DVS_CL_PATH" -eq 1])
-
-AC_DEFINE_UNQUOTED([ENABLE_CAPI], $ENABLE_CAPI,
-    [enable capi build])
-AM_CONDITIONAL([ENABLE_CAPI], [test "$ENABLE_CAPI" -eq 1])
-
-#atomisp
-AM_CONDITIONAL([USE_LOCAL_ATOMISP], [test "$USE_LOCAL_ATOMISP" -eq 1])
-
-# aiq (ia_imaging)
-AC_DEFINE_UNQUOTED([HAVE_IA_AIQ], $ENABLE_IA_AIQ,
-    [have aiq binary])
-AM_CONDITIONAL([ENABLE_IA_AIQ], [test "$ENABLE_IA_AIQ" -eq 1])
-AM_CONDITIONAL([USE_LOCAL_AIQ], [test "$USE_LOCAL_AIQ" -eq 1])
+XCAM_CONDITIONAL(DEBUG, $enable_debug, yes)
+XCAM_CONDITIONAL(ENABLE_DOCS, $enable_docs, yes)
+XCAM_CONDITIONAL(ENABLE_3ALIB, $ENABLE_3ALIB, 1)
+XCAM_CONDITIONAL(ENABLE_SMART_LIB, $ENABLE_SMART_LIB, 1)
+XCAM_CONDITIONAL(ENABLE_GST, $ENABLE_GST, 1)
+XCAM_CONDITIONAL(USE_LOCAL_ATOMISP, $USE_LOCAL_ATOMISP, 1)
+XCAM_CONDITIONAL(ENABLE_IA_AIQ, $ENABLE_IA_AIQ, 1)
+XCAM_CONDITIONAL(USE_LOCAL_AIQ, $USE_LOCAL_AIQ, 1)
 
 AC_CONFIG_FILES([Makefile
                  shaders/Makefile
@@ -496,18 +149,18 @@ AC_CONFIG_FILES([Makefile
 
 AC_OUTPUT
 
-if test "$HAVE_LIBDRM" -eq 1; then have_drm="yes"; else have_drm="no"; fi
-if test "$USE_LOCAL_AIQ" -eq 1; then use_local_aiq="yes"; else  use_local_aiq="no"; fi
-if test "$USE_LOCAL_ATOMISP" -eq 1; then use_local_atomisp="yes"; else  use_local_atomisp="no"; fi
-if test "$HAVE_LIBCL" -eq 1; then have_libcl="yes"; else  have_libcl="no"; fi
-if test "$HAVE_GLES" -eq 1; then have_gles="yes"; else  have_gles="no"; fi
-if test "$HAVE_VULKAN" -eq 1; then have_vulkan="yes"; else  have_vulkan="no"; fi
-if test "$ENABLE_AVX512" -eq 1; then enable_avx512="yes"; else enable_avx512="no"; fi
-if test "$HAVE_OPENCV" -eq 1; then have_opencv="yes"; else have_opencv="no"; fi
-if test "$ENABLE_RENDER" -eq 1; then enable_render="yes"; else enable_render="no"; fi
-if test "$ENABLE_DNN" -eq 1; then enable_dnn="yes"; else enable_dnn="no"; fi
-if test "$ENABLE_DVS" -eq 1; then enable_dvs="yes"; else enable_dvs="no"; fi
-if test "$ENABLE_CAPI" -eq 1; then enable_capi="yes"; else enable_capi="no"; fi
+XCAM_IF($HAVE_LIBDRM, 1, have_drm="yes", have_drm="no")
+XCAM_IF($USE_LOCAL_AIQ, 1, use_local_aiq="yes", use_local_aiq="no")
+XCAM_IF($USE_LOCAL_ATOMISP, 1, use_local_atomisp="yes", use_local_atomisp="no")
+XCAM_IF($HAVE_LIBCL, 1, have_libcl="yes", have_libcl="no")
+XCAM_IF($HAVE_GLES, 1, have_gles="yes", have_gles="no")
+XCAM_IF($HAVE_VULKAN, 1, have_vulkan="yes", have_vulkan="no")
+XCAM_IF($ENABLE_AVX512, 1, enable_avx512="yes", enable_avx512="no")
+XCAM_IF($HAVE_OPENCV, 1, have_opencv="yes", have_opencv="no")
+XCAM_IF($ENABLE_RENDER, 1, enable_render="yes", enable_render="no")
+XCAM_IF($ENABLE_DNN, 1, enable_dnn="yes", enable_dnn="no")
+XCAM_IF($ENABLE_DVS, 1, enable_dvs="yes", enable_dvs="no")
+XCAM_IF($ENABLE_CAPI, 1, enable_capi="yes", enable_capi="no")
 
 echo "
      libxcam configuration summary
