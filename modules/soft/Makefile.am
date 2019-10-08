@@ -17,6 +17,7 @@ XCAMSOFT_CXXFLAGS += \
 endif
 
 if HAVE_OPENCV
+XCAMSOFT_CXXFLAGS += $(OPENCV_CFLAGS)
 XCAMSOFT_LIBS += $(top_builddir)/modules/ocv/libxcam_ocv.la
 endif
 
