@@ -444,10 +444,10 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Float2 *array) const
         border_check_y (pos_y1);
         const T* bottom_ptr = ((const T*)(_buf_ptr + pos_y1 * _pitch));
 
-        __m512 tl = _mm512_i32gather_ps (idx_left, (void*) & (top_ptr[pos_x0]), 4);
-        __m512 tr = _mm512_i32gather_ps (idx_right, (void*) & (top_ptr[pos_x0]), 4);
-        __m512 bl = _mm512_i32gather_ps (idx_left, (void*) & (bottom_ptr[pos_x0]), 4);
-        __m512 br = _mm512_i32gather_ps (idx_right, (void*) & (bottom_ptr[pos_x0]), 4);
+        __m512 tl = _mm512_i32gather_ps (idx_left, (float*) & (top_ptr[pos_x0]), 4);
+        __m512 tr = _mm512_i32gather_ps (idx_right, (float*) & (top_ptr[pos_x0]), 4);
+        __m512 bl = _mm512_i32gather_ps (idx_left, (float*) & (bottom_ptr[pos_x0]), 4);
+        __m512 br = _mm512_i32gather_ps (idx_right, (float*) & (bottom_ptr[pos_x0]), 4);
 
         __m512 interp_value = _mm512_mul_ps (tl, _mm512_mul_ps (_mm512_sub_ps (const_one, weight_x), _mm512_sub_ps (const_one, weight_y))) +
                               _mm512_mul_ps (tr, _mm512_mul_ps (weight_x, _mm512_sub_ps(const_one, weight_y))) +
