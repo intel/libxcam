@@ -54,6 +54,7 @@ TEST_BASE_CXXFLAGS = \
 TEST_CORE_LA = $(top_builddir)/xcore/libxcam_core.la
 
 if HAVE_OPENCV
+TEST_BASE_CXXFLAGS += $(OPENCV_CFLAGS)
 TEST_OCV_LA = $(top_builddir)/modules/ocv/libxcam_ocv.la
 endif
 
