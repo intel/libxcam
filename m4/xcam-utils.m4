@@ -328,3 +328,9 @@ AC_DEFUN([XCAM_WGET],
         ])
 ])
 
+# XCAM_CHECK_PKG_CONFIG([$1:variable], [$2:value], [$3:if-true])
+AC_DEFUN([XCAM_CHECK_PKG_CONFIG],
+[
+    AS_IF([test "x$1" = "x$2"], [$3], [])
+])
+

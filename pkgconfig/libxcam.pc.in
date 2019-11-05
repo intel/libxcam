@@ -7,6 +7,6 @@ Name: libxcam
 Description: extended camera features
 Requires:
 Version: @XCAM_VERSION@
-Libs: -L${libdir} -lxcam_capi -lxcam_ocl -lxcam_core
+Libs: -L${libdir} @XCAM_PKG_EXPORT_LIBS@
 Cflags: -I${includedir}/xcam -I${includedir}
 

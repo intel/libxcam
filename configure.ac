@@ -8,7 +8,7 @@ m4_define([xcam_version], [xcam_major_version.xcam_minor_version.xcam_micro_vers
 
 AC_PREREQ([2.60])
 AC_CONFIG_MACRO_DIR([m4])
-AC_INIT([libxcam], [xcam_version], [feng.yuan@intel.com], [libxcam])
+AC_INIT([libxcam], [xcam_version], [wei.zong@intel.com], [libxcam])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 
@@ -91,7 +91,18 @@ XCAM_IF($enable_profiling, yes, ENABLE_PROFILING=1, ENABLE_PROFILING=0)
 XCAM_IF($enable_3alib, yes, ENABLE_3ALIB=1, ENABLE_3ALIB=0)
 XCAM_IF($enable_smartlib, yes, ENABLE_SMART_LIB=1, ENABLE_SMART_LIB=0)
 
+XCAM_PKG_EXPORT_LIBS=" -lxcam_core -lxcam_soft"
+XCAM_CHECK_PKG_CONFIG($HAVE_LIBCL, 1, XCAM_PKG_EXPORT_LIBS+=" -lxcam_ocl")
+XCAM_CHECK_PKG_CONFIG($HAVE_GLES, 1, XCAM_PKG_EXPORT_LIBS+=" -lxcam_gles")
+XCAM_CHECK_PKG_CONFIG($HAVE_VULKAN, 1, XCAM_PKG_EXPORT_LIBS+=" -lxcam_vulkan")
+XCAM_CHECK_PKG_CONFIG($ENABLE_RENDER, 1, XCAM_PKG_EXPORT_LIBS+=" -lxcam_render")
+XCAM_CHECK_PKG_CONFIG($ENABLE_DNN, 1, XCAM_PKG_EXPORT_LIBS+=" -lxcam_dnn")
+XCAM_CHECK_PKG_CONFIG($ENABLE_CAPI, 1, XCAM_PKG_EXPORT_LIBS+=" -lxcam_capi")
+
 # define macor in config.h
+AC_DEFINE_UNQUOTED(XCAM_PKG_EXPORT_LIBS, "$XCAM_PKG_EXPORT_LIBS", [define libxcam pkg libs])
+AC_SUBST(XCAM_PKG_EXPORT_LIBS)
+
 XCAM_DEFINE_MACOR(ENABLE_PROFILING, $ENABLE_PROFILING, enable profiling)
 XCAM_DEFINE_MACOR(HAVE_LIBDRM, $HAVE_LIBDRM, have libdrm)
 XCAM_DEFINE_MACOR(HAVE_LIBCL, $HAVE_LIBCL, have libcl)
