@@ -515,6 +515,8 @@ int main (int argc, char *argv[])
     SVStreams ins;
     SVStreams outs;
 
+    uint32_t input_format = V4L2_PIX_FMT_NV12;
+
     uint32_t fisheye_num = 4;
     CamModel cam_model = CamB4C1080P;
     FrameMode frame_mode = FrameMulti;
@@ -541,6 +543,7 @@ int main (int argc, char *argv[])
         {"output", required_argument, NULL, 'o'},
         {"in-w", required_argument, NULL, 'w'},
         {"in-h", required_argument, NULL, 'h'},
+        {"in-format", required_argument, NULL, 'p'},
         {"out-w", required_argument, NULL, 'W'},
         {"out-h", required_argument, NULL, 'H'},
         {"topview-w", required_argument, NULL, 'P'},
@@ -600,6 +603,9 @@ int main (int argc, char *argv[])
             break;
         case 'H':
             output_height = atoi(optarg);
+            break;
+        case 'p':
+            input_format = (strcasecmp (optarg, "yuv") == 0 ? V4L2_PIX_FMT_YUV420 : V4L2_PIX_FMT_NV12);
             break;
         case 'P':
             topview_width = atoi(optarg);
@@ -830,7 +836,7 @@ int main (int argc, char *argv[])
     for (uint32_t i = 0; i < ins.size (); ++i) {
         ins[i]->set_module (module);
         ins[i]->set_buf_size (input_width, input_height);
-        CHECK (ins[i]->create_buf_pool (6, V4L2_PIX_FMT_NV12), "create buffer pool failed");
+        CHECK (ins[i]->create_buf_pool (6, input_format), "create buffer pool failed");
         CHECK (ins[i]->open_reader ("rb"), "open input file(%s) failed", ins[i]->get_file_name ());
     }
 
