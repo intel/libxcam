@@ -163,10 +163,10 @@ public:
         XCAM_ASSERT (_ref);
         if (!_ref->unref()) {
             if (!_ref->is_a_object ()) {
-                XCAM_ASSERT (dynamic_cast<RefCount*>(_ref));
+                //XCAM_ASSERT (dynamic_cast<RefCount*>(_ref));
                 delete _ref;
             } else {
-                XCAM_ASSERT (dynamic_cast<Obj*>(_ref) == _ptr);
+                //XCAM_ASSERT (dynamic_cast<Obj*>(_ref) == _ptr);
             }
             delete _ptr;
         }
