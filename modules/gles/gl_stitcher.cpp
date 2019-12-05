@@ -183,137 +183,6 @@ private:
     SmartPtr<GLComputeProgram>    _sync_prog;
 };
 
-#if HAVE_OPENCV
-static FMConfig
-get_fm_config (StitchResMode res_mode)
-{
-    FMConfig config;
-
-    switch (res_mode) {
-    case StitchRes1080P2Cams: {
-        config.stitch_min_width = 136;
-        config.min_corners = 4;
-        config.offset_factor = 0.9f;
-        config.delta_mean_offset = 120.0f;
-        config.recur_offset_error = 8.0f;
-        config.max_adjusted_offset = 24.0f;
-        config.max_valid_offset_y = 8.0f;
-        config.max_track_error = 28.0f;
-        break;
-    }
-    case StitchRes1080P4Cams: {
-        config.stitch_min_width = 136;
-        config.min_corners = 4;
-        config.offset_factor = 0.8f;
-        config.delta_mean_offset = 120.0f;
-        config.recur_offset_error = 8.0f;
-        config.max_adjusted_offset = 24.0f;
-        config.max_valid_offset_y = 20.0f;
-        config.max_track_error = 28.0f;
-#ifdef ANDROID
-        config.max_track_error = 3600.0f;
-#endif
-        break;
-    }
-    case StitchRes8K3Cams: {
-        config.stitch_min_width = 136;
-        config.min_corners = 4;
-        config.offset_factor = 0.95f;
-        config.delta_mean_offset = 256.0f;
-        config.recur_offset_error = 4.0f;
-        config.max_adjusted_offset = 24.0f;
-        config.max_valid_offset_y = 20.0f;
-        config.max_track_error = 6.0f;
-        break;
-    }
-    default:
-        XCAM_LOG_DEBUG ("gl-stitcher: unknown reslution mode (%d)", res_mode);
-        break;
-    }
-
-    return config;
-}
-#endif
-
-static StitchInfo
-get_stitch_info (StitchResMode res_mode, StitchScopicMode scopic_mode)
-{
-    StitchInfo stitch_info;
-
-    switch (res_mode) {
-    case StitchRes1080P2Cams: {
-        stitch_info.fisheye_info[0].center_x = 480.0f;
-        stitch_info.fisheye_info[0].center_y = 480.0f;
-        stitch_info.fisheye_info[0].wide_angle = 202.8f;
-        stitch_info.fisheye_info[0].radius = 480.0f;
-        stitch_info.fisheye_info[0].rotate_angle = -90.0f;
-        stitch_info.fisheye_info[1].center_x = 1436.0f;
-        stitch_info.fisheye_info[1].center_y = 480.0f;
-        stitch_info.fisheye_info[1].wide_angle = 202.8f;
-        stitch_info.fisheye_info[1].radius = 480.0f;
-        stitch_info.fisheye_info[1].rotate_angle = 89.7f;
-        break;
-    }
-    case StitchRes8K3Cams: {
-        switch (scopic_mode) {
-        case ScopicStereoLeft: {
-            stitch_info.merge_width[0] = 256;
-            stitch_info.merge_width[1] = 256;
-            stitch_info.merge_width[2] = 256;
-
-            stitch_info.fisheye_info[0].center_x = 1907.0f;
-            stitch_info.fisheye_info[0].center_y = 1440.0f;
-            stitch_info.fisheye_info[0].wide_angle = 200.0f;
-            stitch_info.fisheye_info[0].radius = 1984.0f;
-            stitch_info.fisheye_info[0].rotate_angle = 90.3f;
-            stitch_info.fisheye_info[1].center_x = 1920.0f;
-            stitch_info.fisheye_info[1].center_y = 1440.0f;
-            stitch_info.fisheye_info[1].wide_angle = 200.0f;
-            stitch_info.fisheye_info[1].radius = 1984.0f;
-            stitch_info.fisheye_info[1].rotate_angle = 90.2f;
-            stitch_info.fisheye_info[2].center_x = 1920.0f;
-            stitch_info.fisheye_info[2].center_y = 1440.0f;
-            stitch_info.fisheye_info[2].wide_angle = 200.0f;
-            stitch_info.fisheye_info[2].radius = 1984.0f;
-            stitch_info.fisheye_info[2].rotate_angle = 91.2f;
-            break;
-        }
-        case ScopicStereoRight: {
-            stitch_info.merge_width[0] = 256;
-            stitch_info.merge_width[1] = 256;
-            stitch_info.merge_width[2] = 256;
-
-            stitch_info.fisheye_info[0].center_x = 1920.0f;
-            stitch_info.fisheye_info[0].center_y = 1440.0f;
-            stitch_info.fisheye_info[0].wide_angle = 200.0f;
-            stitch_info.fisheye_info[0].radius = 1984.0f;
-            stitch_info.fisheye_info[0].rotate_angle = 90.0f;
-            stitch_info.fisheye_info[1].center_x = 1920.0f;
-            stitch_info.fisheye_info[1].center_y = 1440.0f;
-            stitch_info.fisheye_info[1].wide_angle = 200.0f;
-            stitch_info.fisheye_info[1].radius = 1984.0f;
-            stitch_info.fisheye_info[1].rotate_angle = 90.0f;
-            stitch_info.fisheye_info[2].center_x = 1914.0f;
-            stitch_info.fisheye_info[2].center_y = 1440.0f;
-            stitch_info.fisheye_info[2].wide_angle = 200.0f;
-            stitch_info.fisheye_info[2].radius = 1984.0f;
-            stitch_info.fisheye_info[2].rotate_angle = 90.1f;
-            break;
-        }
-        default:
-            XCAM_LOG_ERROR ("gl-stitcher: unsupported scopic mode (%d)", scopic_mode);
-            break;
-        }
-        break;
-    }
-    default:
-        XCAM_LOG_DEBUG ("gl-stitcher: unknown reslution mode (%d)", res_mode);
-        break;
-    }
-
-    return stitch_info;
-}
-
 XCamReturn
 FisheyeMap::set_map_table (
     GLStitcher *stitcher, const Stitcher::RoundViewSlice &view_slice, uint32_t cam_idx)
@@ -541,8 +410,7 @@ StitcherImpl::init_feature_match (uint32_t idx)
 #endif
     XCAM_ASSERT (_overlaps[idx].matcher.ptr ());
 
-    const FMConfig &config = get_fm_config (_stitcher->get_res_mode ());
-    _overlaps[idx].matcher->set_config (config);
+    _overlaps[idx].matcher->set_config (_stitcher->get_fm_config ());
     _overlaps[idx].matcher->set_fm_index (idx);
 
     const BowlDataConfig bowl = _stitcher->get_bowl_config ();
@@ -551,8 +419,10 @@ StitcherImpl::init_feature_match (uint32_t idx)
     Rect right_ovlap = info.right;
 
     if (_stitcher->get_dewarp_mode () == DewarpSphere) {
-        left_ovlap.pos_y = left_ovlap.height / 3;
-        left_ovlap.height = left_ovlap.height / 3;
+        const FMRegionRatio &ratio = _stitcher->get_fm_region_ratio ();
+
+        left_ovlap.pos_y = left_ovlap.height * ratio.pos_y;
+        left_ovlap.height = left_ovlap.height * ratio.height;
         right_ovlap.pos_y = left_ovlap.pos_y;
         right_ovlap.height = left_ovlap.height;
     } else {
@@ -653,7 +523,7 @@ XCamReturn
 StitcherImpl::init_config (uint32_t count)
 {
     if (_stitcher->get_dewarp_mode () == DewarpSphere) {
-        _stitch_info = get_stitch_info (_stitcher->get_res_mode (), _stitcher->get_scopic_mode ());
+        _stitch_info = _stitcher->get_stitch_info ();
     }
 
     for (uint32_t i = 0; i < count; ++i) {

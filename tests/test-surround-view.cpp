@@ -20,6 +20,7 @@
 
 #include "test_common.h"
 #include "test_stream.h"
+#include "test_sv_params.h"
 #include <interface/geo_mapper.h>
 #include <interface/stitcher.h>
 #include <calibration_parser.h>
@@ -50,20 +51,6 @@ enum SVOutIdx {
     IdxStitch    = 0,
     IdxTopView,
     IdxCount
-};
-
-static const char *instrinsic_names[] = {
-    "intrinsic_camera_front.txt",
-    "intrinsic_camera_right.txt",
-    "intrinsic_camera_rear.txt",
-    "intrinsic_camera_left.txt"
-};
-
-static const char *exstrinsic_names[] = {
-    "extrinsic_camera_front.txt",
-    "extrinsic_camera_right.txt",
-    "extrinsic_camera_rear.txt",
-    "extrinsic_camera_left.txt"
 };
 
 class SVStream
@@ -450,8 +437,8 @@ static void usage(const char* arg0)
             "\t--topview-w         optional, output width, default: 1280\n"
             "\t--topview-h         optional, output height, default: 720\n"
             "\t--fisheye-num       optional, the number of fisheye lens, default: 4\n"
-            "\t--res-mode          optional, image resolution mode\n"
-            "\t                    select from [1080p2cams/1080p4cams/8k3cams], default: 1080p4cams\n"
+            "\t--cam-model         optional, camera model\n"
+            "\t                    select from [cama2c1080p/camb4c1080p/camc3c8k], default: camb4c1080p\n"
             "\t--blend-pyr-levels  optional, the pyramid levels of blender, default: 2\n"
             "\t--dewarp-mode       optional, fisheye dewarp mode, select from [sphere/bowl], default: bowl\n"
             "\t--scopic-mode       optional, scopic mode, select from [mono/stereoleft/stereoright], default: mono\n"
@@ -490,11 +477,11 @@ int main (int argc, char *argv[])
     SVStreams outs;
 
     uint32_t fisheye_num = 4;
+    CamModel cam_model = CamB4C1080P;
     FrameMode frame_mode = FrameMulti;
     SVModule module = SVModuleNone;
     GeoMapScaleMode scale_mode = ScaleSingleConst;
     FeatureMatchMode fm_mode = FMNone;
-    StitchResMode res_mode = StitchRes1080P4Cams;
     FisheyeDewarpMode dewarp_mode = DewarpBowl;
     StitchScopicMode scopic_mode = ScopicMono;
 
@@ -520,7 +507,7 @@ int main (int argc, char *argv[])
         {"topview-w", required_argument, NULL, 'P'},
         {"topview-h", required_argument, NULL, 'V'},
         {"fisheye-num", required_argument, NULL, 'N'},
-        {"res-mode", required_argument, NULL, 'R'},
+        {"cam-model", required_argument, NULL, 'C'},
         {"blend-pyr-levels", required_argument, NULL, 'b'},
         {"dewarp-mode", required_argument, NULL, 'd'},
         {"scopic-mode", required_argument, NULL, 'c'},
@@ -588,15 +575,15 @@ int main (int argc, char *argv[])
                 return -1;
             }
             break;
-        case 'R':
-            if (!strcasecmp (optarg, "1080p2cams"))
-                res_mode = StitchRes1080P2Cams;
-            else if (!strcasecmp (optarg, "1080p4cams"))
-                res_mode = StitchRes1080P4Cams;
-            else if (!strcasecmp (optarg, "8k3cams"))
-                res_mode = StitchRes8K3Cams;
+        case 'C':
+            if (!strcasecmp (optarg, "cama2c1080p"))
+                cam_model = CamA2C1080P;
+            else if (!strcasecmp (optarg, "camb4c1080p"))
+                cam_model = CamB4C1080P;
+            else if (!strcasecmp (optarg, "camc3c8k"))
+                cam_model = CamC3C8K;
             else {
-                XCAM_LOG_ERROR ("incorrect resolution mode");
+                XCAM_LOG_ERROR ("incorrect camera model");
                 return -1;
             }
             break;
@@ -738,8 +725,8 @@ int main (int argc, char *argv[])
     printf ("topview width:\t\t%d\n", topview_width);
     printf ("topview height:\t\t%d\n", topview_height);
     printf ("fisheye number:\t\t%d\n", fisheye_num);
-    printf ("resolution mode:\t%s\n", res_mode == StitchRes1080P2Cams ? "1080p2cams" :
-            (res_mode == StitchRes1080P4Cams ? "1080p4cams" : "8k3cams"));
+    printf ("camera model:\t\t%s\n", cam_model == CamA2C1080P ? "cama2c1080p" :
+            (cam_model == CamB4C1080P ? "camb4c1080p" : "camc3c8k"));
     printf ("blend pyr levels:\t%d\n", blend_pyr_levels);
     printf ("dewarp mode: \t\t%s\n", dewarp_mode == DewarpSphere ? "sphere" : "bowl");
     printf ("scopic mode:\t\t%s\n", (scopic_mode == ScopicMono) ? "mono" :
@@ -815,7 +802,6 @@ int main (int argc, char *argv[])
 
     stitcher->set_camera_num (fisheye_num);
     stitcher->set_output_size (output_width, output_height);
-    stitcher->set_res_mode (res_mode);
     stitcher->set_dewarp_mode (dewarp_mode);
     stitcher->set_scopic_mode (scopic_mode);
     stitcher->set_scale_mode (scale_mode);
@@ -824,29 +810,26 @@ int main (int argc, char *argv[])
 #if HAVE_OPENCV
     stitcher->set_fm_frames (fm_frames);
     stitcher->set_fm_status (fm_status);
+    FMConfig cfg = (module == SVModuleSoft) ? soft_fm_config (cam_model) :
+        ((module == SVModuleGLES) ? gl_fm_config (cam_model) : vk_fm_config (cam_model));
+    stitcher->set_fm_config (cfg);
+    if (dewarp_mode == DewarpSphere) {
+        stitcher->set_fm_region_ratio (fm_region_ratio (cam_model));
+    }
 #endif
 
-    if (dewarp_mode == DewarpSphere) {
-        if (res_mode == StitchRes1080P2Cams) {
-            float viewpoints_range[] = {202.8f, 202.8f};
-            stitcher->set_viewpoints_range (viewpoints_range);
-        } else if (res_mode == StitchRes8K3Cams) {
-            float viewpoints_range[] = {144.0f, 144.0f, 144.0f};
-            stitcher->set_viewpoints_range (viewpoints_range);
-        }
-    } else {
-        float viewpoints_range[] = {64.0f, 160.0f, 64.0f, 160.0f};
-        stitcher->set_viewpoints_range (viewpoints_range);
+    float *vp_range = new float[XCAM_STITCH_FISHEYE_MAX_NUM];
+    stitcher->set_viewpoints_range (viewpoints_range (cam_model, vp_range));
+    delete [] vp_range;
 
+    if (dewarp_mode == DewarpSphere) {
+        StitchInfo info = (module == SVModuleSoft) ?
+            soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
+        stitcher->set_stitch_info (info);
+    } else {
         stitcher->set_instrinsic_names (instrinsic_names);
         stitcher->set_exstrinsic_names (exstrinsic_names);
-
-        BowlDataConfig bowl;
-        bowl.wall_height = 1800.0f;
-        bowl.ground_length = 3000.0f;
-        bowl.angle_start = 0.0f;
-        bowl.angle_end = 360.0f;
-        stitcher->set_bowl_config (bowl);
+        stitcher->set_bowl_config (bowl_config (cam_model));
     }
 
     if (save_topview) {

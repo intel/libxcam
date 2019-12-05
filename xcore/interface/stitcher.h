@@ -24,6 +24,7 @@
 
 #include <xcam_std.h>
 #include <interface/data_types.h>
+#include <interface/feature_match.h>
 #include <vector>
 #include <video_buffer.h>
 
@@ -32,8 +33,16 @@
 #define XCAM_STITCH_MIN_SEAM_WIDTH 56
 
 #define INVALID_INDEX (uint32_t)(-1)
+const float ratio = 1.0f / 3.0f;
 
 namespace XCam {
+
+struct FMRegionRatio {
+    float pos_x, pos_y;
+    float width, height;
+
+    FMRegionRatio () : pos_x (0.0f), pos_y (ratio), width (1.0f), height (ratio) {}
+};
 
 enum StitchResMode {
     StitchRes1080P2Cams,
@@ -152,6 +161,7 @@ public:
 
     bool set_crop_info (uint32_t index, const ImageCropInfo &info);
     bool get_crop_info (uint32_t index, ImageCropInfo &info) const;
+
     bool is_crop_info_set () const {
         return _is_crop_set;
     }
@@ -168,13 +178,6 @@ public:
     void get_output_size (uint32_t &width, uint32_t &height) const {
         width = _output_width;
         height = _output_height;
-    }
-
-    void set_res_mode (StitchResMode mode) {
-        _res_mode = mode;
-    }
-    StitchResMode get_res_mode () {
-        return _res_mode;
     }
 
     void set_dewarp_mode (FisheyeDewarpMode mode) {
@@ -224,6 +227,25 @@ public:
     }
     uint32_t get_fm_frame_count () {
         return _fm_frame_count;
+    }
+
+    void set_fm_config (const FMConfig &cfg) {
+        _fm_cfg = cfg;
+    }
+    const FMConfig &get_fm_config () {
+        return _fm_cfg;
+    }
+
+    void set_fm_region_ratio (const FMRegionRatio &ratio);
+    const FMRegionRatio &get_fm_region_ratio () {
+        return _fm_region_ratio;
+    }
+
+    void set_stitch_info (const StitchInfo &info) {
+        _stitch_info = info;
+    }
+    const StitchInfo &get_stitch_info () {
+        return _stitch_info;
     }
 
     void set_blend_pyr_levels (uint32_t pyr_levels) {
@@ -292,7 +314,6 @@ private:
     bool                        _is_center_marked;
     CopyAreaArray               _copy_areas;
 
-    StitchResMode               _res_mode;
     FisheyeDewarpMode           _dewarp_mode;
 
     StitchScopicMode            _scopic_mode;
@@ -305,8 +326,12 @@ private:
     FeatureMatchStatus          _fm_status;
     uint32_t                    _fm_frames;
     uint32_t                    _fm_frame_count;
+    FMConfig                    _fm_cfg;
+    FMRegionRatio               _fm_region_ratio;
 
     uint32_t                    _blend_pyr_levels;
+
+    StitchInfo                  _stitch_info;
 };
 
 class BowlModel {
