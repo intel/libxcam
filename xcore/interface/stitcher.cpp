@@ -94,7 +94,6 @@ Stitcher::Stitcher (uint32_t align_x, uint32_t align_y)
     , _is_overlap_set (false)
     , _is_crop_set (false)
     , _is_center_marked (false)
-    , _res_mode (StitchRes1080P4Cams)
     , _dewarp_mode (DewarpBowl)
     , _scopic_mode (ScopicMono)
     , _scale_mode (ScaleSingleConst)
@@ -168,6 +167,20 @@ Stitcher::get_crop_info (uint32_t index, ImageCropInfo &info) const
         index, _camera_num);
     info = _crop_info[index];
     return true;
+}
+
+void
+Stitcher::set_fm_region_ratio (const FMRegionRatio &ratio)
+{
+    if (ratio.pos_x < 0.0f || ratio.width < 0.0f || ratio.pos_y < 0.0f || ratio.height < 0.0f ||
+        (ratio.pos_x + ratio.width) > 1.0f || (ratio.pos_y + ratio.height) > 1.0f) {
+        XCAM_LOG_ERROR (
+            "invalid FM region ratio (%f, %f, %f, %f)",
+            ratio.pos_x, ratio.width, ratio.pos_y, ratio.height);
+        XCAM_ASSERT (false);
+    }
+
+    _fm_region_ratio = ratio;
 }
 
 #if 0
