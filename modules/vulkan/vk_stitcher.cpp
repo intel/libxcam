@@ -435,19 +435,7 @@ StitcherImpl::init_feature_matchers ()
 #endif
         XCAM_ASSERT (matcher.ptr ());
 
-        FMConfig config;
-        config.stitch_min_width = 136;
-        config.min_corners = 4;
-        config.offset_factor = 0.8f;
-        config.delta_mean_offset = 120.0f;
-        config.recur_offset_error = 8.0f;
-        config.max_adjusted_offset = 24.0f;
-        config.max_valid_offset_y = 20.0f;
-        config.max_track_error = 28.0f;
-#ifdef ANDROID
-        config.max_track_error = 3600.0f;
-#endif
-        matcher->set_config (config);
+        matcher->set_config (_stitcher->get_fm_config ());
         matcher->set_fm_index (idx);
 
         const BowlDataConfig bowl = _stitcher->get_bowl_config ();
