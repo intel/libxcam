@@ -191,20 +191,57 @@ add_stream (SVStreams &streams, const char *stream_name, uint32_t width, uint32_
 }
 
 static void
-write_in_image (const SVStreams &ins, uint32_t frame_num)
+write_in_image (const SmartPtr<Stitcher> &stitcher, const SVStreams &ins, uint32_t frame_num)
 {
 #if (XCAM_TEST_STREAM_DEBUG) && (XCAM_TEST_OPENCV)
+    char img_name[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
+    char idx_str[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
     char frame_str[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
     std::snprintf (frame_str, XCAM_TEST_MAX_STR_SIZE, "frame:%d", frame_num);
 
-    char img_name[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
-    char idx_str[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
-    for (uint32_t i = 0; i < ins.size (); ++i) {
-        std::snprintf (idx_str, XCAM_TEST_MAX_STR_SIZE, "idx:%d", i);
-        std::snprintf (img_name, XCAM_TEST_MAX_STR_SIZE, "orig_fisheye_%d_%d.jpg", frame_num, i);
-        ins[i]->debug_write_image (img_name, frame_str, idx_str);
+    if (stitcher->get_dewarp_mode () == DewarpBowl) {
+        for (uint32_t i = 0; i < ins.size (); ++i) {
+            std::snprintf (idx_str, XCAM_TEST_MAX_STR_SIZE, "idx:%d", i);
+            std::snprintf (img_name, XCAM_TEST_MAX_STR_SIZE, "orig_fisheye_%d_%d.jpg", frame_num, i);
+            ins[i]->debug_write_image (img_name, frame_str, idx_str);
+        }
+    } else {
+        cv::Mat mat;
+        const StitchInfo &stitch_info = stitcher->get_stitch_info ();
+
+        if (ins.size () == 1) {
+            convert_to_mat (ins[0]->get_buf (), mat);
+
+            for (uint32_t i = 0; i < stitcher->get_camera_num (); i++) {
+                const FisheyeInfo &info = stitch_info.fisheye_info[i];
+                cv::circle (mat, cv::Point (info.center_x, info.center_y), info.radius, cv::Scalar(0, 0, 255), 2);
+            }
+            cv::putText (mat, frame_str, cv::Point(20, 50), cv::FONT_HERSHEY_COMPLEX, 2.0,
+                         cv::Scalar(0, 0, 255), 2, 8, false);
+
+            std::snprintf (img_name, XCAM_TEST_MAX_STR_SIZE, "orig_fisheye_%d.jpg", frame_num);
+            cv::imwrite (img_name, mat);
+        } else {
+            char idx_str[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
+            for (uint32_t i = 0; i < ins.size (); i++) {
+                convert_to_mat (ins[i]->get_buf (), mat);
+
+                const FisheyeInfo &info = stitch_info.fisheye_info[i];
+                cv::circle (mat, cv::Point (info.center_x, info.center_y), info.radius, cv::Scalar(0, 0, 255), 2);
+                cv::putText (mat, frame_str, cv::Point(20, 50), cv::FONT_HERSHEY_COMPLEX, 2.0,
+                             cv::Scalar(0, 0, 255), 2, 8, false);
+
+                std::snprintf (idx_str, XCAM_TEST_MAX_STR_SIZE, "idx:%d", i);
+                cv::putText (mat, idx_str, cv::Point (20, 110), cv::FONT_HERSHEY_COMPLEX, 2.0,
+                             cv::Scalar (0, 0, 255), 2, 8, false);
+
+                std::snprintf (img_name, XCAM_TEST_MAX_STR_SIZE, "orig_fisheye_%d_%d.jpg", frame_num, i);
+                cv::imwrite (img_name, mat);
+            }
+        }
     }
 #else
+    XCAM_UNUSED (stitcher);
     XCAM_UNUSED (ins);
     XCAM_UNUSED (frame_num);
 #endif
@@ -282,11 +319,13 @@ remap_topview_buf (const SmartPtr<SVStream> &stitch, const SmartPtr<SVStream> &t
 
 static void
 write_image (
-    const SVStreams &ins, const SVStreams &outs, bool save_output, bool save_topview)
+    const SmartPtr<Stitcher> &stitcher,
+    const SVStreams &ins, const SVStreams &outs,
+    bool save_output, bool save_topview)
 {
     static uint32_t frame_num = 0;
 
-    write_in_image (ins, frame_num);
+    write_in_image (stitcher, ins, frame_num);
 
     if (save_output)
         write_out_image (outs[IdxStitch], frame_num);
@@ -331,7 +370,7 @@ single_frame (
             if (stitcher->get_fm_mode () == FMNone ||
                 stitcher->get_fm_status () != FMStatusFMFirst ||
                 stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
-                write_image (ins, outs, save_output, save_topview);
+                write_image (stitcher, ins, outs, save_output, save_topview);
             }
         }
 
@@ -385,7 +424,7 @@ multi_frame (
                 if (stitcher->get_fm_mode () == FMNone ||
                     stitcher->get_fm_status () != FMStatusFMFirst ||
                     stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
-                    write_image (ins, outs, save_output, save_topview);
+                    write_image (stitcher, ins, outs, save_output, save_topview);
                 }
             }
 
