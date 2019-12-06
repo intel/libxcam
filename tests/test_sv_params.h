@@ -25,7 +25,8 @@ namespace XCam {
 enum CamModel {
     CamA2C1080P = 0,
     CamB4C1080P,
-    CamC3C8K
+    CamC3C8K,
+    CamD3C8K
 };
 
 static const char *instrinsic_names[] = {
@@ -89,6 +90,12 @@ viewpoints_range (CamModel model, float *range)
         range[2] = 144.0f;
         break;
     }
+    case CamD3C8K: {
+        range[0] = 154.0f;
+        range[1] = 154.0f;
+        range[2] = 154.0f;
+        break;
+    }
     default:
         XCAM_LOG_ERROR ("unknown camera model (%d)", model);
         break;
@@ -111,6 +118,13 @@ fm_region_ratio (CamModel model)
         break;
     }
     case CamC3C8K: {
+        ratio.pos_x = 0.0f;
+        ratio.width = 1.0f;
+        ratio.pos_y = 1.0f / 3.0f;
+        ratio.height = 1.0f / 3.0f;
+        break;
+    }
+    case CamD3C8K: {
         ratio.pos_x = 0.0f;
         ratio.width = 1.0f;
         ratio.pos_y = 1.0f / 3.0f;
@@ -165,6 +179,17 @@ soft_fm_config (CamModel model)
         cfg.max_adjusted_offset = 24.0f;
         cfg.max_valid_offset_y = 20.0f;
         cfg.max_track_error = 6.0f;
+        break;
+    }
+    case CamD3C8K: {
+        cfg.stitch_min_width = 256;
+        cfg.min_corners = 4;
+        cfg.offset_factor = 0.6f;
+        cfg.delta_mean_offset = 256.0f;
+        cfg.recur_offset_error = 2.0f;
+        cfg.max_adjusted_offset = 24.0f;
+        cfg.max_valid_offset_y = 32.0f;
+        cfg.max_track_error = 10.0f;
         break;
     }
     default:
@@ -238,6 +263,56 @@ soft_stitch_info (CamModel model, StitchScopicMode scopic_mode)
             info.fisheye_info[2].wide_angle = 200.0f;
             info.fisheye_info[2].radius = 1984.0f;
             info.fisheye_info[2].rotate_angle = 90.1f;
+            break;
+        }
+        default:
+            XCAM_LOG_ERROR ("unsupported scopic mode (%d)", scopic_mode);
+            break;
+        }
+        break;
+    }
+    case CamD3C8K: {
+        switch (scopic_mode) {
+        case ScopicStereoLeft: {
+            info.merge_width[0] = 192;
+            info.merge_width[1] = 192;
+            info.merge_width[2] = 192;
+            info.fisheye_info[0].center_x = 1804.0f;
+            info.fisheye_info[0].center_y = 1532.0f;
+            info.fisheye_info[0].wide_angle = 190.0f;
+            info.fisheye_info[0].radius = 1900.0f;
+            info.fisheye_info[0].rotate_angle = 91.5f;
+            info.fisheye_info[1].center_x = 1836.0f;
+            info.fisheye_info[1].center_y = 1532.0f;
+            info.fisheye_info[1].wide_angle = 190.0f;
+            info.fisheye_info[1].radius = 1900.0f;
+            info.fisheye_info[1].rotate_angle = 92.0f;
+            info.fisheye_info[2].center_x = 1820.0f;
+            info.fisheye_info[2].center_y = 1532.0f;
+            info.fisheye_info[2].wide_angle = 190.0f;
+            info.fisheye_info[2].radius = 1900.0f;
+            info.fisheye_info[2].rotate_angle = 91.0f;
+            break;
+        }
+        case ScopicStereoRight: {
+            info.merge_width[0] = 192;
+            info.merge_width[1] = 192;
+            info.merge_width[2] = 192;
+            info.fisheye_info[0].center_x = 1836.0f;
+            info.fisheye_info[0].center_y = 1532.0f;
+            info.fisheye_info[0].wide_angle = 190.0f;
+            info.fisheye_info[0].radius = 1900.0f;
+            info.fisheye_info[0].rotate_angle = 88.0f;
+            info.fisheye_info[1].center_x = 1852.0f;
+            info.fisheye_info[1].center_y = 1576.0f;
+            info.fisheye_info[1].wide_angle = 190.0f;
+            info.fisheye_info[1].radius = 1900.0f;
+            info.fisheye_info[1].rotate_angle = 90.0f;
+            info.fisheye_info[2].center_x = 1836.0f;
+            info.fisheye_info[2].center_y = 1532.0f;
+            info.fisheye_info[2].wide_angle = 190.0f;
+            info.fisheye_info[2].radius = 1900.0f;
+            info.fisheye_info[2].rotate_angle = 91.0f;
             break;
         }
         default:
