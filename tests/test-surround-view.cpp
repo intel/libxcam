@@ -576,7 +576,7 @@ int main (int argc, char *argv[])
             } else if (!strcasecmp (optarg, "vulkan")) {
                 module = SVModuleVulkan;
             } else {
-                XCAM_LOG_ERROR ("unknown module:%s", optarg);
+                XCAM_LOG_ERROR ("unknown module: %s", optarg);
                 usage (argv[0]);
                 return -1;
             }
@@ -624,7 +624,8 @@ int main (int argc, char *argv[])
             else if (!strcasecmp (optarg, "camd3c8k"))
                 cam_model = CamD3C8K;
             else {
-                XCAM_LOG_ERROR ("incorrect camera model");
+                XCAM_LOG_ERROR ("incorrect camera model: %s", optarg);
+                usage (argv[0]);
                 return -1;
             }
             break;
@@ -637,7 +638,8 @@ int main (int argc, char *argv[])
             else if(!strcasecmp (optarg, "bowl"))
                 dewarp_mode = DewarpBowl;
             else {
-                XCAM_LOG_ERROR ("incorrect fisheye dewarp mode");
+                XCAM_LOG_ERROR ("incorrect fisheye dewarp mode: %s", optarg);
+                usage (argv[0]);
                 return -1;
             }
             break;
@@ -649,7 +651,8 @@ int main (int argc, char *argv[])
             else if(!strcasecmp (optarg, "stereoright"))
                 scopic_mode = ScopicStereoRight;
             else {
-                XCAM_LOG_ERROR ("incorrect scopic mode");
+                XCAM_LOG_ERROR ("incorrect scopic mode: %s", optarg);
+                usage (argv[0]);
                 return -1;
             }
             break;
