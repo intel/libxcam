@@ -2,16 +2,19 @@ lib_LTLIBRARIES = libxcam_capi.la
 
 XCAMCAPI_CXXFLAGS = \
     $(XCAM_CXXFLAGS)        \
-    $(LIBCL_CFLAGS)         \
     -I$(top_srcdir)/xcore   \
     -I$(top_srcdir)/modules \
     $(NULL)
 
-XCAMCAPI_LIBS = \
+XCAMCAPI_LIBS = $(top_builddir)/xcore/libxcam_core.la
+
+if HAVE_LIBCL
+XCAMCAPI_CXXFLAGS += $(LIBCL_CFLAGS)
+XCAMCAPI_LIBS += \
     $(LIBCL_LIBS) -ldl                         \
-    $(top_builddir)/xcore/libxcam_core.la      \
     $(top_builddir)/modules/ocl/libxcam_ocl.la \
     $(NULL)
+endif
 
 if HAVE_LIBDRM
 XCAMCAPI_CXXFLAGS += $(LIBDRM_CFLAGS)
@@ -25,6 +28,10 @@ xcam_ocl_sources = \
     xcam_handle.cpp  \
     context_priv.cpp \
     $(NULL)
+
+if HAVE_LIBCL
+xcam_ocl_sources += ctxs/context_cl.cpp
+endif
 
 libxcam_capi_la_SOURCES = \
     $(xcam_ocl_sources) \
