@@ -169,17 +169,6 @@ AC_DEFUN([XCAM_CHECK_DNN],
         [$5])
 ])
 
-# XCAM_CHECK_CAPI([$1:capi-value],[$2:ocl-value], [$3:if-found], [$4:if-not-found])
-AC_DEFUN([XCAM_CHECK_CAPI],
-[
-    AS_IF([test "x$1" = "xyes" && test "x$2" = "x1"],
-        [
-            $3
-            AC_MSG_NOTICE(enable capi && have libcl: $2)
-        ],
-        [$4])
-])
-
 # XCAM_CHECK_AIQ([$1:value], [$2:if-found], [$3:if-not-found], [$4:if-found-local], [$5:if-not-found-local])
 AC_DEFUN([XCAM_CHECK_AIQ],
 [
