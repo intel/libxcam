@@ -523,7 +523,9 @@ static void usage(const char* arg0)
             "\t                    select from [none], default: none\n"
 #endif
             "\t--car               optional, car model name\n"
-            "\t--detect            optional, pedestrian & vehicle detection, default: disable"
+#if ENABLE_DNN
+            "\t--detect            optional, pedestrian & vehicle detection, default: disable\n"
+#endif
             "\t--loop              optional, how many loops need to run, default: 1\n"
             "\t--help              usage\n",
             arg0);
@@ -546,8 +548,9 @@ int main (int argc, char *argv[])
     GeoMapScaleMode scale_mode = ScaleSingleConst;
     FeatureMatchMode fm_mode = FMNone;
 
+#if ENABLE_DNN
     bool enable_detect = false;
-
+#endif
     int loop = 1;
 
     const struct option long_opts[] = {
@@ -560,7 +563,9 @@ int main (int argc, char *argv[])
         {"scale-mode", required_argument, NULL, 'S'},
         {"fm-mode", required_argument, NULL, 'F'},
         {"car", required_argument, NULL, 'c'},
+#if ENABLE_DNN
         {"detect", required_argument, NULL, 'd'},
+#endif
         {"loop", required_argument, NULL, 'L'},
         {"help", no_argument, NULL, 'e'},
         {NULL, 0, NULL, 0},
@@ -635,10 +640,12 @@ int main (int argc, char *argv[])
             XCAM_ASSERT (optarg);
             car_name = optarg;
             break;
+#if ENABLE_DNN
         case 'd':
             XCAM_ASSERT (optarg);
             enable_detect = (strcasecmp (optarg, "true") == 0 ? true : false);
             break;
+#endif
         case 'L':
             loop = atoi(optarg);
             break;
