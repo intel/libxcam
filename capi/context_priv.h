@@ -21,12 +21,10 @@
 #ifndef XCAM_CONTEXT_PRIV_H
 #define XCAM_CONTEXT_PRIV_H
 
-#include <xcam_utils.h>
 #include <string.h>
-#include <ocl/cl_image_handler.h>
-#include <ocl/cl_context.h>
-#include <ocl/cl_blender.h>
-#include <interface/stitcher.h>
+#include <map>
+#include "xcam_utils.h"
+#include "buffer_pool.h"
 
 using namespace XCam;
 
@@ -37,14 +35,8 @@ enum HandleType {
     HandleTypeFisheye,
     HandleTypeDefog,
     HandleTypeDVS,
-    HandleTypeStitch,
+    HandleTypeStitch
 };
-
-#define CONTEXT_CAST(Type, handle) (Type*)(handle)
-#define CONTEXT_BASE_CAST(handle) (ContextBase*)(handle)
-#define HANDLE_CAST(context) (XCamHandle*)(context)
-
-bool handle_name_equal (const char *name, HandleType type);
 
 typedef struct _CompareStr {
     bool operator() (const char* str1, const char* str2) const {
@@ -58,33 +50,37 @@ class ContextBase {
 public:
     virtual ~ContextBase ();
 
-    virtual XCamReturn set_parameters (ContextParams &param_list);
-    virtual const char* get_usage () const {
+    XCamReturn set_parameters (ContextParams &param_list);
+    const char* get_usage () const {
         return _usage;
     }
-    XCamReturn init_handler ();
-    XCamReturn uinit_handler ();
 
-    XCamReturn execute (SmartPtr<VideoBuffer> &buf_in, SmartPtr<VideoBuffer> &buf_out);
+    virtual XCamReturn init_handler () = 0;
+    virtual XCamReturn uinit_handler () = 0;
+    virtual bool is_handler_valid () const;
 
-    SmartPtr<CLImageHandler> get_handler() const {
-        return  _handler;
-    }
+    virtual XCamReturn execute (SmartPtr<VideoBuffer> &buf_in, SmartPtr<VideoBuffer> &buf_out) = 0;
+
     SmartPtr<BufferPool> get_input_buffer_pool() const {
         return  _inbuf_pool;
-    }
-    HandleType get_type () const {
-        return _type;
     }
     const char* get_type_name () const;
 
 protected:
     ContextBase (HandleType type);
-    void set_handler (const SmartPtr<CLImageHandler> &ptr) {
-        _handler = ptr;
-    }
 
-    virtual SmartPtr<CLImageHandler> create_handler (SmartPtr<CLContext> &context) = 0;
+    void set_buf_pool (const SmartPtr<BufferPool> &pool) {
+        _inbuf_pool = pool;
+    }
+    uint32_t get_image_width () const {
+        return _image_width;
+    }
+    uint32_t get_image_height () const {
+        return _image_height;
+    }
+    bool need_alloc_out_buf () const {
+        return _alloc_out_buf;
+    }
 
 private:
     XCAM_DEAD_COPY (ContextBase);
@@ -92,7 +88,6 @@ private:
 protected:
     HandleType                       _type;
     char                            *_usage;
-    SmartPtr<CLImageHandler>         _handler;
     SmartPtr<BufferPool>             _inbuf_pool;
 
     //parameters
@@ -101,82 +96,6 @@ protected:
     bool                             _alloc_out_buf;
 };
 
-class NR3DContext
-    : public ContextBase
-{
-public:
-    NR3DContext ()
-        : ContextBase (HandleType3DNR)
-    {}
+ContextBase *create_context (const char *name);
 
-    virtual SmartPtr<CLImageHandler> create_handler (SmartPtr<CLContext> &context);
-};
-
-class NRWaveletContext
-    : public ContextBase
-{
-public:
-    NRWaveletContext ()
-        : ContextBase (HandleTypeWaveletNR)
-    {}
-
-    virtual SmartPtr<CLImageHandler> create_handler (SmartPtr<CLContext> &context);
-};
-
-class FisheyeContext
-    : public ContextBase
-{
-public:
-    FisheyeContext ()
-        : ContextBase (HandleTypeFisheye)
-    {}
-
-    virtual SmartPtr<CLImageHandler> create_handler (SmartPtr<CLContext> &context);
-};
-
-class DefogContext
-    : public ContextBase
-{
-public:
-    DefogContext ()
-        : ContextBase (HandleTypeDefog)
-    {}
-
-    virtual SmartPtr<CLImageHandler> create_handler (SmartPtr<CLContext> &context);
-};
-
-class DVSContext
-    : public ContextBase
-{
-public:
-    DVSContext ()
-        : ContextBase (HandleTypeDVS)
-    {}
-
-    virtual SmartPtr<CLImageHandler> create_handler (SmartPtr<CLContext> &context);
-};
-
-class StitchContext
-    : public ContextBase
-{
-public:
-    StitchContext ()
-        : ContextBase (HandleTypeStitch)
-        , _need_seam (false)
-        , _fisheye_map (false)
-        , _need_lsc (false)
-        , _scale_mode (CLBlenderScaleLocal)
-        , _res_mode (StitchRes1080P2Cams)
-    {}
-
-    virtual SmartPtr<CLImageHandler> create_handler (SmartPtr<CLContext> &context);
-
-private:
-    bool                  _need_seam;
-    bool                  _fisheye_map;
-    bool                  _need_lsc;
-    CLBlenderScaleMode    _scale_mode;
-    StitchResMode         _res_mode;
-};
-
-#endif //XCAM_CONTEXT_PRIV_H
+#endif // XCAM_CONTEXT_PRIV_H

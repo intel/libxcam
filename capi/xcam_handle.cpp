@@ -18,39 +18,21 @@
  * Author: Wind Yuan <feng.yuan@intel.com>
  */
 
-#include <xcam_utils.h>
-#include <xcam_handle.h>
-#include <dma_video_buffer.h>
+#include "xcam_utils.h"
+#include "xcam_handle.h"
+#include "dma_video_buffer.h"
 #include "context_priv.h"
 #include <stdarg.h>
-#if HAVE_LIBDRM
-#include <drm_bo_buffer.h>
-#endif
 
 using namespace XCam;
+
+#define CONTEXT_BASE_CAST(handle) (ContextBase*)(handle)
+#define HANDLE_CAST(context) (XCamHandle*)(context)
 
 XCamHandle *
 xcam_create_handle (const char *name)
 {
-    ContextBase *context = NULL;
-
-    if (handle_name_equal (name, HandleType3DNR)) {
-        context = new NR3DContext;
-    } else if (handle_name_equal (name, HandleTypeWaveletNR)) {
-        context = new NRWaveletContext;
-    } else if (handle_name_equal (name, HandleTypeFisheye)) {
-        context = new FisheyeContext;
-    } else if (handle_name_equal (name, HandleTypeDefog)) {
-        context = new DefogContext;
-    } else if (handle_name_equal (name, HandleTypeDVS)) {
-        context = new DVSContext;
-    } else if (handle_name_equal (name, HandleTypeStitch)) {
-        context = new StitchContext;
-    } else {
-        XCAM_LOG_ERROR ("create handle failed with unsupported type:%s", name);
-        return NULL;
-    }
-
+    ContextBase *context = create_context (name);
     return HANDLE_CAST (context);
 }
 
@@ -65,12 +47,11 @@ XCamReturn
 xcam_handle_init (XCamHandle *handle)
 {
     ContextBase *context = CONTEXT_BASE_CAST (handle);
-    SmartPtr<CLImageHandler> handler_ptr;
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
     XCAM_FAIL_RETURN (
         ERROR, context, XCAM_RETURN_ERROR_PARAM,
-        "xcam_handler_init failed, handle can NOT be NULL, did you have xcam_create_handler first?");
+        "xcam_handler_init failed, handle can NOT be NULL, did you have xcam_create_handle first?");
 
     ret = context->init_handler ();
     XCAM_FAIL_RETURN (
@@ -142,7 +123,8 @@ xcam_handle_set_parameters (
 SmartPtr<VideoBuffer>
 external_buf_to_drm_buf (XCamVideoBuffer *buf)
 {
-#if HAVE_LIBDRM
+#if 0
+    // need HAVE_LIBDRM
     SmartPtr<DrmDisplay> display = DrmDisplay::instance ();
     SmartPtr<DmaVideoBuffer> dma_buf;
     SmartPtr<VideoBuffer> drm_buf;
@@ -158,12 +140,12 @@ external_buf_to_drm_buf (XCamVideoBuffer *buf)
     XCAM_ASSERT (display.ptr ());
     drm_buf = display->convert_to_drm_bo_buf (display, video_buf);
     return drm_buf;
-#else
-    XCAM_LOG_ERROR ("VideoBuffer doesn't support drm buf");
-
-    XCAM_UNUSED (buf);
-    return NULL;
 #endif
+
+    XCAM_LOG_ERROR ("VideoBuffer doesn't support drm buf");
+    XCAM_UNUSED (buf);
+
+    return NULL;
 }
 
 SmartPtr<VideoBuffer>
@@ -231,7 +213,7 @@ xcam_handle_execute (XCamHandle *handle, XCamVideoBuffer *buf_in, XCamVideoBuffe
         "xcam_handle_execute failed, either of handle/buf_in/buf_out can NOT be NULL");
 
     XCAM_FAIL_RETURN (
-        ERROR, context->get_handler().ptr (), XCAM_RETURN_ERROR_PARAM,
+        ERROR, context->is_handler_valid (), XCAM_RETURN_ERROR_PARAM,
         "context (%s) failed, handler was not initialized", context->get_type_name ());
 
     if (buf_in->mem_type == XCAM_MEM_TYPE_GPU) {

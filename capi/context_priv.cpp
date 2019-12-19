@@ -19,22 +19,14 @@
  */
 
 #include "context_priv.h"
-#include <ocl/cl_device.h>
-#include <ocl/cl_image_handler.h>
-#include <ocl/cl_tonemapping_handler.h>
-#include <ocl/cl_gauss_handler.h>
-#include <ocl/cl_wavelet_denoise_handler.h>
-#include <ocl/cl_newwavelet_denoise_handler.h>
-#include <ocl/cl_defog_dcp_handler.h>
-#include <ocl/cl_3d_denoise_handler.h>
-#include <ocl/cl_image_warp_handler.h>
-#include <ocl/cl_fisheye_handler.h>
-#include <ocl/cl_image_360_stitch.h>
-#include <ocl/cl_utils.h>
+#if HAVE_LIBCL
+#include "ctxs/context_cl.h"
+#endif
 
 using namespace XCam;
 
 #define DEFAULT_INPUT_BUFFER_POOL_COUNT  20
+
 static const char *HandleNames[] = {
     "None",
     "3DNR",
@@ -58,11 +50,6 @@ ContextBase::ContextBase (HandleType type)
     , _image_height (0)
     , _alloc_out_buf (false)
 {
-    if (!_inbuf_pool.ptr()) {
-        SmartPtr<BufferPool> pool = new CLVideoBufferPool ();
-        XCAM_ASSERT (pool.ptr ());
-        _inbuf_pool = pool;
-    }
 }
 
 ContextBase::~ContextBase ()
@@ -123,106 +110,39 @@ ContextBase::set_parameters (ContextParams &param_list)
     return XCAM_RETURN_NO_ERROR;
 }
 
-XCamReturn
-ContextBase::init_handler ()
+bool
+ContextBase::is_handler_valid () const
 {
-    SmartPtr<CLContext> cl_context = CLDevice::instance()->get_context ();
-    XCAM_FAIL_RETURN (
-        ERROR, cl_context.ptr (), XCAM_RETURN_ERROR_UNKNOWN,
-        "ContextBase::init_handler(%s) failed since cl-context is NULL",
-        get_type_name ());
-
-    SmartPtr<CLImageHandler> handler = create_handler (cl_context);
-    XCAM_FAIL_RETURN (
-        ERROR, handler.ptr (), XCAM_RETURN_ERROR_UNKNOWN,
-        "ContextBase::init_handler(%s) create handler failed", get_type_name ());
-
-    handler->disable_buf_pool (!_alloc_out_buf);
-    set_handler (handler);
-    return XCAM_RETURN_NO_ERROR;
+    XCAM_LOG_ERROR ("handler is invalid in abstract class");
+    return false;
 }
 
-XCamReturn
-ContextBase::uinit_handler ()
+ContextBase *
+create_context (const char *name)
 {
-    if (!_handler.ptr ())
-        return XCAM_RETURN_NO_ERROR;
+    ContextBase *context = NULL;
 
-    _handler->emit_stop ();
-    _handler.release ();
-    return XCAM_RETURN_NO_ERROR;
-}
-
-XCamReturn
-ContextBase::execute (SmartPtr<VideoBuffer> &buf_in, SmartPtr<VideoBuffer> &buf_out)
-{
-    if (!_alloc_out_buf) {
-        XCAM_FAIL_RETURN (
-            ERROR, buf_out.ptr (), XCAM_RETURN_ERROR_MEM,
-            "context (%s) execute failed, buf_out need set.", get_type_name ());
+    if (handle_name_equal (name, HandleTypeNone)) {
+        XCAM_LOG_ERROR ("handle type is none");
+#if HAVE_LIBCL
+    } else if (handle_name_equal (name, HandleType3DNR)) {
+        context = new NR3DContext;
+    } else if (handle_name_equal (name, HandleTypeWaveletNR)) {
+        context = new NRWaveletContext;
+    } else if (handle_name_equal (name, HandleTypeFisheye)) {
+        context = new FisheyeContext;
+    } else if (handle_name_equal (name, HandleTypeDefog)) {
+        context = new DefogContext;
+    } else if (handle_name_equal (name, HandleTypeDVS)) {
+        context = new DVSContext;
+    } else if (handle_name_equal (name, HandleTypeStitch)) {
+        context = new StitchContext;
+#endif
     } else {
-        XCAM_FAIL_RETURN (
-            ERROR, !buf_out.ptr (), XCAM_RETURN_ERROR_MEM,
-            "context (%s) execute failed, buf_out need NULL.", get_type_name ());
-    }
-
-    return _handler->execute (buf_in, buf_out);
-}
-
-SmartPtr<CLImageHandler>
-NR3DContext::create_handler (SmartPtr<CLContext> &context)
-{
-    return create_cl_3d_denoise_image_handler (
-               context, CL_IMAGE_CHANNEL_Y | CL_IMAGE_CHANNEL_UV, 3);
-}
-
-SmartPtr<CLImageHandler>
-NRWaveletContext::create_handler (SmartPtr<CLContext> &context)
-{
-    return create_cl_newwavelet_denoise_image_handler (
-               context, CL_IMAGE_CHANNEL_UV | CL_IMAGE_CHANNEL_Y, false);
-}
-
-SmartPtr<CLImageHandler>
-FisheyeContext::create_handler (SmartPtr<CLContext> &context)
-{
-    return create_fisheye_handler (context);
-}
-
-SmartPtr<CLImageHandler>
-DefogContext::create_handler (SmartPtr<CLContext> &context)
-{
-    return create_cl_defog_dcp_image_handler (context);;
-}
-
-SmartPtr<CLImageHandler>
-DVSContext::create_handler (SmartPtr<CLContext> &context)
-{
-    return create_cl_image_warp_handler (context);
-}
-
-SmartPtr<CLImageHandler>
-StitchContext::create_handler (SmartPtr<CLContext> &context)
-{
-    uint32_t sttch_width = _image_width;
-    uint32_t sttch_height = XCAM_ALIGN_UP (sttch_width / 2, 16);
-    if (sttch_width != sttch_height * 2) {
-        XCAM_LOG_ERROR ("incorrect stitch size width:%d height:%d", sttch_width, sttch_height);
+        XCAM_LOG_ERROR ("create context failed with unsupported type:%s", name);
         return NULL;
     }
 
-    FisheyeDewarpMode dewarp_mode = DewarpSphere;
-    StitchResMode res_mode = StitchRes1080P2Cams;
-    if (_res_mode == StitchRes4K2Cams)
-        res_mode = StitchRes4K2Cams;
-
-    SmartPtr<CLImage360Stitch> image_360 =
-        create_image_360_stitch (context, _need_seam, _scale_mode,
-                                 _fisheye_map, _need_lsc, dewarp_mode, res_mode).dynamic_cast_ptr<CLImage360Stitch> ();
-    XCAM_FAIL_RETURN (ERROR, image_360.ptr (), NULL, "create image stitch handler failed");
-    image_360->set_output_size (sttch_width, sttch_height);
-    XCAM_LOG_INFO ("stitch output size width:%d height:%d", sttch_width, sttch_height);
-
-    return image_360;
+    return context;
 }
 
