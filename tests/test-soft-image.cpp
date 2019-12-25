@@ -50,7 +50,7 @@ public:
     explicit SoftStream (const char *file_name = NULL, uint32_t width = 0, uint32_t height = 0);
     virtual ~SoftStream () {}
 
-    virtual XCamReturn create_buf_pool (uint32_t reserve_count);
+    virtual XCamReturn create_buf_pool (uint32_t reserve_count, uint32_t format = V4L2_PIX_FMT_NV12);
 
 private:
     XCAM_DEAD_COPY (SoftStream);
@@ -63,12 +63,12 @@ SoftStream::SoftStream (const char *file_name, uint32_t width, uint32_t height)
 }
 
 XCamReturn
-SoftStream::create_buf_pool (uint32_t reserve_count)
+SoftStream::create_buf_pool (uint32_t reserve_count, uint32_t format)
 {
     XCAM_ASSERT (get_width () && get_height ());
 
     VideoBufferInfo info;
-    info.init (V4L2_PIX_FMT_NV12, get_width (), get_height ());
+    info.init (format, get_width (), get_height ());
 
     SmartPtr<BufferPool> pool = new SoftVideoBufAllocator ();
     XCAM_ASSERT (pool.ptr ());
@@ -249,7 +249,7 @@ int main (int argc, char *argv[])
             CHECK (blender->blend (ins[0]->get_buf (), ins[1]->get_buf (), outs[0]->get_buf ()), "blend buffer failed");
             if (save_output)
                 outs[0]->write_buf ();
-            FPS_CALCULATION (soft-blend, XCAM_OBJ_DUR_FRAME_NUM);
+            FPS_CALCULATION (soft_blend, XCAM_OBJ_DUR_FRAME_NUM);
         }
         break;
     }
@@ -265,7 +265,7 @@ int main (int argc, char *argv[])
             CHECK (mapper->remap (ins[0]->get_buf (), outs[0]->get_buf ()), "remap buffer failed");
             if (save_output)
                 outs[0]->write_buf ();
-            FPS_CALCULATION (soft-remap, XCAM_OBJ_DUR_FRAME_NUM);
+            FPS_CALCULATION (soft_remap, XCAM_OBJ_DUR_FRAME_NUM);
         }
         break;
     }

@@ -43,7 +43,7 @@ public:
     explicit GLStream (const char *file_name = NULL, uint32_t width = 0, uint32_t height = 0);
     virtual ~GLStream () {}
 
-    virtual XCamReturn create_buf_pool (uint32_t reserve_count);
+    virtual XCamReturn create_buf_pool (uint32_t reserve_count, uint32_t format = V4L2_PIX_FMT_NV12);
 };
 
 typedef std::vector<SmartPtr<GLStream>> GLStreams;
@@ -54,12 +54,12 @@ GLStream::GLStream (const char *file_name, uint32_t width, uint32_t height)
 }
 
 XCamReturn
-GLStream::create_buf_pool (uint32_t reserve_count)
+GLStream::create_buf_pool (uint32_t reserve_count, uint32_t format)
 {
     XCAM_ASSERT (get_width () && get_height ());
 
     VideoBufferInfo info;
-    info.init (V4L2_PIX_FMT_NV12, get_width (), get_height ());
+    info.init (format, get_width (), get_height ());
 
     SmartPtr<GLVideoBufferPool> pool = new GLVideoBufferPool (info);
     XCAM_ASSERT (pool.ptr ());
@@ -247,7 +247,7 @@ int main (int argc, char **argv)
             CHECK (copyer->copy (ins[0]->get_buf (), outs[0]->get_buf ()), "copy buffer failed");
             if (save_output)
                 outs[0]->write_buf ();
-            FPS_CALCULATION (gl-copy, XCAM_OBJ_DUR_FRAME_NUM);
+            FPS_CALCULATION (gl_copy, XCAM_OBJ_DUR_FRAME_NUM);
         }
         break;
     }
@@ -268,7 +268,7 @@ int main (int argc, char **argv)
             CHECK (mapper->remap (ins[0]->get_buf (), outs[0]->get_buf ()), "remap buffer failed");
             if (save_output)
                 outs[0]->write_buf ();
-            FPS_CALCULATION (gl-remap, XCAM_OBJ_DUR_FRAME_NUM);
+            FPS_CALCULATION (gl_remap, XCAM_OBJ_DUR_FRAME_NUM);
         }
         break;
     }
@@ -301,7 +301,7 @@ int main (int argc, char **argv)
             CHECK (blender->blend (ins[0]->get_buf (), ins[1]->get_buf (), outs[0]->get_buf ()), "blend buffer failed");
             if (save_output)
                 outs[0]->write_buf ();
-            FPS_CALCULATION (gl-blend, XCAM_OBJ_DUR_FRAME_NUM);
+            FPS_CALCULATION (gl_blend, XCAM_OBJ_DUR_FRAME_NUM);
         }
         break;
     }

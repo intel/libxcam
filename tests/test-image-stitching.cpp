@@ -77,7 +77,7 @@ public:
     explicit CLStream (const char *file_name = NULL, uint32_t width = 0, uint32_t height = 0);
     virtual ~CLStream () {}
 
-    virtual XCamReturn create_buf_pool (uint32_t reserve_count);
+    virtual XCamReturn create_buf_pool (uint32_t reserve_count, uint32_t format = V4L2_PIX_FMT_NV12);
 };
 typedef std::vector<SmartPtr<CLStream>> CLStreams;
 
@@ -87,12 +87,12 @@ CLStream::CLStream (const char *file_name, uint32_t width, uint32_t height)
 }
 
 XCamReturn
-CLStream::create_buf_pool (uint32_t reserve_count)
+CLStream::create_buf_pool (uint32_t reserve_count, uint32_t format)
 {
     XCAM_ASSERT (get_width () && get_height ());
 
     VideoBufferInfo info;
-    info.init (V4L2_PIX_FMT_NV12, get_width (), get_height ());
+    info.init (format, get_width (), get_height ());
 
     SmartPtr<CLVideoBufferPool> pool = new CLVideoBufferPool ();
     XCAM_ASSERT (pool.ptr ());
@@ -294,7 +294,7 @@ run_stitcher (
             if (save_output || save_topview || save_freeview)
                 write_image (stitcher, ins, outs, save_output, save_topview, save_freeview);
 
-            FPS_CALCULATION (image-stitching, XCAM_OBJ_DUR_FRAME_NUM);
+            FPS_CALCULATION (image_stitching, XCAM_OBJ_DUR_FRAME_NUM);
         } while (true);
     }
 
@@ -524,7 +524,7 @@ int main (int argc, char *argv[])
     printf ("output width:\t\t%d\n", output_width);
     printf ("output height:\t\t%d\n", output_height);
     printf ("resolution mode:\t%s\n", res_mode == StitchRes1080P2Cams ? "1080p2cams" :
-             (res_mode == StitchRes1080P4Cams ? "1080p4cams" : (res_mode == StitchRes4K2Cams ? "4k2cams" : "8k6cams")));
+            (res_mode == StitchRes1080P4Cams ? "1080p4cams" : (res_mode == StitchRes4K2Cams ? "4k2cams" : "8k6cams")));
     printf ("fisheye dewarp mode: \t%s\n", dewarp_mode == DewarpSphere ? "sphere" : "bowl");
     printf ("scale mode:\t\t%s\n", scale_mode == CLBlenderScaleLocal ? "local" : "global");
     printf ("seam mask:\t\t%s\n", enable_seam ? "true" : "false");
@@ -550,14 +550,14 @@ int main (int argc, char *argv[])
     outs[IdxStitch]->set_buf_size (output_width, output_height);
     if (save_output) {
         CHECK (outs[IdxStitch]->estimate_file_format (),
-            "%s: estimate file format failed", outs[IdxStitch]->get_file_name ());
+               "%s: estimate file format failed", outs[IdxStitch]->get_file_name ());
         CHECK (outs[IdxStitch]->open_writer ("wb"), "open output file(%s) failed", outs[IdxStitch]->get_file_name ());
     }
 
     SmartPtr<CLContext> context = CLDevice::instance ()->get_context ();
     SmartPtr<CLImage360Stitch> stitcher = create_image_360_stitch (
-        context, enable_seam, scale_mode, enable_fisheye_map, enable_lsc, dewarp_mode,
-        res_mode, fisheye_num, (ins.size () == 1)).dynamic_cast_ptr<CLImage360Stitch> ();
+            context, enable_seam, scale_mode, enable_fisheye_map, enable_lsc, dewarp_mode,
+            res_mode, fisheye_num, (ins.size () == 1)).dynamic_cast_ptr<CLImage360Stitch> ();
     XCAM_ASSERT (stitcher.ptr ());
     stitcher->set_output_size (output_width, output_height);
     stitcher->set_pool_type (CLImageHandler::CLVideoPoolType);
@@ -589,18 +589,18 @@ int main (int argc, char *argv[])
     if (save_topview) {
         CHECK (outs[IdxTopView]->create_buf_pool (1), "create topview buffer pool failed");
         CHECK (outs[IdxTopView]->estimate_file_format (),
-            "%s: estimate file format failed", outs[IdxTopView]->get_file_name ());
+               "%s: estimate file format failed", outs[IdxTopView]->get_file_name ());
         CHECK (outs[IdxTopView]->open_writer ("wb"),
-            "open topview file(%s) failed", outs[IdxTopView]->get_file_name ());
+               "open topview file(%s) failed", outs[IdxTopView]->get_file_name ());
     }
 
     add_stream (outs, "freeview", freeview_width, freeview_height);
     if (save_freeview) {
         CHECK (outs[IdxFreeView]->create_buf_pool (1), "create freeview buffer pool failed");
         CHECK (outs[IdxFreeView]->estimate_file_format (),
-            "%s: estimate file format failed", outs[IdxFreeView]->get_file_name ());
+               "%s: estimate file format failed", outs[IdxFreeView]->get_file_name ());
         CHECK (outs[IdxFreeView]->open_writer ("wb"),
-            "open freeview file(%s) failed", outs[IdxFreeView]->get_file_name ());
+               "open freeview file(%s) failed", outs[IdxFreeView]->get_file_name ());
     }
 
     CHECK_EXP (

@@ -46,7 +46,7 @@ public:
     explicit InferStream (const char *file_name = NULL, uint32_t width = 0, uint32_t height = 0);
     virtual ~InferStream () {}
 
-    virtual XCamReturn create_buf_pool (uint32_t reserve_count);
+    virtual XCamReturn create_buf_pool (uint32_t reserve_count, uint32_t format = V4L2_PIX_FMT_BGR24);
 
 private:
     XCAM_DEAD_COPY (InferStream);
@@ -60,12 +60,12 @@ InferStream::InferStream (const char *file_name, uint32_t width, uint32_t height
 }
 
 XCamReturn
-InferStream::create_buf_pool (uint32_t reserve_count)
+InferStream::create_buf_pool (uint32_t reserve_count, uint32_t format)
 {
     XCAM_ASSERT (get_width () && get_height ());
 
     VideoBufferInfo info;
-    info.init (V4L2_PIX_FMT_BGR24, get_width (), get_height ());
+    info.init (format, get_width (), get_height ());
 
     SmartPtr<BufferPool> pool = new SoftVideoBufAllocator (info);
     XCAM_ASSERT (pool.ptr ());
@@ -243,7 +243,7 @@ int main (int argc, char *argv[])
     if (ins.size () == 1 && ins[0].ptr ()) {
         process_video = true;
         ins[0]->set_buf_size (input_width, input_height);
-        CHECK (ins[0]->create_buf_pool (6), "create buffer pool failed");
+        CHECK (ins[0]->create_buf_pool (6, V4L2_PIX_FMT_BGR24), "create buffer pool failed");
         CHECK (ins[0]->open_reader ("rb"), "open input file(%s) failed", ins[0]->get_file_name ());
 
         if (save_output && outs.size () == 1) {
