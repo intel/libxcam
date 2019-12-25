@@ -712,8 +712,8 @@ SoftBlender::configure_resource (const SmartPtr<Parameters> &param)
     XCAM_ASSERT (_priv_config->pyr_levels <= XCAM_SOFT_PYRAMID_MAX_LEVEL);
     const VideoBufferInfo &in0_info = param->in_buf->get_video_info ();
     XCAM_FAIL_RETURN (
-        ERROR, in0_info.format == V4L2_PIX_FMT_NV12, XCAM_RETURN_ERROR_PARAM,
-        "blender:%s only support format(NV12) but input format is %s",
+        ERROR, (in0_info.format == V4L2_PIX_FMT_NV12 || in0_info.format == V4L2_PIX_FMT_YUV420), XCAM_RETURN_ERROR_PARAM,
+        "blender:%s only support format(NV12 & YUV420) but input format is %s",
         XCAM_STR(get_name ()), xcam_fourcc_to_string (in0_info.format));
 
     Rect in0_area, in1_area, out_area;

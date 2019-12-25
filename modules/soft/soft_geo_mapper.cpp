@@ -90,8 +90,8 @@ SoftGeoMapper::configure_resource (const SmartPtr<Parameters> &param)
 
     const VideoBufferInfo &in_info = param->in_buf->get_video_info ();
     XCAM_FAIL_RETURN (
-        ERROR, in_info.format == V4L2_PIX_FMT_NV12, XCAM_RETURN_ERROR_PARAM,
-        "SoftGeoMapper(%s) only support format(NV12) but input format is %s",
+        ERROR, (in_info.format == V4L2_PIX_FMT_NV12) || (in_info.format == V4L2_PIX_FMT_YUV420), XCAM_RETURN_ERROR_PARAM,
+        "SoftGeoMapper(%s) only support format(NV12 & YUV420) but input format is %s",
         XCAM_STR(get_name ()), xcam_fourcc_to_string (in_info.format));
 
     uint32_t width, height;

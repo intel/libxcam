@@ -64,9 +64,9 @@ static void stitcher_dump_buf (const SmartPtr<VideoBuffer> buf, ...) {
 
 static inline bool complete_stitch (Stitcher *stitcher, uint32_t frame_count)
 {
-     return (stitcher->get_fm_mode () == FMNone ||
-             stitcher->get_fm_status () != FMStatusFMFirst ||
-             frame_count >= stitcher->get_fm_frames ());
+    return (stitcher->get_fm_mode () == FMNone ||
+            stitcher->get_fm_status () != FMStatusFMFirst ||
+            frame_count >= stitcher->get_fm_frames ());
 }
 
 namespace SoftStitcherPriv {
@@ -165,6 +165,7 @@ class StitcherImpl {
 public:
     StitcherImpl (SoftStitcher *handler)
         : _stitcher (handler)
+        , _pixel_format (V4L2_PIX_FMT_NV12)
     {}
 
     XCamReturn init_config (uint32_t count);
@@ -189,6 +190,12 @@ public:
         const SmartPtr<VideoBuffer> &left_buf, const SmartPtr<VideoBuffer> &right_buf, const uint32_t idx);
 
     bool get_and_reset_feature_match_factors (uint32_t idx, Factor &left, Factor &right);
+    void set_pixel_format (uint32_t format) {
+        _pixel_format = format;
+    };
+    uint32_t get_pixel_format () const {
+        return _pixel_format;
+    };
 
 private:
     SmartPtr<SoftGeoMapper> create_geo_mapper (const Stitcher::RoundViewSlice &view_slice);
@@ -216,6 +223,7 @@ private:
     BlendCopyTaskNums       _task_counts;
 
     SoftStitcher           *_stitcher;
+    uint32_t               _pixel_format;
 };
 
 XCamReturn
@@ -388,8 +396,9 @@ StitcherImpl::init_fisheye (uint32_t idx)
     fisheye.mapper->set_callback (geomap_cb);
 
     VideoBufferInfo buf_info;
+    uint32_t pixel_format = get_pixel_format ();
     buf_info.init (
-        V4L2_PIX_FMT_NV12, view_slice.width, view_slice.height,
+        pixel_format, view_slice.width, view_slice.height,
         XCAM_ALIGN_UP (view_slice.width, SOFT_STITCHER_ALIGNMENT_X),
         XCAM_ALIGN_UP (view_slice.height, SOFT_STITCHER_ALIGNMENT_Y));
 
@@ -533,7 +542,7 @@ StitcherImpl::init_copier (Stitcher::CopyArea area)
         ext_width = XCAM_ALIGN_UP (ext_width, SOFT_STITCHER_ALIGNMENT_X);
 
         area.in_area.width = (area.in_idx == 0) ?
-            (area.in_area.width + ext_width) : (area.in_area.width + ext_width * 2);
+                             (area.in_area.width + ext_width) : (area.in_area.width + ext_width * 2);
         area.out_area.width = area.in_area.width;
         if (area.out_area.pos_x > 0) {
             area.in_area.pos_x -= ext_width;
@@ -934,6 +943,10 @@ SoftStitcher::stitch_buffers (const VideoBufferList &in_bufs, SmartPtr<VideoBuff
         XCAM_ASSERT (buf.ptr ());
         param->in_bufs[count++] = buf;
     }
+
+    uint32_t format = param->in_bufs[0]->get_format ();
+    _impl->set_pixel_format (format);
+
     if (in_bufs.size () == 1) {
         for (uint32_t i = 1; i < get_camera_num (); ++i) {
             param->in_bufs[i] = param->in_bufs[0];
@@ -1129,7 +1142,7 @@ SoftStitcher::configure_resource (const SmartPtr<Parameters> &param)
         "soft-stitcher:%s output size was not set", XCAM_STR(get_name ()));
 
     out_info.init (
-        V4L2_PIX_FMT_NV12, out_width, out_height,
+        _impl->get_pixel_format (), out_width, out_height,
         XCAM_ALIGN_UP (out_width, SOFT_STITCHER_ALIGNMENT_X),
         XCAM_ALIGN_UP (out_height, SOFT_STITCHER_ALIGNMENT_Y));
     set_out_video_info (out_info);
