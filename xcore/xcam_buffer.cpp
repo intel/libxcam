@@ -62,6 +62,17 @@ xcam_video_buffer_info_reset (
         info->offsets [1] = info->offsets [0] + info->strides [0] * aligned_height;
         image_size = info->strides [0] * aligned_height + info->strides [1] * aligned_height / 2;
         break;
+    case V4L2_PIX_FMT_YUV420:
+        info->color_bits = 8;
+        info->components = 3;
+        info->strides [0] = aligned_width;
+        info->strides [1] = info->strides [0] / 2;
+        info->strides [2] = info->strides [0] / 2;
+        info->offsets [0] = 0;
+        info->offsets [1] = info->offsets [0] + info->strides [0] * aligned_height;
+        info->offsets [2] = info->offsets [1] + info->strides [1] * aligned_height / 2;
+        image_size = info->strides [0] * aligned_height + info->strides [1] * aligned_height / 2 + info->strides [2] * aligned_height / 2;
+        break;
     case V4L2_PIX_FMT_YUYV:
         info->color_bits = 8;
         info->components = 1;
@@ -229,7 +240,13 @@ xcam_video_buffer_get_planar_info (
             planar_info->height = buf_info->height / 2;
         }
         break;
-
+    case V4L2_PIX_FMT_YUV420:
+        XCAM_ASSERT (index <= 2);
+        if (index == 1 || index == 2) {
+            planar_info->width = buf_info->width / 2;
+            planar_info->height = buf_info->height / 2;
+        }
+        break;
     case V4L2_PIX_FMT_GREY:
     case V4L2_PIX_FMT_YUYV:
     case V4L2_PIX_FMT_RGB565:

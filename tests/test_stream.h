@@ -51,6 +51,7 @@ namespace XCam {
 enum TestFileFormat {
     FileNone,
     FileNV12,
+    FileYUV420,
     FileMP4,
     FileFIFO
 };
@@ -105,7 +106,7 @@ public:
 
     XCamReturn read_buf ();
     XCamReturn write_buf (char *frame_str = NULL);
-    virtual XCamReturn create_buf_pool (uint32_t reserve_count) = 0;
+    virtual XCamReturn create_buf_pool (uint32_t reserve_count, uint32_t format = V4L2_PIX_FMT_NV12) = 0;
 
     XCamReturn open_fifo (int flag);
     XCamReturn close_fifo ();
@@ -179,8 +180,8 @@ XCamReturn
 Stream::open_reader (const char *option)
 {
     XCAM_FAIL_RETURN (
-        ERROR, _format == FileNV12, XCAM_RETURN_ERROR_PARAM,
-        "stream(%s) only support NV12 input format", _file_name);
+        ERROR, (_format == FileNV12) || (_format == FileYUV420), XCAM_RETURN_ERROR_PARAM,
+        "stream(%s) only support NV12 or YUV420 input format", _file_name);
 
     if (_file.open (_file_name, option) != XCAM_RETURN_NO_ERROR) {
         XCAM_LOG_ERROR ("stream(%s) open failed", _file_name);
@@ -195,7 +196,7 @@ Stream::open_writer (const char *option)
 {
     XCAM_ASSERT (_format != FileNone);
 
-    if (_format == FileNV12) {
+    if (_format == FileNV12 || _format == FileYUV420) {
         if (_file.open (_file_name, option) != XCAM_RETURN_NO_ERROR) {
             XCAM_LOG_ERROR ("stream(%s) open failed", _file_name);
             return XCAM_RETURN_ERROR_FILE;
@@ -246,7 +247,7 @@ Stream::read_buf ()
 
 XCamReturn
 Stream::write_buf (char *frame_str) {
-    if (_format == FileNV12) {
+    if (_format == FileNV12 || _format == FileYUV420) {
         _file.write_buf (_buf);
     } else if (_format == FileMP4) {
 #if XCAM_TEST_OPENCV
@@ -288,6 +289,8 @@ Stream::estimate_file_format ()
 
     if (!strcasecmp (suffix, "nv12")) {
         _format = FileNV12;
+    } else if (!strcasecmp (suffix, "yuv")) {
+        _format = FileYUV420;
     } else if (!strcasecmp (suffix, "mp4")) {
 #if XCAM_TEST_OPENCV
         _format = FileMP4;

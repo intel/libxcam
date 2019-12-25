@@ -83,7 +83,7 @@ public:
     }
 #endif
 
-    virtual XCamReturn create_buf_pool (uint32_t reserve_count);
+    virtual XCamReturn create_buf_pool (uint32_t reserve_count, uint32_t format = V4L2_PIX_FMT_NV12);
 
 private:
     XCAM_DEAD_COPY (SVStream);
@@ -104,7 +104,7 @@ SVStream::SVStream (const char *file_name, uint32_t width, uint32_t height)
 }
 
 XCamReturn
-SVStream::create_buf_pool (uint32_t reserve_count)
+SVStream::create_buf_pool (uint32_t reserve_count, uint32_t format)
 {
     XCAM_ASSERT (get_width () && get_height ());
     XCAM_FAIL_RETURN (
@@ -112,7 +112,7 @@ SVStream::create_buf_pool (uint32_t reserve_count)
         "invalid module, please set module first");
 
     VideoBufferInfo info;
-    info.init (V4L2_PIX_FMT_NV12, get_width (), get_height ());
+    info.init (format, get_width (), get_height ());
 
     SmartPtr<BufferPool> pool;
     if (_module == SVModuleSoft) {
@@ -368,16 +368,16 @@ single_frame (
 
         if (save_output || save_topview) {
             if (stitcher->get_fm_mode () == FMNone ||
-                stitcher->get_fm_status () != FMStatusFMFirst ||
-                stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
+                    stitcher->get_fm_status () != FMStatusFMFirst ||
+                    stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
                 write_image (stitcher, ins, outs, save_output, save_topview);
             }
         }
 
         if (stitcher->get_fm_mode () == FMNone ||
-            stitcher->get_fm_status () == FMStatusWholeWay ||
-            stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
-            FPS_CALCULATION (surround-view, XCAM_OBJ_DUR_FRAME_NUM);
+                stitcher->get_fm_status () == FMStatusWholeWay ||
+                stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
+            FPS_CALCULATION (surround_view, XCAM_OBJ_DUR_FRAME_NUM);
         }
     }
 
@@ -422,16 +422,16 @@ multi_frame (
 
             if (save_output || save_topview) {
                 if (stitcher->get_fm_mode () == FMNone ||
-                    stitcher->get_fm_status () != FMStatusFMFirst ||
-                    stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
+                        stitcher->get_fm_status () != FMStatusFMFirst ||
+                        stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
                     write_image (stitcher, ins, outs, save_output, save_topview);
                 }
             }
 
             if (stitcher->get_fm_mode () == FMNone ||
-                stitcher->get_fm_status () == FMStatusWholeWay ||
-                stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
-                FPS_CALCULATION (surround-view, XCAM_OBJ_DUR_FRAME_NUM);
+                    stitcher->get_fm_status () == FMStatusWholeWay ||
+                    stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
+                FPS_CALCULATION (surround_view, XCAM_OBJ_DUR_FRAME_NUM);
             }
         } while (true);
     }
@@ -830,14 +830,14 @@ int main (int argc, char *argv[])
     for (uint32_t i = 0; i < ins.size (); ++i) {
         ins[i]->set_module (module);
         ins[i]->set_buf_size (input_width, input_height);
-        CHECK (ins[i]->create_buf_pool (6), "create buffer pool failed");
+        CHECK (ins[i]->create_buf_pool (6, V4L2_PIX_FMT_NV12), "create buffer pool failed");
         CHECK (ins[i]->open_reader ("rb"), "open input file(%s) failed", ins[i]->get_file_name ());
     }
 
     outs[IdxStitch]->set_buf_size (output_width, output_height);
     if (save_output) {
         CHECK (outs[IdxStitch]->estimate_file_format (),
-            "%s: estimate file format failed", outs[IdxStitch]->get_file_name ());
+               "%s: estimate file format failed", outs[IdxStitch]->get_file_name ());
         CHECK (outs[IdxStitch]->open_writer ("wb"), "open output file(%s) failed", outs[IdxStitch]->get_file_name ());
     }
 
@@ -855,7 +855,7 @@ int main (int argc, char *argv[])
     stitcher->set_fm_frames (fm_frames);
     stitcher->set_fm_status (fm_status);
     FMConfig cfg = (module == SVModuleSoft) ? soft_fm_config (cam_model) :
-        ((module == SVModuleGLES) ? gl_fm_config (cam_model) : vk_fm_config (cam_model));
+                   ((module == SVModuleGLES) ? gl_fm_config (cam_model) : vk_fm_config (cam_model));
     stitcher->set_fm_config (cfg);
     if (dewarp_mode == DewarpSphere) {
         stitcher->set_fm_region_ratio (fm_region_ratio (cam_model));
@@ -868,7 +868,7 @@ int main (int argc, char *argv[])
 
     if (dewarp_mode == DewarpSphere) {
         StitchInfo info = (module == SVModuleSoft) ?
-            soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
+                          soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
         stitcher->set_stitch_info (info);
     } else {
         stitcher->set_instrinsic_names (instrinsic_names);
@@ -881,7 +881,7 @@ int main (int argc, char *argv[])
         XCAM_ASSERT (outs.size () >= IdxCount);
 
         CHECK (outs[IdxTopView]->estimate_file_format (),
-            "%s: estimate file format failed", outs[IdxTopView]->get_file_name ());
+               "%s: estimate file format failed", outs[IdxTopView]->get_file_name ());
         CHECK (outs[IdxTopView]->open_writer ("wb"), "open output file(%s) failed", outs[IdxTopView]->get_file_name ());
 
         create_topview_mapper (stitcher, outs[IdxStitch], outs[IdxTopView], module);

@@ -90,6 +90,10 @@ public:
         return _videoinfo.size;
     }
 
+    uint32_t get_format () const {
+        return _videoinfo.format;
+    }
+
     bool attach_buffer (const SmartPtr<VideoBuffer>& buf);
     bool detach_buffer (const SmartPtr<VideoBuffer>& buf);
     bool copy_attaches (const SmartPtr<VideoBuffer>& buf);
