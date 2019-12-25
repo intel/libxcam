@@ -149,7 +149,7 @@ public:
     }
 #endif
 
-    virtual XCamReturn create_buf_pool (uint32_t reserve_count);
+    virtual XCamReturn create_buf_pool (uint32_t reserve_count, uint32_t format = V4L2_PIX_FMT_NV12);
 
 private:
     XCAM_DEAD_COPY (SVStream);
@@ -169,7 +169,7 @@ SVStream::SVStream (const char *file_name, uint32_t width, uint32_t height)
 }
 
 XCamReturn
-SVStream::create_buf_pool (uint32_t reserve_count)
+SVStream::create_buf_pool (uint32_t reserve_count, uint32_t format)
 {
     XCAM_ASSERT (get_width () && get_height ());
     XCAM_FAIL_RETURN (
@@ -177,7 +177,7 @@ SVStream::create_buf_pool (uint32_t reserve_count)
         "invalid module, please set module first");
 
     VideoBufferInfo info;
-    info.init (V4L2_PIX_FMT_NV12, get_width (), get_height ());
+    info.init (format, get_width (), get_height ());
 
     SmartPtr<BufferPool> pool;
     if (_module == SVModuleSoft) {
@@ -434,7 +434,7 @@ run_stitcher (
 
         model->update_texture (outs[0]->get_buf ());
 
-        FPS_CALCULATION (render surround view, XCAM_OBJ_DUR_FRAME_NUM);
+        FPS_CALCULATION (render_surround_view, XCAM_OBJ_DUR_FRAME_NUM);
     } while (true);
 
     return 0;

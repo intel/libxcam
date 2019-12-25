@@ -106,22 +106,22 @@ enum ShaderID {
 
 static const VKShaderInfo shaders_info[] = {
     VKShaderInfo (
-    "main",
+        "main",
     std::vector<uint32_t> {
 #include "shader_gauss_scale_pyr.comp.spv"
     }),
     VKShaderInfo (
-    "main",
+        "main",
     std::vector<uint32_t> {
 #include "shader_lap_trans_pyr.comp.spv"
     }),
     VKShaderInfo (
-    "main",
+        "main",
     std::vector<uint32_t> {
 #include "shader_blend_pyr.comp.spv"
     }),
     VKShaderInfo (
-    "main",
+        "main",
     std::vector<uint32_t> {
 #include "shader_reconstruct_pyr.comp.spv"
     })
@@ -910,8 +910,8 @@ BlenderImpl::fix_gs_params (uint32_t level, VKBlender::BufIdx idx)
     layer_out.gs_consts[idx] = new VKGaussScalePushConst (prop);
 
     layer_out.gs_global_size[idx] = WorkSize (
-        XCAM_ALIGN_UP (prop.out_img_width, 8) / 8,
-        XCAM_ALIGN_UP (out_info.height, 16) / 16);
+                                        XCAM_ALIGN_UP (prop.out_img_width, 8) / 8,
+                                        XCAM_ALIGN_UP (out_info.height, 16) / 16);
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -971,8 +971,8 @@ BlenderImpl::fix_lap_trans_params (uint32_t level, VKBlender::BufIdx idx)
     layer.lap_consts[idx] = new VKLapPushConst (prop);
 
     layer.lap_global_size[idx] = WorkSize (
-        XCAM_ALIGN_UP (prop.merge_width, 8) / 8,
-        XCAM_ALIGN_UP (in_info.height, 32) / 32);
+                                     XCAM_ALIGN_UP (prop.merge_width, 8) / 8,
+                                     XCAM_ALIGN_UP (in_info.height, 32) / 32);
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -1017,8 +1017,8 @@ BlenderImpl::fix_blend_params ()
     top_layer.blend_consts = new VKBlendPushConst (prop);
 
     top_layer.blend_global_size = WorkSize (
-        XCAM_ALIGN_UP (prop.in_img_width, 8) / 8,
-        XCAM_ALIGN_UP (in0_info.height, 16) / 16);
+                                      XCAM_ALIGN_UP (prop.in_img_width, 8) / 8,
+                                      XCAM_ALIGN_UP (in0_info.height, 16) / 16);
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -1090,8 +1090,8 @@ BlenderImpl::fix_reconstruct_params (uint32_t level)
     layer.reconstruct_consts = new VKReconstructPushConst (prop);
 
     layer.reconstruct_global_size = WorkSize (
-        XCAM_ALIGN_UP (prop.lap_img_width, 8) / 8,
-        XCAM_ALIGN_UP (lap0_info.height, 32) / 32);
+                                        XCAM_ALIGN_UP (prop.lap_img_width, 8) / 8,
+                                        XCAM_ALIGN_UP (lap0_info.height, 32) / 32);
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -1333,6 +1333,12 @@ VKBlender::configure_resource (const SmartPtr<Parameters> &param)
 {
     XCAM_ASSERT (param.ptr ());
     XCAM_ASSERT (_impl->pyr_layers_num <= XCAM_VK_MAX_LEVEL);
+
+    const VideoBufferInfo &in_info = param->in_buf->get_video_info ();
+    XCAM_FAIL_RETURN (
+        ERROR, in_info.format == V4L2_PIX_FMT_NV12, XCAM_RETURN_ERROR_PARAM,
+        "blender(%s) only support NV12 format, but input format is %s",
+        XCAM_STR(get_name ()), xcam_fourcc_to_string (in_info.format));
 
     SmartPtr<BlenderParam> blend_param = param.dynamic_cast_ptr<BlenderParam> ();
     XCAM_ASSERT (blend_param.ptr () && blend_param->in_buf.ptr () && blend_param->in1_buf.ptr ());
