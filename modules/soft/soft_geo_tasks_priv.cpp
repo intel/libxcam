@@ -68,12 +68,7 @@ inline void calc_critical_pixels (const uint32_t &img_w, const uint32_t &img_h, 
     }
 }
 
-static void map_image (
-    const UcharImage *in_luma, const Uchar2Image *in_uv,
-    UcharImage *out_luma, Uchar2Image *out_uv, const Float2Image *lut,
-    const uint32_t &luma_w, const uint32_t &luma_h, const uint32_t &uv_w, const uint32_t &uv_h,
-    const uint32_t &x_idx, const uint32_t &y_idx, const uint32_t &out_x, const uint32_t &out_y,
-    const Float2 &first, const Float2 &step, const Uchar *zero_luma_byte, const Uchar2 *zero_uv_byte)
+static void interp_sample_pos (const Float2Image *lut, Float2* interp_pos, const Float2 &first, const Float2 &step)
 {
     Float2 lut_pos[16] = {
         first, Float2(first.x + step.x, first.y),
@@ -86,106 +81,90 @@ static void map_image (
         Float2(first.x + step.x * 14, first.y), Float2(first.x + step.x * 15, first.y)
     };
 
-    //1st-line luma
-    Float2 in_pos[XCAM_SOFT_WORKUNIT_PIXELS];
-    float  luma_value[XCAM_SOFT_WORKUNIT_PIXELS];
-    Uchar  luma_uc[XCAM_SOFT_WORKUNIT_PIXELS];
-    BoundState bound = BoundInternal;
-
 #if ENABLE_AVX512
     BoundState interp_bound = BoundInternal;
-    check_interp_bound (lut->get_width (), lut->get_height (), lut_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, interp_bound);
+    check_interp_bound (lut->get_width (), lut->get_height (), interp_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, interp_bound);
     if (interp_bound == BoundInternal) {
-        lut->read_interpolate_array (lut_pos, in_pos);
+        lut->read_interpolate_array (lut_pos, interp_pos);
     } else {
-        lut->read_interpolate_array<Float2, XCAM_SOFT_WORKUNIT_PIXELS> (lut_pos, in_pos);
+        lut->read_interpolate_array<Float2, XCAM_SOFT_WORKUNIT_PIXELS> (lut_pos, interp_pos);
     }
 #else
-    lut->read_interpolate_array<Float2, XCAM_SOFT_WORKUNIT_PIXELS> (lut_pos, in_pos);
+    lut->read_interpolate_array<Float2, XCAM_SOFT_WORKUNIT_PIXELS> (lut_pos, interp_pos);
 #endif
-    check_bound (luma_w, luma_h, in_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, bound);
+}
+
+static void map_image (
+    const UcharImage *in, UcharImage *out, Float2 *interp_pos,
+    const uint32_t &width, const uint32_t &height,
+    const uint32_t &out_x, const uint32_t &out_y,
+    const Uchar *zero_byte)
+{
+    float  interp_value[XCAM_SOFT_WORKUNIT_PIXELS];
+    Uchar  interp_pixel_vaule[XCAM_SOFT_WORKUNIT_PIXELS];
+    BoundState bound = BoundInternal;
+
+    check_bound (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, bound);
     if (bound == BoundExternal)
-        out_luma->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y, zero_luma_byte);
+        out->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y, zero_byte);
     else {
 #if ENABLE_AVX512
-        check_interp_bound (in_luma->get_width (), in_luma->get_height (), in_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, interp_bound);
+        BoundState interp_bound = BoundInternal;
+        check_interp_bound (in->get_width (), in->get_height (), interp_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, interp_bound);
         if (interp_bound == BoundInternal) {
-            in_luma->read_interpolate_array (in_pos, luma_uc);
+            in->read_interpolate_array (interp_pos, interp_pixel_vaule);
         } else {
-            in_luma->read_interpolate_array<float, XCAM_SOFT_WORKUNIT_PIXELS> (in_pos, luma_value);
-            convert_to_uchar_N<float, XCAM_SOFT_WORKUNIT_PIXELS> (luma_value, luma_uc);
+            in->read_interpolate_array<float, XCAM_SOFT_WORKUNIT_PIXELS> (interp_pos, interp_value);
+            convert_to_uchar_N<float, XCAM_SOFT_WORKUNIT_PIXELS> (interp_value, interp_pixel_vaule);
         }
 #else
-        in_luma->read_interpolate_array<float, XCAM_SOFT_WORKUNIT_PIXELS> (in_pos, luma_value);
-        convert_to_uchar_N<float, XCAM_SOFT_WORKUNIT_PIXELS> (luma_value, luma_uc);
+        in->read_interpolate_array<float, XCAM_SOFT_WORKUNIT_PIXELS> (interp_pos, interp_value);
+        convert_to_uchar_N<float, XCAM_SOFT_WORKUNIT_PIXELS> (interp_value, interp_pixel_vaule);
 #endif
         if (bound == BoundCritical)
-            calc_critical_pixels (luma_w, luma_h, in_pos, XCAM_SOFT_WORKUNIT_PIXELS, zero_luma_byte[0], luma_uc);
-        out_luma->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y, luma_uc);
+            calc_critical_pixels (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS, zero_byte[0], interp_pixel_vaule);
+        out->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y, interp_pixel_vaule);
     }
+}
 
-    //4x1 UV
-    Float2 uv_value[XCAM_SOFT_WORKUNIT_PIXELS / 2];
-    Uchar2 uv_uc[XCAM_SOFT_WORKUNIT_PIXELS / 2];
+static void map_image (
+    const Uchar2Image *in, Uchar2Image *out, Float2 *interp_pos,
+    const uint32_t &width, const uint32_t &height,
+    const uint32_t &out_x, const uint32_t &out_y,
+    const Uchar2 *zero_byte)
+{
+    BoundState bound = BoundInternal;
+
+    Float2 interp_value[XCAM_SOFT_WORKUNIT_PIXELS / 2];
+    Uchar2 interp_pixel_value[XCAM_SOFT_WORKUNIT_PIXELS / 2];
     for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i += 2) {
-        in_pos[i / 2] = in_pos[i] / 2.0f;
+        interp_pos[i / 2] = interp_pos[i] / 2.0f;
     }
 
-    check_bound (uv_w, uv_h, in_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2 - 1, bound);
-    if (bound == BoundExternal)
-        out_uv->write_array_no_check < XCAM_SOFT_WORKUNIT_PIXELS / 2 > (x_idx * (XCAM_SOFT_WORKUNIT_PIXELS / 2), y_idx, zero_uv_byte);
+    check_bound (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2 - 1, bound);
+    if (bound == BoundExternal) {
+        out->write_array_no_check < XCAM_SOFT_WORKUNIT_PIXELS / 2 > (out_x, out_y, zero_byte);
+    }
     else {
 #if ENABLE_AVX512
-        check_interp_bound (in_uv->get_width (), in_uv->get_height (), in_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2 - 1, interp_bound);
+        BoundState interp_bound = BoundInternal;
+        check_interp_bound (in->get_width (), in->get_height (), interp_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2 - 1, interp_bound);
         if (interp_bound == BoundInternal) {
-            in_uv->read_interpolate_array (in_pos, uv_uc);
+            in->read_interpolate_array (interp_pos, interp_pixel_value);
         } else {
-            in_uv->read_interpolate_array < Float2, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (in_pos, uv_value);
-            convert_to_uchar2_N < Float2, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (uv_value, uv_uc);
+            in->read_interpolate_array < Float2, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (interp_pos, interp_value);
+            convert_to_uchar2_N < Float2, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (interp_value, interp_pixel_value);
         }
 #else
-        in_uv->read_interpolate_array < Float2, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (in_pos, uv_value);
-        convert_to_uchar2_N < Float2, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (uv_value, uv_uc);
+        in->read_interpolate_array < Float2, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (interp_pos, interp_value);
+        convert_to_uchar2_N < Float2, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (interp_value, interp_pixel_value);
 #endif
-        if (bound == BoundCritical)
-            calc_critical_pixels (uv_w, uv_h, in_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2, zero_uv_byte[0], uv_uc);
-        out_uv->write_array_no_check < XCAM_SOFT_WORKUNIT_PIXELS / 2 > (x_idx * (XCAM_SOFT_WORKUNIT_PIXELS / 2), y_idx, uv_uc);
+        if (bound == BoundCritical) {
+            calc_critical_pixels (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2, zero_byte[0], interp_pixel_value);
+        }
+        out->write_array_no_check < XCAM_SOFT_WORKUNIT_PIXELS / 2 > (out_x, out_y, interp_pixel_value);
     }
 
-    //2nd-line luma
-    for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i++) {
-        lut_pos[i].y = first.y + step.y;
-    }
-#if ENABLE_AVX512
-    check_interp_bound (lut->get_width (), lut->get_height (), lut_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, interp_bound);
-    if (interp_bound == BoundInternal) {
-        lut->read_interpolate_array (lut_pos, in_pos);
-    } else {
-        lut->read_interpolate_array<Float2, XCAM_SOFT_WORKUNIT_PIXELS> (lut_pos, in_pos);
-    }
-#else
-    lut->read_interpolate_array<Float2, XCAM_SOFT_WORKUNIT_PIXELS> (lut_pos, in_pos);
-#endif
-    check_bound (luma_w, luma_h, in_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, bound);
-    if (bound == BoundExternal)
-        out_luma->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y + 1, zero_luma_byte);
-    else {
-#if ENABLE_AVX512
-        check_interp_bound (in_luma->get_width (), in_luma->get_height (), in_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, interp_bound);
-        if (interp_bound == BoundInternal) {
-            in_luma->read_interpolate_array (in_pos, luma_uc);
-        } else {
-            in_luma->read_interpolate_array<float, XCAM_SOFT_WORKUNIT_PIXELS> (in_pos, luma_value);
-            convert_to_uchar_N<float, XCAM_SOFT_WORKUNIT_PIXELS> (luma_value, luma_uc);
-        }
-#else
-        in_luma->read_interpolate_array<float, XCAM_SOFT_WORKUNIT_PIXELS> (in_pos, luma_value);
-        convert_to_uchar_N<float, XCAM_SOFT_WORKUNIT_PIXELS> (luma_value, luma_uc);
-#endif
-        if (bound == BoundCritical)
-            calc_critical_pixels (luma_w, luma_h, in_pos, XCAM_SOFT_WORKUNIT_PIXELS, zero_luma_byte[0], luma_uc);
-        out_luma->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y + 1, luma_uc);
-    }
 }
 
 XCamReturn
@@ -193,14 +172,32 @@ GeoMapTask::work_range (const SmartPtr<Arguments> &base, const WorkRange &range)
 {
     static const Uchar zero_luma_byte[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     static const Uchar2 zero_uv_byte[8] = {{128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}};
+    static const Uchar zero_chroma_byte[8] = {128, 128, 128, 128, 128, 128, 128, 128};
+
     SmartPtr<GeoMapTask::Args> args = base.dynamic_cast_ptr<GeoMapTask::Args> ();
     XCAM_ASSERT (args.ptr ());
 
-    UcharImage *in_luma = args->in_luma.ptr (), *out_luma = args->out_luma.ptr ();
-    Uchar2Image *in_uv = args->in_uv.ptr (), *out_uv = args->out_uv.ptr ();
+    UcharImage *in_luma = args->in_luma.ptr ();
+    UcharImage *out_luma = args->out_luma.ptr ();
+    Uchar2Image *in_uv = NULL;
+    Uchar2Image *out_uv = NULL;
+    UcharImage *in_u = NULL;
+    UcharImage *in_v = NULL;
+    UcharImage *out_u = NULL;
+    UcharImage *out_v = NULL;
+    if (NULL != args->in_uv.ptr ()) {
+        in_uv = args->in_uv.ptr ();
+        out_uv = args->out_uv.ptr ();
+    } else if (NULL != args->in_u.ptr () && NULL != args->in_v.ptr ()) {
+        in_u = args->in_u.ptr ();
+        out_u = args->out_u.ptr ();
+        in_v = args->in_v.ptr ();
+        out_v = args->out_v.ptr ();
+    }
+
     Float2Image *lut = args->lookup_table.ptr ();
-    XCAM_ASSERT (in_luma && in_uv);
-    XCAM_ASSERT (out_luma && out_uv);
+    XCAM_ASSERT (in_luma && (in_uv || (in_u && in_v)));
+    XCAM_ASSERT (out_luma && (out_uv || (out_u && out_v)));
     XCAM_ASSERT (lut);
 
     Float2 factors = args->factors;
@@ -213,24 +210,61 @@ GeoMapTask::work_range (const SmartPtr<Arguments> &base, const WorkRange &range)
 
     uint32_t luma_w = in_luma->get_width ();
     uint32_t luma_h = in_luma->get_height ();
-    uint32_t uv_w = in_uv->get_width ();
-    uint32_t uv_h = in_uv->get_height ();
+    uint32_t chroma_w = luma_w / 2;
+    uint32_t chroma_h = luma_h / 2;
+    if (NULL != in_uv) {
+        chroma_w = in_uv->get_width ();
+        chroma_h = in_uv->get_height ();
+    } else if (NULL != in_u && NULL != in_v) {
+        chroma_w = in_u->get_width ();
+        chroma_h = in_u->get_height ();
+    }
 
-    for (uint32_t y = range.pos[1]; y < range.pos[1] + range.pos_len[1]; ++y)
-        for (uint32_t x = range.pos[0]; x < range.pos[0] + range.pos_len[0]; ++x)
-        {
+    for (uint32_t y = range.pos[1]; y < range.pos[1] + range.pos_len[1]; ++y) {
+        for (uint32_t x = range.pos[0]; x < range.pos[0] + range.pos_len[0]; ++x) {
             uint32_t out_x = x * XCAM_SOFT_WORKUNIT_PIXELS, out_y = y * 2;
 
-            // calculate XCAM_GEO_MAP_WORKUNIT_X * 2 luma, center aligned
+            // calculate XCAM_SOFT_WORKUNIT_PIXELS * 2 luma, center aligned
             Float2 out_pos (out_x, out_y);
             out_pos -= out_center;
             Float2 first = out_pos / factors;
             first += lut_center;
 
-            map_image (in_luma, in_uv, out_luma, out_uv, lut, luma_w, luma_h, uv_w, uv_h,
-                       x, y, out_x, out_y, first, step, zero_luma_byte, zero_uv_byte);
-        }
+            Float2 interp_pos[XCAM_SOFT_WORKUNIT_PIXELS] = { Float2(0.0f, 0.0f) };
 
+            if (NULL != in_u && NULL != in_v) {
+                interp_sample_pos (lut, interp_pos, first, step);
+                map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
+                           out_x, out_y, zero_luma_byte);
+
+                for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i++) {
+                    interp_pos[i] = interp_pos[i] / 2.0f;
+                }
+                map_image (in_u, out_u, interp_pos, chroma_w, chroma_h,
+                           out_x / 2, out_y / 2, zero_chroma_byte);
+
+                map_image (in_v, out_v, interp_pos, chroma_w, chroma_h,
+                           out_x / 2, out_y / 2, zero_chroma_byte);
+
+                first.y = first.y + step.y;
+                interp_sample_pos (lut, interp_pos, first, step);
+                map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
+                           out_x, out_y + 1, zero_luma_byte);
+            } else if (NULL != in_uv) {
+                interp_sample_pos (lut, interp_pos, first, step);
+                map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
+                           out_x, out_y, zero_luma_byte);
+
+                map_image (in_uv, out_uv, interp_pos, chroma_w, chroma_h,
+                           out_x / 2, out_y / 2, zero_uv_byte);
+
+                first.y = first.y + step.y;
+                interp_sample_pos (lut, interp_pos, first, step);
+                map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
+                           out_x, out_y + 1, zero_luma_byte);
+            }
+        }
+    }
     return XCAM_RETURN_NO_ERROR;
 }
 
@@ -239,14 +273,31 @@ GeoMapDualConstTask::work_range (const SmartPtr<Arguments> &base, const WorkRang
 {
     static const Uchar zero_luma_byte[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     static const Uchar2 zero_uv_byte[8] = {{128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}};
+    static const Uchar zero_chroma_byte[8] = {128, 128, 128, 128, 128, 128, 128, 128};
+
     SmartPtr<GeoMapDualConstTask::Args> args = base.dynamic_cast_ptr<GeoMapDualConstTask::Args> ();
     XCAM_ASSERT (args.ptr ());
 
-    UcharImage *in_luma = args->in_luma.ptr (), *out_luma = args->out_luma.ptr ();
-    Uchar2Image *in_uv = args->in_uv.ptr (), *out_uv = args->out_uv.ptr ();
+    UcharImage *in_luma = args->in_luma.ptr ();
+    UcharImage *out_luma = args->out_luma.ptr ();
+    Uchar2Image *in_uv = NULL;
+    Uchar2Image *out_uv = NULL;
+    UcharImage *in_u = NULL;
+    UcharImage *in_v = NULL;
+    UcharImage *out_u = NULL;
+    UcharImage *out_v = NULL;
+    if (NULL != args->in_uv.ptr ()) {
+        in_uv = args->in_uv.ptr ();
+        out_uv = args->out_uv.ptr ();
+    } else if (NULL != args->in_u.ptr () && NULL != args->in_v.ptr ()) {
+        in_u = args->in_u.ptr ();
+        out_u = args->out_u.ptr ();
+        in_v = args->in_v.ptr ();
+        out_v = args->out_v.ptr ();
+    }
     Float2Image *lut = args->lookup_table.ptr ();
-    XCAM_ASSERT (in_luma && in_uv);
-    XCAM_ASSERT (out_luma && out_uv);
+    XCAM_ASSERT (in_luma && (in_uv || (in_u && in_v)));
+    XCAM_ASSERT (out_luma && (out_uv || (out_u && out_v)));
     XCAM_ASSERT (lut);
 
     Float2 left_factor = args->left_factor;
@@ -263,26 +314,62 @@ GeoMapDualConstTask::work_range (const SmartPtr<Arguments> &base, const WorkRang
 
     uint32_t luma_w = in_luma->get_width ();
     uint32_t luma_h = in_luma->get_height ();
-    uint32_t uv_w = in_uv->get_width ();
-    uint32_t uv_h = in_uv->get_height ();
+    uint32_t chroma_w = luma_w / 2;
+    uint32_t chroma_h = luma_h / 2;
+    if (NULL != in_uv) {
+        chroma_w = in_uv->get_width ();
+        chroma_h = in_uv->get_height ();
+    } else if (NULL != in_u && NULL != in_v) {
+        chroma_w = in_u->get_width ();
+        chroma_h = in_u->get_height ();
+    }
 
-    for (uint32_t y = range.pos[1]; y < range.pos[1] + range.pos_len[1]; ++y)
-        for (uint32_t x = range.pos[0]; x < range.pos[0] + range.pos_len[0]; ++x)
-        {
+    for (uint32_t y = range.pos[1]; y < range.pos[1] + range.pos_len[1]; ++y) {
+        for (uint32_t x = range.pos[0]; x < range.pos[0] + range.pos_len[0]; ++x) {
             uint32_t out_x = x * XCAM_SOFT_WORKUNIT_PIXELS, out_y = y * 2;
             Float2 &factor = (out_x + XCAM_SOFT_WORKUNIT_PIXELS / 2 < out_center.x) ? left_factor : right_factor;
             Float2 &step = (out_x + XCAM_SOFT_WORKUNIT_PIXELS / 2 < out_center.x) ? left_step : right_step;
 
-            // calculate XCAM_GEO_MAP_WORKUNIT_X * 2 luma, center aligned
+            // calculate XCAM_SOFT_WORKUNIT_PIXELS * 2 luma, center aligned
             Float2 out_pos (out_x, out_y);
             out_pos -= out_center;
             Float2 first = out_pos / factor;
             first += lut_center;
 
-            map_image (in_luma, in_uv, out_luma, out_uv, lut, luma_w, luma_h, uv_w, uv_h,
-                       x, y, out_x, out_y, first, step, zero_luma_byte, zero_uv_byte);
-        }
+            Float2 interp_pos[XCAM_SOFT_WORKUNIT_PIXELS] = { Float2(0.0f, 0.0f) };
+            if (NULL != in_u && NULL != in_v) {
+                interp_sample_pos (lut, interp_pos, first, step);
+                map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
+                           out_x, out_y, zero_luma_byte);
 
+                for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i++) {
+                    interp_pos[i] = interp_pos[i] / 2.0f;
+                }
+                map_image (in_u, out_u, interp_pos, chroma_w, chroma_h,
+                           out_x / 2, out_y / 2, zero_chroma_byte);
+
+                map_image (in_v, out_v, interp_pos, chroma_w, chroma_h,
+                           out_x / 2, out_y / 2, zero_chroma_byte);
+
+                first.y = first.y + step.y;
+                interp_sample_pos (lut, interp_pos, first, step);
+                map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
+                           out_x, out_y + 1, zero_luma_byte);
+            } else if (NULL != in_uv) {
+                interp_sample_pos (lut, interp_pos, first, step);
+                map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
+                           out_x, out_y, zero_luma_byte);
+
+                map_image (in_uv, out_uv, interp_pos, chroma_w, chroma_h,
+                           out_x / 2, out_y / 2, zero_uv_byte);
+
+                first.y = first.y + step.y;
+                interp_sample_pos (lut, interp_pos, first, step);
+                map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
+                           out_x, out_y + 1, zero_luma_byte);
+            }
+        }
+    }
     return XCAM_RETURN_NO_ERROR;
 }
 
@@ -402,6 +489,7 @@ GeoMapDualCurveTask::work_range (const SmartPtr<Arguments> &base, const WorkRang
 {
     static const Uchar zero_luma_byte[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     static const Uchar2 zero_uv_byte[8] = {{128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}, {128, 128}};
+    static const Uchar zero_chroma_byte[8] = {128, 128, 128, 128, 128, 128, 128, 128};
 
     SmartPtr<GeoMapDualCurveTask::Args> args = base.dynamic_cast_ptr<GeoMapDualCurveTask::Args> ();
     XCAM_ASSERT (args.ptr ());
@@ -409,11 +497,27 @@ GeoMapDualCurveTask::work_range (const SmartPtr<Arguments> &base, const WorkRang
         !XCAM_DOUBLE_EQUAL_AROUND (args->left_factor.x, 0.0f) && !XCAM_DOUBLE_EQUAL_AROUND (args->left_factor.y, 0.0f) &&
         !XCAM_DOUBLE_EQUAL_AROUND (args->right_factor.x, 0.0f) && !XCAM_DOUBLE_EQUAL_AROUND (args->right_factor.y, 0.0f));
 
-    UcharImage *in_luma = args->in_luma.ptr (), *out_luma = args->out_luma.ptr ();
-    Uchar2Image *in_uv = args->in_uv.ptr (), *out_uv = args->out_uv.ptr ();
+    UcharImage *in_luma = args->in_luma.ptr ();
+    UcharImage *out_luma = args->out_luma.ptr ();
+    Uchar2Image *in_uv = NULL;
+    Uchar2Image *out_uv = NULL;
+    UcharImage *in_u = NULL;
+    UcharImage *in_v = NULL;
+    UcharImage *out_u = NULL;
+    UcharImage *out_v = NULL;
+    if (NULL != args->in_uv.ptr ()) {
+        in_uv = args->in_uv.ptr ();
+        out_uv = args->out_uv.ptr ();
+    } else if (NULL != args->in_u.ptr () && NULL != args->in_v.ptr ()) {
+        in_u = args->in_u.ptr ();
+        out_u = args->out_u.ptr ();
+        in_v = args->in_v.ptr ();
+        out_v = args->out_v.ptr ();
+    }
+
     Float2Image *lut = args->lookup_table.ptr ();
-    XCAM_ASSERT (in_luma && in_uv);
-    XCAM_ASSERT (out_luma && out_uv);
+    XCAM_ASSERT (in_luma && (in_uv || (in_u && in_v)));
+    XCAM_ASSERT (out_luma && (out_uv || (out_u && out_v)));
     XCAM_ASSERT (lut);
 
     set_factors (args, out_luma->get_height ());
@@ -423,26 +527,62 @@ GeoMapDualCurveTask::work_range (const SmartPtr<Arguments> &base, const WorkRang
 
     uint32_t luma_w = in_luma->get_width ();
     uint32_t luma_h = in_luma->get_height ();
-    uint32_t uv_w = in_uv->get_width ();
-    uint32_t uv_h = in_uv->get_height ();
+    uint32_t chroma_w = luma_w / 2;
+    uint32_t chroma_h = luma_h / 2;
+    if (NULL != in_uv) {
+        chroma_w = in_uv->get_width ();
+        chroma_h = in_uv->get_height ();
+    } else if (NULL != in_u && NULL != in_v) {
+        chroma_w = in_u->get_width ();
+        chroma_h = in_u->get_height ();
+    }
 
-    for (uint32_t y = range.pos[1]; y < range.pos[1] + range.pos_len[1]; ++y)
-        for (uint32_t x = range.pos[0]; x < range.pos[0] + range.pos_len[0]; ++x)
-        {
+    for (uint32_t y = range.pos[1]; y < range.pos[1] + range.pos_len[1]; ++y) {
+        for (uint32_t x = range.pos[0]; x < range.pos[0] + range.pos_len[0]; ++x) {
             uint32_t out_x = x * XCAM_SOFT_WORKUNIT_PIXELS, out_y = y * 2;
             Float2 &factor = (out_x + XCAM_SOFT_WORKUNIT_PIXELS / 2 < out_center.x) ? _left_factors[out_y] : _right_factors[out_y];
             Float2 &step = (out_x + XCAM_SOFT_WORKUNIT_PIXELS / 2 < out_center.x) ? _left_steps[out_y] : _right_steps[out_y];
 
-            // calculate 8x2 luma, center aligned
+            // calculate XCAM_SOFT_WORKUNIT_PIXELS * 2 luma, center aligned
             Float2 out_pos (out_x, out_y);
             out_pos -= out_center;
             Float2 first = out_pos / factor;
             first += lut_center;
 
-            map_image (in_luma, in_uv, out_luma, out_uv, lut, luma_w, luma_h, uv_w, uv_h,
-                       x, y, out_x, out_y, first, step, zero_luma_byte, zero_uv_byte);
-        }
+            Float2 interp_pos[XCAM_SOFT_WORKUNIT_PIXELS] = { Float2(0.0f, 0.0f) };
+            if (NULL != in_u && NULL != in_v) {
+                interp_sample_pos (lut, interp_pos, first, step);
+                map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
+                           out_x, out_y, zero_luma_byte);
 
+                for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i++) {
+                    interp_pos[i] = interp_pos[i] / 2.0f;
+                }
+                map_image (in_u, out_u, interp_pos, chroma_w, chroma_h,
+                           out_x / 2, out_y / 2, zero_chroma_byte);
+
+                map_image (in_v, out_v, interp_pos, chroma_w, chroma_h,
+                           out_x / 2, out_y / 2, zero_chroma_byte);
+
+                first.y = first.y + step.y;
+                interp_sample_pos (lut, interp_pos, first, step);
+                map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
+                           out_x, out_y + 1, zero_luma_byte);
+            } else if (NULL != in_uv) {
+                interp_sample_pos (lut, interp_pos, first, step);
+                map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
+                           out_x, out_y, zero_luma_byte);
+
+                map_image (in_uv, out_uv, interp_pos, chroma_w, chroma_h,
+                           out_x / 2, out_y / 2, zero_uv_byte);
+
+                first.y = first.y + step.y;
+                interp_sample_pos (lut, interp_pos, first, step);
+                map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
+                           out_x, out_y + 1, zero_luma_byte);
+            }
+        }
+    }
     return XCAM_RETURN_NO_ERROR;
 }
 
