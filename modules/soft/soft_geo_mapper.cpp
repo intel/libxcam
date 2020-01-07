@@ -160,9 +160,18 @@ SoftGeoMapper::start_remap_task (const SmartPtr<ImageHandler::Parameters> &param
     SmartPtr<VideoBuffer> in_buf = param->in_buf, out_buf = param->out_buf;
     SmartPtr<XCamSoftTasks::GeoMapTask::Args> args = new XCamSoftTasks::GeoMapTask::Args (param);
     args->in_luma = new UcharImage (in_buf, 0);
-    args->in_uv = new Uchar2Image (in_buf, 1);
     args->out_luma = new UcharImage (out_buf, 0);
-    args->out_uv = new Uchar2Image (out_buf, 1);
+
+    if (V4L2_PIX_FMT_NV12 == in_buf->get_format ()) {
+        args->in_uv = new Uchar2Image (in_buf, 1);
+        args->out_uv = new Uchar2Image (out_buf, 1);
+    } else if (V4L2_PIX_FMT_YUV420 == in_buf->get_format ()) {
+        args->in_u = new UcharImage (in_buf, 1);
+        args->in_v = new UcharImage (in_buf, 2);
+        args->out_u = new UcharImage (out_buf, 1);
+        args->out_v = new UcharImage (out_buf, 2);
+    }
+
     args->lookup_table = _lookup_table;
     args->factors = factors;
 
@@ -225,6 +234,7 @@ SoftGeoMapper::remap_task_done (
 SmartPtr<SoftHandler> create_soft_geo_mapper ()
 {
     SmartPtr<SoftHandler> mapper = new SoftGeoMapper ();
+
     XCAM_ASSERT (mapper.ptr ());
 
     return mapper;
@@ -343,9 +353,18 @@ SoftDualConstGeoMapper::prepare_arguments (
     get_right_factors (factors.x, factors.y);
     args->right_factor = factors;
     args->in_luma = new UcharImage (in_buf, 0);
-    args->in_uv = new Uchar2Image (in_buf, 1);
     args->out_luma = new UcharImage (out_buf, 0);
-    args->out_uv = new Uchar2Image (out_buf, 1);
+
+    if (V4L2_PIX_FMT_NV12 == in_buf->get_format ()) {
+        args->in_uv = new Uchar2Image (in_buf, 1);
+        args->out_uv = new Uchar2Image (out_buf, 1);
+    } else if (V4L2_PIX_FMT_YUV420 == in_buf->get_format ()) {
+        args->in_u = new UcharImage (in_buf, 1);
+        args->in_v = new UcharImage (in_buf, 2);
+        args->out_u = new UcharImage (out_buf, 1);
+        args->out_v = new UcharImage (out_buf, 2);
+    }
+
     args->lookup_table = lookup_table;
 
     uint32_t thread_x = 2;
