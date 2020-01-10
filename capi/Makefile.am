@@ -25,8 +25,9 @@ XCAMCAPI_LIBS += \
 endif
 
 xcam_ocl_sources = \
-    xcam_handle.cpp  \
-    context_priv.cpp \
+    xcam_handle.cpp     \
+    context_priv.cpp    \
+    ctxs/context_sv.cpp \
     $(NULL)
 
 if HAVE_LIBCL

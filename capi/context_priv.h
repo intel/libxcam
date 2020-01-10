@@ -35,7 +35,8 @@ enum HandleType {
     HandleTypeFisheye,
     HandleTypeDefog,
     HandleTypeDVS,
-    HandleTypeStitch
+    HandleTypeStitch,
+    HandleTypeSV
 };
 
 typedef struct _CompareStr {
@@ -61,7 +62,7 @@ public:
 
     virtual XCamReturn execute (SmartPtr<VideoBuffer> &buf_in, SmartPtr<VideoBuffer> &buf_out) = 0;
 
-    SmartPtr<BufferPool> get_input_buffer_pool() const {
+    SmartPtr<BufferPool> get_input_buffer_pool () const {
         return  _inbuf_pool;
     }
     const char* get_type_name () const;

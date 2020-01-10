@@ -19,6 +19,7 @@
  */
 
 #include "context_priv.h"
+#include "ctxs/context_sv.h"
 #if HAVE_LIBCL
 #include "ctxs/context_cl.h"
 #endif
@@ -35,6 +36,7 @@ static const char *HandleNames[] = {
     "Defog",
     "DVS",
     "Stitch",
+    "SV"
 };
 
 bool
@@ -124,6 +126,8 @@ create_context (const char *name)
 
     if (handle_name_equal (name, HandleTypeNone)) {
         XCAM_LOG_ERROR ("handle type is none");
+    } else if (handle_name_equal (name, HandleTypeSV)) {
+        context = new SVContextBase;
 #if HAVE_LIBCL
     } else if (handle_name_equal (name, HandleType3DNR)) {
         context = new NR3DContext;
