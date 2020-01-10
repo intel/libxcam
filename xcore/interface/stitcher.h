@@ -52,12 +52,6 @@ enum StitchResMode {
     StitchRes8K6Cams
 };
 
-enum StitchScopicMode {
-    ScopicMono,
-    ScopicStereoLeft,
-    ScopicStereoRight
-};
-
 struct StitchInfo {
     uint32_t merge_width[XCAM_STITCH_FISHEYE_MAX_NUM];
 
@@ -187,13 +181,6 @@ public:
         return _dewarp_mode;
     }
 
-    void set_scopic_mode (StitchScopicMode mode) {
-        _scopic_mode = mode;
-    }
-    StitchScopicMode get_scopic_mode () {
-        return _scopic_mode;
-    }
-
     void set_scale_mode (GeoMapScaleMode scale_mode) {
         _scale_mode = scale_mode;
     }
@@ -315,8 +302,6 @@ private:
     CopyAreaArray               _copy_areas;
 
     FisheyeDewarpMode           _dewarp_mode;
-
-    StitchScopicMode            _scopic_mode;
 
     GeoMapScaleMode             _scale_mode;
     //update after each feature match
