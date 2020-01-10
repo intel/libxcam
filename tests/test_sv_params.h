@@ -29,6 +29,12 @@ enum CamModel {
     CamD3C8K
 };
 
+enum StitchScopicMode {
+    ScopicMono,
+    ScopicStereoLeft,
+    ScopicStereoRight
+};
+
 static const char *instrinsic_names[] = {
     "intrinsic_camera_front.txt",
     "intrinsic_camera_right.txt",
