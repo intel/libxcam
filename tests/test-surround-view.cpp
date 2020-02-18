@@ -853,7 +853,6 @@ int main (int argc, char *argv[])
     stitcher->set_camera_num (fisheye_num);
     stitcher->set_output_size (output_width, output_height);
     stitcher->set_dewarp_mode (dewarp_mode);
-    stitcher->set_scopic_mode (scopic_mode);
     stitcher->set_scale_mode (scale_mode);
     stitcher->set_blend_pyr_levels (blend_pyr_levels);
     stitcher->set_fm_mode (fm_mode);
