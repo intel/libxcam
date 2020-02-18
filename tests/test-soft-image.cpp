@@ -16,14 +16,18 @@
  * limitations under the License.
  *
  * Author: Wind Yuan <feng.yuan@intel.com>
+ * Author: Zong Wei <wei.zong@intel.com>
  */
 
 #include "test_common.h"
 #include "test_inline.h"
 #include "test_stream.h"
+#include "test_sv_params.h"
+
 #include <soft/soft_video_buf_allocator.h>
 #include <interface/blender.h>
 #include <interface/geo_mapper.h>
+#include <interface/stitcher.h>
 #include <xcore/fisheye_dewarp.h>
 
 #define MAP_WIDTH 3
@@ -39,7 +43,7 @@ static PointFloat2 map_table[MAP_HEIGHT * MAP_WIDTH] = {
     {0.0f, 480.0f}, {480.0f, 480.0f}, {960.0f, 480.0f},
 };
 
-static PointFloat2 map_table_4k[MAP_HEIGHT_4K * MAP_WIDTH_4K] = {
+static PointFloat2 map_table_insta[MAP_HEIGHT_4K * MAP_WIDTH_4K] = {
     { 3705.208496, 1477.394775 },
     { 3605.299316, 1135.900757 },
     { 3445.429688, 831.426636 },
@@ -230,6 +234,9 @@ enum SoftType {
     SoftTypeRemap
 };
 
+#define TEST_MAP_FACTOR_X  16
+#define TEST_MAP_FACTOR_Y  16
+
 class SoftStream
     : public Stream
 {
@@ -268,11 +275,51 @@ SoftStream::create_buf_pool (uint32_t reserve_count, uint32_t format)
     return XCAM_RETURN_NO_ERROR;
 }
 
+void
+set_map_table (SmartPtr<GeoMapper> mapper, uint32_t stitch_width, uint32_t stitch_height, CamModel cam_model)
+{
+    SmartPtr<SphereFisheyeDewarp> dewarper = new SphereFisheyeDewarp ();
+
+    float vp_range[XCAM_STITCH_FISHEYE_MAX_NUM];
+    viewpoints_range (cam_model, vp_range);
+
+    StitchScopicMode scopic_mode = ScopicStereoRight;
+    StitchInfo info = soft_stitch_info (cam_model, scopic_mode);
+    dewarper->set_fisheye_info (info.fisheye_info[0]);
+
+    Stitcher::RoundViewSlice view_slice;
+    uint32_t alignment_x = 8;
+    //uint32_t alignment_y = 4;
+    view_slice.width = vp_range[0] / 360.0f * (float)stitch_width;
+    view_slice.width = XCAM_ALIGN_UP (view_slice.width, alignment_x);
+    view_slice.height = stitch_height;
+    view_slice.hori_angle_range = view_slice.width * 360.0f / (float)stitch_width;
+
+    float max_dst_latitude = (info.fisheye_info[0].wide_angle > 180.0f) ? 180.0f : info.fisheye_info[0].wide_angle;
+    float max_dst_longitude = max_dst_latitude * view_slice.width / view_slice.height;
+
+    dewarper->set_dst_range (max_dst_longitude, max_dst_latitude);
+    dewarper->set_out_size (view_slice.width, view_slice.height);
+
+    uint32_t table_width = view_slice.width / TEST_MAP_FACTOR_X;
+    table_width = XCAM_ALIGN_UP (table_width, 4);
+    uint32_t table_height = view_slice.height / TEST_MAP_FACTOR_Y;
+    table_height = XCAM_ALIGN_UP (table_height, 2);
+    dewarper->set_table_size (table_width, table_height);
+
+    FisheyeDewarp::MapTable map_table (table_width * table_height);
+    dewarper->gen_table (map_table);
+
+    mapper->set_lookup_table (map_table.data (), table_width, table_height);
+}
+
 static void usage(const char* arg0)
 {
     printf ("Usage:\n"
             "%s --type TYPE --input0 input.nv12 --input1 input1.nv12 --output output.nv12 ...\n"
             "\t--type              processing type, selected from: blend, remap\n"
+            "\t--cam-model          optional, camera model\n"
+            "\t                    select from [cama2c1080p/camb4c1080p/camc3c8k/camd3c8k], default: camb4c1080p\n"
             "\t--input0            input image(NV12)\n"
             "\t--input1            input image(NV12)\n"
             "\t--output            output image(NV12/MP4)\n"
@@ -294,6 +341,7 @@ int main (int argc, char *argv[])
     uint32_t output_height = 800;
 
     uint32_t input_format = V4L2_PIX_FMT_NV12;
+    CamModel cam_model = CamD3C8K;
 
     SoftStreams ins;
     SoftStreams outs;
@@ -307,6 +355,7 @@ int main (int argc, char *argv[])
         {"input0", required_argument, NULL, 'i'},
         {"input1", required_argument, NULL, 'j'},
         {"in-format", required_argument, NULL, 'f'},
+        {"cam-model", required_argument, NULL, 'C'},
         {"output", required_argument, NULL, 'o'},
         {"in-w", required_argument, NULL, 'w'},
         {"in-h", required_argument, NULL, 'h'},
@@ -341,6 +390,20 @@ int main (int argc, char *argv[])
             XCAM_ASSERT (optarg);
             PUSH_STREAM (SoftStream, ins, optarg);
             break;
+        case 'C':
+            if (!strcasecmp (optarg, "cama2c1080p"))
+                cam_model = CamA2C1080P;
+            else if (!strcasecmp (optarg, "camb4c1080p"))
+                cam_model = CamB4C1080P;
+            else if (!strcasecmp (optarg, "camc3c8k"))
+                cam_model = CamC3C8K;
+            else if (!strcasecmp (optarg, "camd3c8k"))
+                cam_model = CamD3C8K;
+            else {
+                XCAM_LOG_ERROR ("incorrect camera model: %s", optarg);
+                usage (argv[0]);
+                return -1;
+            }
         case 'o':
             XCAM_ASSERT (optarg);
             PUSH_STREAM (SoftStream, outs, optarg);
@@ -451,12 +514,17 @@ int main (int argc, char *argv[])
         XCAM_ASSERT (mapper.ptr ());
         mapper->set_output_size (output_width, output_height);
 
-        if (input_width > 3500 && input_height > 2500) {
-            mapper->set_lookup_table (map_table_4k, MAP_WIDTH_4K, MAP_HEIGHT_4K);
+#if 0
+        if (input_width > 3800 && input_height > 2800) {
+            mapper->set_lookup_table (map_table_insta, MAP_WIDTH_4K, MAP_HEIGHT_4K);
         } else {
             mapper->set_lookup_table (map_table, MAP_WIDTH, MAP_HEIGHT);
         }
-
+#else
+        uint32_t stitch_width = 7680;
+        uint32_t stitch_height = 3840;
+        set_map_table (mapper, stitch_width, stitch_height, cam_model);
+#endif
         //mapper->set_factors ((output_width - 1.0f) / (MAP_WIDTH - 1.0f), (output_height - 1.0f) / (MAP_HEIGHT - 1.0f));
 
         CHECK (ins[0]->read_buf(), "read buffer from file(%s) failed.", ins[0]->get_file_name ());
