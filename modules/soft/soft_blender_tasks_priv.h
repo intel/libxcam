@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  * Author: Wind Yuan <feng.yuan@intel.com>
+ * Author: Zong Wei <wei.zong@intel.com>
  */
 
 #ifndef XCAM_SOFT_BLENDER_TASKS_PRIV_H
@@ -85,6 +86,7 @@ class GaussDownScale
 public:
     struct Args : GaussScaleGray::Args {
         SmartPtr<Uchar2Image>          in_uv, out_uv;
+        SmartPtr<UcharImage>           in_u, in_v, out_u, out_v;
         const uint32_t                 level;
         const SoftBlender::BufIdx      idx;
 
@@ -113,7 +115,14 @@ public:
 private:
     virtual XCamReturn work_range (const SmartPtr<Arguments> &args, const WorkRange &range);
 
-    inline void multiply_coeff_uv (Float2 *out, Float2 *in, float coef) {
+    void gauss_uv_1x1 (
+        Uchar2Image *in_uv, Uchar2Image *out_uv, uint32_t x, uint32_t y);
+
+    void gauss_chroma_1x1 (
+        UcharImage *in_chroma, UcharImage *out_chroma, uint32_t x, uint32_t y);
+
+    template<typename T>
+    inline void multiply_coeff_chroma (T *out, T *in, float coef) {
         out[0] += in[0] * coef;
         out[1] += in[1] * coef;
         out[2] += in[2] * coef;
@@ -129,6 +138,8 @@ public:
     struct Args : SoftArgs {
         SmartPtr<UcharImage>   in_luma[2], out_luma;
         SmartPtr<Uchar2Image>  in_uv[2], out_uv;
+        SmartPtr<UcharImage>   in_u[2], in_v[2], out_u, out_v;
+
         SmartPtr<UcharImage>   mask;
 
         SmartPtr<VideoBuffer>  out_buf;
@@ -152,6 +163,15 @@ public:
 
 private:
     virtual XCamReturn work_range (const SmartPtr<Arguments> &args, const WorkRange &range);
+    void blend_luma (
+        UcharImage *in0_luma, UcharImage *in1_luma, UcharImage *out_luma,
+        UcharImage *mask, float* luma_mask, uint32_t x, uint32_t y);
+    void blend_uv (
+        Uchar2Image *in0_uv, Uchar2Image *in1_uv, Uchar2Image *out_uv,
+        float* mask, uint32_t x, uint32_t y);
+    void blend_chroma (
+        UcharImage *in0_chroma, UcharImage *in1_chroma, UcharImage *out_chroma,
+        float* mask, uint32_t x, uint32_t y);
 };
 
 class LaplaceTask
@@ -161,6 +181,8 @@ public:
     struct Args : SoftArgs {
         SmartPtr<UcharImage>        orig_luma, gauss_luma, out_luma;
         SmartPtr<Uchar2Image>       orig_uv, gauss_uv, out_uv;
+        SmartPtr<UcharImage>        orig_u, orig_v, gauss_u, gauss_v, out_u, out_v;
+
         const uint32_t              level;
         const SoftBlender::BufIdx   idx;
 
@@ -187,6 +209,16 @@ public:
 private:
     virtual XCamReturn work_range (const SmartPtr<Arguments> &args, const WorkRange &range);
 
+    void laplace_luma (
+        UcharImage *orig_luma, UcharImage *gauss_luma, UcharImage *out_luma,
+        uint32_t x, uint32_t y);
+    void laplace_uv (
+        Uchar2Image *orig_uv, Uchar2Image *gauss_uv, Uchar2Image *out_uv,
+        uint32_t x, uint32_t y);
+    void laplace_chroma (
+        UcharImage *orig_chroma, UcharImage *gauss_chroma, UcharImage *out_chroma,
+        uint32_t x, uint32_t y);
+
     void interplate_luma_8x2 (
         UcharImage *orig_luma, UcharImage *gauss_luma, UcharImage *out_luma,
         uint32_t out_x, uint32_t out_y);
@@ -199,6 +231,8 @@ public:
     struct Args : SoftArgs {
         SmartPtr<UcharImage>        gauss_luma, lap_luma[2], out_luma;
         SmartPtr<Uchar2Image>       gauss_uv, lap_uv[2], out_uv;
+        SmartPtr<UcharImage>        gauss_u, gauss_v, lap_u[2], lap_v[2], out_u, out_v;
+
         SmartPtr<UcharImage>        mask;
         const uint32_t              level;
 
@@ -223,6 +257,18 @@ public:
 
 private:
     virtual XCamReturn work_range (const SmartPtr<Arguments> &args, const WorkRange &range);
+    void reconstruct_luma (
+        UcharImage **lap_luma, UcharImage *gauss_luma, UcharImage *out_luma,
+        UcharImage *mask_image, float* luma_mask1, float* luma_mask2,
+        uint32_t x, uint32_t y);
+    void reconstruct_uv (
+        Uchar2Image **lap_uv, Uchar2Image *gauss_uv, Uchar2Image *out_uv,
+        float* mask1, float* mask2,
+        uint32_t x, uint32_t y);
+    void reconstruct_chroma (
+        UcharImage **lap_chroma, UcharImage *gauss_chroma, UcharImage *out_chroma,
+        float* mask1, float* mask2,
+        uint32_t x, uint32_t y);
 };
 
 }

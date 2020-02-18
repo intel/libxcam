@@ -38,6 +38,7 @@ public:
     struct Args : SoftArgs {
         SmartPtr<UcharImage>         in_luma, out_luma;
         SmartPtr<Uchar2Image>        in_uv, out_uv;
+        SmartPtr<UcharImage>         in_u, in_v, out_u, out_v;
 
         Args (const SmartPtr<ImageHandler::Parameters> &param)
             : SoftArgs (param)

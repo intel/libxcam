@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  * Author: Wind Yuan <feng.yuan@intel.com>
+ * Author: Zong Wei <wei.zong@intel.com>
  */
 
 #include "fisheye_dewarp.h"
@@ -826,16 +827,34 @@ Copier::start_copy_task (
     args->in_luma = new UcharImage (
         in_buf, copy_area.in_area.width, copy_area.in_area.height, in_info.strides[0],
         in_info.offsets[0] + copy_area.in_area.pos_x + copy_area.in_area.pos_y * in_info.strides[0]);
-    args->in_uv = new Uchar2Image (
-        in_buf, copy_area.in_area.width / 2, copy_area.in_area.height / 2, in_info.strides[0],
-        in_info.offsets[1] + copy_area.in_area.pos_x + copy_area.in_area.pos_y / 2 * in_info.strides[1]);
 
     args->out_luma = new UcharImage (
         out_buf, copy_area.out_area.width, copy_area.out_area.height, out_info.strides[0],
         out_info.offsets[0] + copy_area.out_area.pos_x + copy_area.out_area.pos_y * out_info.strides[0]);
-    args->out_uv = new Uchar2Image (
-        out_buf, copy_area.out_area.width / 2, copy_area.out_area.height / 2, out_info.strides[0],
-        out_info.offsets[1] + copy_area.out_area.pos_x + copy_area.out_area.pos_y / 2 * out_info.strides[1]);
+
+    if ((V4L2_PIX_FMT_NV12 == in_info.format) && (V4L2_PIX_FMT_NV12 == out_info.format)) {
+        args->in_uv = new Uchar2Image (
+            in_buf, copy_area.in_area.width / 2, copy_area.in_area.height / 2, in_info.strides[1],
+            in_info.offsets[1] + copy_area.in_area.pos_x + copy_area.in_area.pos_y / 2 * in_info.strides[1]);
+        args->out_uv = new Uchar2Image (
+            out_buf, copy_area.out_area.width / 2, copy_area.out_area.height / 2, out_info.strides[1],
+            out_info.offsets[1] + copy_area.out_area.pos_x + copy_area.out_area.pos_y / 2 * out_info.strides[1]);
+    } else if ((V4L2_PIX_FMT_YUV420 == in_info.format) && (V4L2_PIX_FMT_YUV420 == out_info.format)) {
+        args->in_u = new UcharImage (
+            in_buf, copy_area.in_area.width / 2, copy_area.in_area.height / 2, in_info.strides[1],
+            in_info.offsets[1] + copy_area.in_area.pos_x / 2 + copy_area.in_area.pos_y / 2 * in_info.strides[1]);
+        args->in_v = new UcharImage (
+            in_buf, copy_area.in_area.width / 2, copy_area.in_area.height / 2, in_info.strides[2],
+            in_info.offsets[2] + copy_area.in_area.pos_x / 2 + copy_area.in_area.pos_y / 2 * in_info.strides[2]);
+        args->out_u = new UcharImage (
+            out_buf, copy_area.out_area.width / 2, copy_area.out_area.height / 2, out_info.strides[1],
+            out_info.offsets[1] + copy_area.out_area.pos_x / 2 + copy_area.out_area.pos_y / 2 * out_info.strides[1]);
+        args->out_v = new UcharImage (
+            out_buf, copy_area.out_area.width / 2, copy_area.out_area.height / 2, out_info.strides[2],
+            out_info.offsets[2] + copy_area.out_area.pos_x / 2 + copy_area.out_area.pos_y / 2 * out_info.strides[2]);
+    } else {
+        XCAM_LOG_ERROR ("copy_task buffer pixel format:%d unsupported!", in_info.format);
+    }
 
     uint32_t thread_x = 1, thread_y = 4;
     WorkSize global_size (1, xcam_ceil (copy_area.in_area.height, 2) / 2);

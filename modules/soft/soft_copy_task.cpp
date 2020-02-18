@@ -41,18 +41,34 @@ XCamSoftTasks::CopyTask::work_range (const SmartPtr<Arguments> &base, const Work
 
     UcharImage *in_luma = args->in_luma.ptr (), *out_luma = args->out_luma.ptr ();
     Uchar2Image *in_uv = args->in_uv.ptr (), *out_uv = args->out_uv.ptr ();
-    XCAM_ASSERT (in_luma && in_uv);
-    XCAM_ASSERT (out_luma && out_uv);
+    UcharImage *in_u = args->in_u.ptr (), *out_u = args->out_u.ptr ();
+    UcharImage *in_v = args->in_v.ptr (), *out_v = args->out_v.ptr ();
+
+    XCAM_ASSERT (in_luma && (in_uv || (in_u && in_v)));
+    XCAM_ASSERT (out_luma && (out_uv || (out_u && out_v)));
 
     uint32_t luma_size = in_luma->get_width () * in_luma->pixel_size ();
-    uint32_t uv_size = in_uv->get_width () * in_uv->pixel_size ();
+
+    uint32_t uv_size = 0;
+    if (in_uv) {
+        uv_size = in_uv->get_width () * in_uv->pixel_size ();
+    }
+    if (in_u) {
+        uv_size = in_u->get_width () * in_u->pixel_size ();
+    }
+
     for (uint32_t y = range.pos[1]; y < range.pos[1] + range.pos_len[1]; ++y) {
         uint32_t luma_y = y * 2;
         copy_line<UcharImage> (in_luma, out_luma, luma_y, luma_size);
         copy_line<UcharImage> (in_luma, out_luma, luma_y + 1, luma_size);
 
         uint32_t uv_y = y;
-        copy_line<Uchar2Image> (in_uv, out_uv, uv_y, uv_size);
+        if (in_uv && out_uv) {
+            copy_line<Uchar2Image> (in_uv, out_uv, uv_y, uv_size);
+        } else if (in_u && in_v && out_u && out_v) {
+            copy_line<UcharImage> (in_u, out_u, uv_y, uv_size);
+            copy_line<UcharImage> (in_v, out_v, uv_y, uv_size);
+        }
     }
 
     XCAM_LOG_DEBUG ("CopyTask work on range:[x:%d, width:%d, y:%d, height:%d]",

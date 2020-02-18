@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  * Author: Wind Yuan <feng.yuan@intel.com>
+ * Author: Zong Wei <wei.zong@intel.com>
  */
 
 #include "soft_blender.h"
@@ -341,9 +342,9 @@ SoftBlenderPriv::BlenderPrivConfig::start_scaler (
         XCAM_STR (_blender->get_name ()), level, (int)idx);
 
     SmartPtr<GaussDownScale::Args> args = new GaussDownScale::Args (param, level, idx, in_buf, out_buf);
+    const VideoBufferInfo &buf_info = in_buf->get_video_info ();
     if (level == 0) {
         Rect in_area = _blender->get_input_merge_area (idx);
-        const VideoBufferInfo &buf_info = in_buf->get_video_info ();
         if (in_area.width == 0 || in_area.height == 0) {
             in_area.width = buf_info.width;
             in_area.height = buf_info.height;
@@ -353,16 +354,44 @@ SoftBlenderPriv::BlenderPrivConfig::start_scaler (
         args->in_luma = new UcharImage (
             in_buf, in_area.width, in_area.height, buf_info.strides[0],
             buf_info.offsets[0] + in_area.pos_x + in_area.pos_y * buf_info.strides[0]);
-        args->in_uv = new Uchar2Image (
-            in_buf, in_area.width / 2, in_area.height / 2, buf_info.strides[1],
-            buf_info.offsets[1] + in_area.pos_x +  buf_info.strides[1] * in_area.pos_y / 2);
+
+        if (V4L2_PIX_FMT_NV12 == buf_info.format) {
+            args->in_uv = new Uchar2Image (
+                in_buf, in_area.width / 2, in_area.height / 2, buf_info.strides[1],
+                buf_info.offsets[1] + in_area.pos_x +  buf_info.strides[1] * in_area.pos_y / 2);
+        } else if (V4L2_PIX_FMT_YUV420 == buf_info.format) {
+            args->in_u = new UcharImage (
+                in_buf, in_area.width / 2, in_area.height / 2, buf_info.strides[1],
+                buf_info.offsets[1] + in_area.pos_x / 2 +  buf_info.strides[1] * in_area.pos_y / 2);
+
+            args->in_v = new UcharImage (
+                in_buf, in_area.width / 2, in_area.height / 2, buf_info.strides[2],
+                buf_info.offsets[2] + in_area.pos_x / 2 +  buf_info.strides[2] * in_area.pos_y / 2);
+        } else {
+            XCAM_LOG_ERROR ("scaler_task in_buf pixel format:%d unsupported!", buf_info.format);
+        }
     } else {
         args->in_luma = new UcharImage (in_buf, 0);
-        args->in_uv = new Uchar2Image (in_buf, 1);
-    }
-    args->out_luma = new UcharImage (out_buf, 0);
-    args->out_uv = new Uchar2Image (out_buf, 1);
 
+        if (V4L2_PIX_FMT_NV12 == buf_info.format) {
+            args->in_uv = new Uchar2Image (in_buf, 1);
+        } else if (V4L2_PIX_FMT_YUV420 == buf_info.format) {
+            args->in_u = new UcharImage (in_buf, 1);
+            args->in_v = new UcharImage (in_buf, 2);
+        } else {
+            XCAM_LOG_ERROR ("scaler_task in_buf pixel format:%d unsupported!", buf_info.format);
+        }
+    }
+
+    args->out_luma = new UcharImage (out_buf, 0);
+    if (V4L2_PIX_FMT_NV12 == buf_info.format) {
+        args->out_uv = new Uchar2Image (out_buf, 1);
+    } else if (V4L2_PIX_FMT_YUV420 == buf_info.format) {
+        args->out_u = new UcharImage (out_buf, 1);
+        args->out_v = new UcharImage (out_buf, 2);
+    } else {
+        XCAM_LOG_ERROR ("scaler_task in_buf pixel format:%d unsupported!", buf_info.format);
+    }
     XCAM_ASSERT (out_buf->get_video_info ().width % 2 == 0 && out_buf->get_video_info ().height % 2 == 0);
 
     uint32_t thread_x = 4, thread_y = 4;
@@ -389,6 +418,7 @@ SoftBlenderPriv::BlenderPrivConfig::start_lap_task (
     XCAM_ASSERT (level < pyr_levels);
     XCAM_ASSERT (idx < SoftBlender::BufIdxCount);
     SmartPtr<VideoBuffer> gauss = scale_args->out_buf;
+    const VideoBufferInfo &buf_info = gauss->get_video_info ();
 
     SmartPtr<VideoBuffer> out_buf;
     if (level == 0) {
@@ -407,10 +437,23 @@ SoftBlenderPriv::BlenderPrivConfig::start_lap_task (
     SmartPtr<LaplaceTask::Args> args = new LaplaceTask::Args (param, level, idx, out_buf);
     args->orig_luma = scale_args->in_luma;//new UcharImage (orig, 0);
     args->orig_uv = scale_args->in_uv; //new Uchar2Image (orig, 1);
+    args->orig_u = scale_args->in_u;
+    args->orig_v = scale_args->in_v;
+
     args->gauss_luma = new UcharImage (gauss, 0);
-    args->gauss_uv = new Uchar2Image (gauss, 1);
     args->out_luma = new UcharImage (out_buf, 0);
-    args->out_uv = new Uchar2Image (out_buf, 1);
+
+    if (V4L2_PIX_FMT_NV12 == buf_info.format) {
+        args->gauss_uv = new Uchar2Image (gauss, 1);
+        args->out_uv = new Uchar2Image (out_buf, 1);
+    } else if (V4L2_PIX_FMT_YUV420 == buf_info.format) {
+        args->gauss_u = new UcharImage (gauss, 1);
+        args->gauss_v = new UcharImage (gauss, 2);
+        args->out_u = new UcharImage (out_buf, 1);
+        args->out_v = new UcharImage (out_buf, 2);
+    } else {
+        XCAM_LOG_ERROR ("laplace_task inupt gauss buffer pixel format:%d unsupported!", buf_info.format);
+    }
 
     SmartPtr<SoftWorker> worker = pyr_layer[level].lap_task[idx];
     XCAM_ASSERT (worker.ptr ());
@@ -423,7 +466,6 @@ SoftBlenderPriv::BlenderPrivConfig::start_lap_task (
     WorkSize local_size (
         xcam_ceil(global_size.value[0], thread_x) / thread_x,
         xcam_ceil(global_size.value[1], thread_y) / thread_y);
-
 
     worker->set_local_size (local_size);
     worker->set_global_size (global_size);
@@ -473,23 +515,56 @@ SoftBlenderPriv::BlenderPrivConfig::start_blend_task (
         args->in_luma[SoftBlender::Idx0] = new UcharImage (
             in0_buf, in0_area.width, in0_area.height, buf0_info.strides[0],
             buf0_info.offsets[0] + in0_area.pos_x + in0_area.pos_y * buf0_info.strides[0]);
-        args->in_uv[SoftBlender::Idx0] = new Uchar2Image (
-            in0_buf, in0_area.width / 2, in0_area.height / 2, buf0_info.strides[1],
-            buf0_info.offsets[1] + in0_area.pos_x +  buf0_info.strides[1] * in0_area.pos_y / 2);
 
         args->in_luma[SoftBlender::Idx1] = new UcharImage (
             in1_buf, in1_area.width, in1_area.height, buf1_info.strides[0],
             buf1_info.offsets[0] + in1_area.pos_x + in1_area.pos_y * buf1_info.strides[0]);
-        args->in_uv[SoftBlender::Idx1] = new Uchar2Image (
-            in1_buf, in1_area.width / 2, in1_area.height / 2, buf1_info.strides[1],
-            buf1_info.offsets[1] + in1_area.pos_x +  buf1_info.strides[1] * in1_area.pos_y / 2);
 
         args->out_luma = new UcharImage (
             out_buf, out_area.width, out_area.height, out_info.strides[0],
             out_info.offsets[0] + out_area.pos_x + out_area.pos_y * out_info.strides[0]);
-        args->out_uv = new Uchar2Image (
-            out_buf, out_area.width / 2, out_area.height / 2, out_info.strides[1],
-            out_info.offsets[1] + out_area.pos_x + out_area.pos_y / 2 * out_info.strides[1]);
+
+        if (V4L2_PIX_FMT_NV12 == buf0_info.format &&
+                V4L2_PIX_FMT_NV12 == buf1_info.format &&
+                V4L2_PIX_FMT_NV12 == out_info.format) {
+            args->in_uv[SoftBlender::Idx0] = new Uchar2Image (
+                in0_buf, in0_area.width / 2, in0_area.height / 2, buf0_info.strides[1],
+                buf0_info.offsets[1] + in0_area.pos_x +  buf0_info.strides[1] * in0_area.pos_y / 2);
+
+            args->in_uv[SoftBlender::Idx1] = new Uchar2Image (
+                in1_buf, in1_area.width / 2, in1_area.height / 2, buf1_info.strides[1],
+                buf1_info.offsets[1] + in1_area.pos_x +  buf1_info.strides[1] * in1_area.pos_y / 2);
+
+            args->out_uv = new Uchar2Image (
+                out_buf, out_area.width / 2, out_area.height / 2, out_info.strides[1],
+                out_info.offsets[1] + out_area.pos_x + out_area.pos_y / 2 * out_info.strides[1]);
+        }  else if (V4L2_PIX_FMT_YUV420 == buf0_info.format &&
+                    V4L2_PIX_FMT_YUV420 == buf1_info.format &&
+                    V4L2_PIX_FMT_YUV420 == out_info.format) {
+            args->in_u[SoftBlender::Idx0] = new UcharImage (
+                in0_buf, in0_area.width / 2, in0_area.height / 2, buf0_info.strides[1],
+                buf0_info.offsets[1] + in0_area.pos_x / 2 +  buf0_info.strides[1] * in0_area.pos_y / 2);
+            args->in_v[SoftBlender::Idx0] = new UcharImage (
+                in0_buf, in0_area.width / 2, in0_area.height / 2, buf0_info.strides[2],
+                buf0_info.offsets[2] + in0_area.pos_x / 2 +  buf0_info.strides[2] * in0_area.pos_y / 2);
+
+            args->in_u[SoftBlender::Idx1] = new UcharImage (
+                in1_buf, in1_area.width / 2, in1_area.height / 2, buf1_info.strides[1],
+                buf1_info.offsets[1] + in1_area.pos_x / 2 +  buf1_info.strides[1] * in1_area.pos_y / 2);
+            args->in_v[SoftBlender::Idx1] = new UcharImage (
+                in1_buf, in1_area.width / 2, in1_area.height / 2, buf1_info.strides[2],
+                buf1_info.offsets[2] + in1_area.pos_x / 2 +  buf1_info.strides[2] * in1_area.pos_y / 2);
+
+            args->out_u = new UcharImage (
+                out_buf, out_area.width / 2, out_area.height / 2, out_info.strides[1],
+                out_info.offsets[1] + out_area.pos_x / 2 + out_area.pos_y / 2 * out_info.strides[1]);
+            args->out_v = new UcharImage (
+                out_buf, out_area.width / 2, out_area.height / 2, out_info.strides[2],
+                out_info.offsets[2] + out_area.pos_x / 2 + out_area.pos_y / 2 * out_info.strides[2]);
+        }  else {
+            XCAM_LOG_ERROR ("blend_task inupt buffer pixel format:%d unsupported!", buf0_info.format);
+        }
+
         args->out_buf = blend_param->out_buf;
     } else {
         uint32_t last_level = pyr_levels - 1;
@@ -505,9 +580,20 @@ SoftBlenderPriv::BlenderPrivConfig::start_blend_task (
             } else {
                 args = (*i).second;
             }
+
+            const VideoBufferInfo &buf_info = buf->get_video_info ();
             args->in_luma[idx] = new UcharImage (buf, 0);
-            args->in_uv[idx] = new Uchar2Image (buf, 1);
-            XCAM_ASSERT (args->in_luma[idx].ptr () && args->in_uv[idx].ptr ());
+
+            if (V4L2_PIX_FMT_NV12 == buf_info.format) {
+                args->in_uv[idx] = new Uchar2Image (buf, 1);
+            } else if (V4L2_PIX_FMT_YUV420 == buf_info.format) {
+                args->in_u[idx] = new UcharImage (buf, 1);
+                args->in_v[idx] = new UcharImage (buf, 2);
+            } else {
+                XCAM_LOG_ERROR ("blend_task inupt buffer pixel format:%d unsupported!", buf_info.format);
+            }
+
+            XCAM_ASSERT (args->in_luma[idx].ptr () && (args->in_uv[idx].ptr () || (args->in_u[idx].ptr() && args->in_v[idx].ptr())));
 
             if (!args->in_luma[SoftBlender::Idx0].ptr () || !args->in_luma[SoftBlender::Idx1].ptr ())
                 return XCAM_RETURN_BYPASS;
@@ -524,11 +610,25 @@ SoftBlenderPriv::BlenderPrivConfig::start_blend_task (
             ERROR, out_buf.ptr (), XCAM_RETURN_ERROR_MEM,
             "blender:(%s) start_blend_task failed, last level blend buffer empty.",
             XCAM_STR (_blender->get_name ()), (int)idx);
+
+        const VideoBufferInfo &out_info = out_buf->get_video_info ();
+
         args->out_luma = new UcharImage (out_buf, 0);
-        args->out_uv = new Uchar2Image (out_buf, 1);
+
+        if (V4L2_PIX_FMT_NV12 == out_info.format) {
+            args->out_uv = new Uchar2Image (out_buf, 1);
+        }  else if (V4L2_PIX_FMT_YUV420 == out_info.format) {
+            args->out_u = new UcharImage (out_buf, 1);
+            args->out_v = new UcharImage (out_buf, 2);
+        } else {
+            XCAM_LOG_ERROR ("blend_task output buffer pixel format:%d unsupported!", out_info.format);
+        }
         args->out_buf = out_buf;
 
     }
+
+    XCAM_ASSERT (args->in_luma[idx].ptr () && (args->in_uv[idx].ptr () || (args->in_u[idx].ptr () && args->in_v[idx].ptr ())));
+    XCAM_ASSERT (args->out_luma.ptr () && (args->out_uv.ptr () || (args->out_u.ptr () && args->out_v.ptr ())));
 
     // process 4x1 uv each loop
     SmartPtr<SoftWorker> worker = last_level_blend;
@@ -557,6 +657,7 @@ SoftBlenderPriv::BlenderPrivConfig::start_reconstruct_task (
     XCAM_ASSERT (args->lap_luma[SoftBlender::Idx0].ptr () && args->lap_luma[SoftBlender::Idx1].ptr () && args->gauss_luma.ptr ());
     XCAM_ASSERT (args->lap_luma[SoftBlender::Idx0]->get_width () == args->lap_luma[SoftBlender::Idx1]->get_width ());
     SmartPtr<VideoBuffer> out_buf;
+
     if (level == 0) {
         out_buf = args->get_param ()->out_buf;
         XCAM_ASSERT (out_buf.ptr ());
@@ -573,9 +674,21 @@ SoftBlenderPriv::BlenderPrivConfig::start_reconstruct_task (
         args->out_luma = new UcharImage (
             out_buf, out_area.width, out_area.height, out_info.strides[0],
             out_info.offsets[0] + out_area.pos_x + out_area.pos_y * out_info.strides[0]);
-        args->out_uv = new Uchar2Image (
-            out_buf, out_area.width / 2, out_area.height / 2, out_info.strides[1],
-            out_info.offsets[1] + out_area.pos_x + out_area.pos_y / 2 * out_info.strides[1]);
+
+        if (V4L2_PIX_FMT_NV12 == out_info.format) {
+            args->out_uv = new Uchar2Image (
+                out_buf, out_area.width / 2, out_area.height / 2, out_info.strides[1],
+                out_info.offsets[1] + out_area.pos_x + out_area.pos_y / 2 * out_info.strides[1]);
+        } else if (V4L2_PIX_FMT_YUV420 == out_info.format) {
+            args->out_u = new UcharImage (
+                out_buf, out_area.width / 2, out_area.height / 2, out_info.strides[1],
+                out_info.offsets[1] + out_area.pos_x / 2 + out_area.pos_y / 2 * out_info.strides[1]);
+            args->out_v = new UcharImage (
+                out_buf, out_area.width / 2, out_area.height / 2, out_info.strides[2],
+                out_info.offsets[2] + out_area.pos_x / 2 + out_area.pos_y / 2 * out_info.strides[2]);
+        } else {
+            XCAM_LOG_ERROR ("reconstruct_task output buffer pixel format:%d unsupported!", out_info.format);
+        }
     } else {
         out_buf = pyr_layer[level - 1].overlap_pool->get_buffer ();
         XCAM_FAIL_RETURN (
@@ -583,8 +696,19 @@ SoftBlenderPriv::BlenderPrivConfig::start_reconstruct_task (
             "blender:(%s) start_reconstruct_task failed, out buffer is empty.", XCAM_STR (_blender->get_name ()));
         args->mask = pyr_layer[level - 1].coef_mask;
         args->out_luma = new UcharImage (out_buf, 0);
-        args->out_uv = new Uchar2Image (out_buf, 1);
+
+        const VideoBufferInfo &out_info = out_buf->get_video_info ();
+        if (V4L2_PIX_FMT_NV12 == out_info.format) {
+            args->out_uv = new Uchar2Image (out_buf, 1);
+        } else if (V4L2_PIX_FMT_YUV420 == out_info.format) {
+            args->out_u = new UcharImage (out_buf, 1);
+            args->out_v = new UcharImage (out_buf, 2);
+        } else {
+            XCAM_LOG_ERROR ("reconstruct_task output buffer pixel format:%d unsupported!", out_info.format);
+        }
     }
+
+    XCAM_ASSERT (args->out_luma.ptr () && (args->out_uv.ptr () || (args->out_u.ptr () && args->out_v.ptr ())));
 
     args->out_buf = out_buf;
 
@@ -625,8 +749,17 @@ SoftBlenderPriv::BlenderPrivConfig::start_reconstruct_task_by_gauss (
             args = (*i).second;
         }
         args->gauss_luma = new UcharImage (gauss, 0);
-        args->gauss_uv = new Uchar2Image (gauss, 1);
-        XCAM_ASSERT (args->gauss_luma.ptr () && args->gauss_uv.ptr ());
+
+        const VideoBufferInfo &buf_info = gauss->get_video_info ();
+        if (V4L2_PIX_FMT_NV12 == buf_info.format) {
+            args->gauss_uv = new Uchar2Image (gauss, 1);
+        } else if (V4L2_PIX_FMT_YUV420 == buf_info.format) {
+            args->gauss_u = new UcharImage (gauss, 1);
+            args->gauss_v = new UcharImage (gauss, 2);
+        } else {
+            XCAM_LOG_ERROR ("reconstruct_task_by_gauss input buffer pixel format:%d unsupported!", buf_info.format);
+        }
+        XCAM_ASSERT (args->gauss_luma.ptr () && (args->gauss_uv.ptr () || (args->gauss_u.ptr () && args->gauss_v.ptr ())));
 
         if (!args->lap_luma[SoftBlender::Idx0].ptr () || !args->lap_luma[SoftBlender::Idx1].ptr ())
             return XCAM_RETURN_BYPASS;
@@ -657,8 +790,17 @@ SoftBlenderPriv::BlenderPrivConfig::start_reconstruct_task_by_lap (
             args = (*i).second;
         }
         args->lap_luma[idx] = new UcharImage (lap, 0);
-        args->lap_uv[idx] = new Uchar2Image (lap, 1);
-        XCAM_ASSERT (args->lap_luma[idx].ptr () && args->lap_uv[idx].ptr ());
+
+        const VideoBufferInfo &buf_info = lap->get_video_info ();
+        if (V4L2_PIX_FMT_NV12 == buf_info.format) {
+            args->lap_uv[idx] = new Uchar2Image (lap, 1);
+        } else if (V4L2_PIX_FMT_YUV420 == buf_info.format) {
+            args->lap_u[idx] = new UcharImage (lap, 1);
+            args->lap_v[idx] = new UcharImage (lap, 2);
+        } else {
+            XCAM_LOG_ERROR ("reconstruct_task_by_lap input buffer pixel format:%d unsupported!", buf_info.format);
+        }
+        XCAM_ASSERT (args->lap_luma[idx].ptr () && (args->lap_uv[idx].ptr () || (args->lap_u[idx].ptr () && args->lap_v[idx].ptr ())));
 
         if (!args->gauss_luma.ptr () || !args->lap_luma[SoftBlender::Idx0].ptr () ||
                 !args->lap_luma[SoftBlender::Idx1].ptr ())
