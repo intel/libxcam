@@ -12,7 +12,7 @@ XCAMSOFT_LIBS = \
 
 if ENABLE_AVX512
 XCAMSOFT_CXXFLAGS += \
-    -mavx -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -msse3 -msse4.1 -msse4.2 -msse4a -mfma\
+    -mavx -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -msse3 -msse4.1 -msse4.2 -msse4a \
     $(NULL)
 endif
 

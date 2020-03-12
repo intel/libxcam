@@ -856,7 +856,7 @@ Copier::start_copy_task (
         XCAM_LOG_ERROR ("copy_task buffer pixel format:%d unsupported!", in_info.format);
     }
 
-    uint32_t thread_x = 1, thread_y = 32;
+    uint32_t thread_x = 1, thread_y = 4;
     WorkSize global_size (1, xcam_ceil (copy_area.in_area.height, 2) / 2);
     WorkSize local_size (
         xcam_ceil (global_size.value[0], thread_x) / thread_x,

@@ -27,8 +27,8 @@ GeoMapper::GeoMapper ()
     , _out_height (0)
     , _factor_x (0.0f)
     , _factor_y (0.0f)
-    , _thread_x (20)
-    , _thread_y (10)
+    , _thread_x (12)
+    , _thread_y (8)
 {}
 
 GeoMapper::~GeoMapper ()
