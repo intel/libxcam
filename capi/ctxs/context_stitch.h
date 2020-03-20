@@ -1,5 +1,5 @@
 /*
- * context_sv.h - private context for surround view
+ * context_stitch.h - private context for image stitching
  *
  *  Copyright (c) 2019 Intel Corporation
  *
@@ -18,8 +18,8 @@
  * Author: Yinhang Liu <yinhangx.liu@intel.com>
  */
 
-#ifndef XCAM_CONTEXT_SV_H
-#define XCAM_CONTEXT_SV_H
+#ifndef XCAM_CONTEXT_STITCH_H
+#define XCAM_CONTEXT_STITCH_H
 
 #include <string.h>
 #include "xcam_utils.h"
@@ -83,4 +83,4 @@ private:
 
 }
 
-#endif // XCAM_CONTEXT_SV_H
+#endif // XCAM_CONTEXT_STITCH_H

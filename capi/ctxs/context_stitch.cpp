@@ -1,5 +1,5 @@
 /*
- * context_sv.cpp - private context for surround view
+ * context_stitch.cpp - private context for image stitching
  *
  *  Copyright (c) 2019 Intel Corporation
  *
@@ -18,7 +18,7 @@
  * Author: Yinhang Liu <yinhangx.liu@intel.com>
  */
 
-#include "context_sv.h"
+#include "context_stitch.h"
 #include "soft/soft_video_buf_allocator.h"
 #if HAVE_GLES
 #include "gles/gl_video_buffer.h"
