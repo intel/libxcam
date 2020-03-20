@@ -156,7 +156,7 @@ StitchCLContext::create_handler (SmartPtr<CLContext> &context)
     }
 
     FisheyeDewarpMode dewarp_mode = DewarpSphere;
-    StitchResMode res_mode = (_res_mode == StitchRes1080P2Cams) ? StitchRes4K2Cams : StitchRes4K2Cams;
+    StitchResMode res_mode = (_res_mode == StitchRes1080P2Cams) ? StitchRes1080P2Cams : StitchRes4K2Cams;
 
     SmartPtr<CLImage360Stitch> image_360 =
         create_image_360_stitch (context, _need_seam, _scale_mode,
