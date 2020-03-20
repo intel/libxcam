@@ -19,7 +19,7 @@
  */
 
 #include "context_priv.h"
-#include "ctxs/context_sv.h"
+#include "ctxs/context_stitch.h"
 #if HAVE_LIBCL
 #include "ctxs/context_cl.h"
 #endif
