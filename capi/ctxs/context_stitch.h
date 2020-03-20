@@ -28,19 +28,19 @@
 
 namespace XCam {
 
-enum SVModule {
-    SVModuleNone    = 0,
-    SVModuleSoft,
-    SVModuleGLES,
-    SVModuleVulkan
+enum StitchModule {
+    StitchNone    = 0,
+    StitchSoft,
+    StitchGLES,
+    StitchVulkan
 };
 
-class SVContextBase
+class StitchContext
     : public ContextBase
 {
 public:
-    SVContextBase ();
-    virtual ~SVContextBase ();
+    StitchContext ();
+    virtual ~StitchContext ();
 
     virtual XCamReturn init_handler ();
     virtual XCamReturn uinit_handler ();
@@ -49,12 +49,12 @@ public:
     virtual XCamReturn execute (SmartPtr<VideoBuffer> &buf_in, SmartPtr<VideoBuffer> &buf_out);
 
 private:
-    SmartPtr<Stitcher> create_stitcher (SVModule module);
+    SmartPtr<Stitcher> create_stitcher (StitchModule module);
     XCamReturn create_buf_pool (uint32_t format);
     XCamReturn init_config ();
 
 private:
-    XCAM_DEAD_COPY (SVContextBase);
+    XCAM_DEAD_COPY (StitchContext);
 
 private:
     SmartPtr<Stitcher>        _stitcher;
@@ -65,7 +65,7 @@ private:
     uint32_t                  _output_height;
 
     uint32_t                  _fisheye_num;
-    SVModule                  _module;
+    StitchModule              _module;
     GeoMapScaleMode           _scale_mode;
 
     uint32_t                  _blend_pyr_levels;

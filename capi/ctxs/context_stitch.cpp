@@ -70,14 +70,14 @@ init_default_params (FMConfig &cfg, FMRegionRatio &ratio, StitchInfo &info, floa
     info.fisheye_info[2].rotate_angle = 91.0f;
 }
 
-SVContextBase::SVContextBase ()
-    : ContextBase (HandleTypeSV)
+StitchContext::StitchContext ()
+    : ContextBase (HandleTypeStitch)
     , _input_width (3840)
     , _input_height (2880)
     , _output_width (7680)
     , _output_height (3840)
     , _fisheye_num (3)
-    , _module (SVModuleSoft)
+    , _module (StitchSoft)
     , _scale_mode (ScaleDualConst)
     , _blend_pyr_levels (1)
     , _fm_mode (FMCluster)
@@ -92,12 +92,12 @@ SVContextBase::SVContextBase ()
     create_buf_pool (V4L2_PIX_FMT_NV12);
 }
 
-SVContextBase::~SVContextBase ()
+StitchContext::~StitchContext ()
 {
 }
 
 XCamReturn
-SVContextBase::init_handler ()
+StitchContext::init_handler ()
 {
     SmartPtr<Stitcher> stitcher = create_stitcher (_module);
     XCAM_ASSERT (stitcher.ptr ());
@@ -109,7 +109,7 @@ SVContextBase::init_handler ()
 }
 
 XCamReturn
-SVContextBase::uinit_handler ()
+StitchContext::uinit_handler ()
 {
     if (_stitcher.ptr ())
         _stitcher.release ();
@@ -118,13 +118,13 @@ SVContextBase::uinit_handler ()
 }
 
 bool
-SVContextBase::is_handler_valid () const
+StitchContext::is_handler_valid () const
 {
     return _stitcher.ptr () ? true : false;
 }
 
 XCamReturn
-SVContextBase::execute (SmartPtr<VideoBuffer> &buf_in, SmartPtr<VideoBuffer> &buf_out)
+StitchContext::execute (SmartPtr<VideoBuffer> &buf_in, SmartPtr<VideoBuffer> &buf_out)
 {
     if (!need_alloc_out_buf ()) {
         XCAM_FAIL_RETURN (ERROR, buf_out.ptr (), XCAM_RETURN_ERROR_MEM, "output buffer is NULL");
@@ -156,17 +156,17 @@ SVContextBase::execute (SmartPtr<VideoBuffer> &buf_in, SmartPtr<VideoBuffer> &bu
 }
 
 SmartPtr<Stitcher>
-SVContextBase::create_stitcher (SVModule module)
+StitchContext::create_stitcher (StitchModule module)
 {
     SmartPtr<Stitcher> stitcher;
 
-    if (module == SVModuleSoft) {
+    if (module == StitchSoft) {
         stitcher = Stitcher::create_soft_stitcher ();
-    } else if (module == SVModuleGLES) {
+    } else if (module == StitchGLES) {
 #if HAVE_GLES
         stitcher = Stitcher::create_gl_stitcher ();
 #endif
-    } else if (module == SVModuleVulkan) {
+    } else if (module == StitchVulkan) {
 #if HAVE_VULKAN
         stitcher = Stitcher::create_vk_stitcher (VKDevice::default_device ());
 #endif
@@ -177,19 +177,19 @@ SVContextBase::create_stitcher (SVModule module)
 }
 
 XCamReturn
-SVContextBase::create_buf_pool (uint32_t format)
+StitchContext::create_buf_pool (uint32_t format)
 {
     VideoBufferInfo info;
     info.init (format, _input_width, _input_height);
 
     SmartPtr<BufferPool> pool;
-    if (_module == SVModuleSoft) {
+    if (_module == StitchSoft) {
         pool = new SoftVideoBufAllocator (info);
-    } else if (_module == SVModuleGLES) {
+    } else if (_module == StitchGLES) {
 #if HAVE_GLES
         pool = new GLVideoBufferPool (info);
 #endif
-    } else if (_module == SVModuleVulkan) {
+    } else if (_module == StitchVulkan) {
 #if HAVE_VULKAN
         pool = create_vk_buffer_pool (VKDevice::default_device ());
         XCAM_ASSERT (pool.ptr ());
@@ -204,7 +204,7 @@ SVContextBase::create_buf_pool (uint32_t format)
 }
 
 XCamReturn
-SVContextBase::init_config ()
+StitchContext::init_config ()
 {
     XCAM_ASSERT (_stitcher.ptr ());
 

@@ -36,7 +36,7 @@ static const char *HandleNames[] = {
     "Defog",
     "DVS",
     "Stitch",
-    "SV"
+    "StitchCL"
 };
 
 bool
@@ -126,8 +126,8 @@ create_context (const char *name)
 
     if (handle_name_equal (name, HandleTypeNone)) {
         XCAM_LOG_ERROR ("handle type is none");
-    } else if (handle_name_equal (name, HandleTypeSV)) {
-        context = new SVContextBase;
+    } else if (handle_name_equal (name, HandleTypeStitch)) {
+        context = new StitchContext;
 #if HAVE_LIBCL
     } else if (handle_name_equal (name, HandleType3DNR)) {
         context = new NR3DContext;
@@ -139,8 +139,8 @@ create_context (const char *name)
         context = new DefogContext;
     } else if (handle_name_equal (name, HandleTypeDVS)) {
         context = new DVSContext;
-    } else if (handle_name_equal (name, HandleTypeStitch)) {
-        context = new StitchContext;
+    } else if (handle_name_equal (name, HandleTypeStitchCL)) {
+        context = new StitchCLContext;
 #endif
     } else {
         XCAM_LOG_ERROR ("create context failed with unsupported type:%s", name);

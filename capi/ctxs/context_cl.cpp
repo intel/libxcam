@@ -131,8 +131,22 @@ DVSContext::create_handler (SmartPtr<CLContext> &context)
     return create_cl_image_warp_handler (context);
 }
 
+StitchCLContext::StitchCLContext ()
+    : CLContextBase (HandleTypeStitch)
+    , _need_seam (false)
+    , _fisheye_map (false)
+    , _need_lsc (false)
+    , _scale_mode (CLBlenderScaleLocal)
+    , _res_mode (StitchRes1080P2Cams)
+{
+}
+
+StitchCLContext::~StitchCLContext ()
+{
+}
+
 SmartPtr<CLImageHandler>
-StitchContext::create_handler (SmartPtr<CLContext> &context)
+StitchCLContext::create_handler (SmartPtr<CLContext> &context)
 {
     uint32_t sttch_width = get_image_width ();
     uint32_t sttch_height = XCAM_ALIGN_UP (sttch_width / 2, 16);

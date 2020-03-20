@@ -111,18 +111,12 @@ public:
     virtual SmartPtr<CLImageHandler> create_handler (SmartPtr<CLContext> &context);
 };
 
-class StitchContext
+class StitchCLContext
     : public CLContextBase
 {
 public:
-    StitchContext ()
-        : CLContextBase (HandleTypeStitch)
-        , _need_seam (false)
-        , _fisheye_map (false)
-        , _need_lsc (false)
-        , _scale_mode (CLBlenderScaleLocal)
-        , _res_mode (StitchRes1080P2Cams)
-    {}
+    StitchCLContext ();
+    virtual ~StitchCLContext ();
 
     virtual SmartPtr<CLImageHandler> create_handler (SmartPtr<CLContext> &context);
 
