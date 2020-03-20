@@ -36,7 +36,7 @@ enum HandleType {
     HandleTypeDefog,
     HandleTypeDVS,
     HandleTypeStitch,
-    HandleTypeSV
+    HandleTypeStitchCL
 };
 
 typedef struct _CompareStr {
