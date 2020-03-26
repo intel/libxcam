@@ -32,7 +32,8 @@ bool convert_to_mat (const SmartPtr<VideoBuffer> &buffer, cv::Mat &img)
         ERROR,
         (info.format == V4L2_PIX_FMT_NV12) ||
         (info.format == V4L2_PIX_FMT_BGR24) ||
-        (info.format == V4L2_PIX_FMT_RGB24),
+        (info.format == V4L2_PIX_FMT_RGB24) ||
+        (info.format == V4L2_PIX_FMT_YUV420),
         false,
         "convert_to_mat only support NV12 & BGR24 & RGB24 format");
 
@@ -42,6 +43,9 @@ bool convert_to_mat (const SmartPtr<VideoBuffer> &buffer, cv::Mat &img)
     if (info.format == V4L2_PIX_FMT_NV12) {
         cv::Mat mat = cv::Mat (info.aligned_height * 3 / 2, info.width, CV_8UC1, mem, info.strides[0]);
         cv::cvtColor (mat, img, cv::COLOR_YUV2BGR_NV12);
+    } else if (info.format == V4L2_PIX_FMT_YUV420) {
+        cv::Mat mat = cv::Mat (info.aligned_height * 3 / 2, info.width, CV_8UC1, mem, info.strides[0]);
+        cv::cvtColor (mat, img, cv::COLOR_YUV2BGR_I420);
     } else if ((info.format == V4L2_PIX_FMT_BGR24) || (info.format == V4L2_PIX_FMT_RGB24)) {
         img = cv::Mat (info.aligned_height, info.width, CV_8UC3, mem);
     }
