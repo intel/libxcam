@@ -29,20 +29,20 @@ using namespace XCam;
 #define DEFAULT_INPUT_BUFFER_POOL_COUNT  20
 
 static const char *HandleNames[] = {
-    "None",
-    "3DNR",
-    "WaveletNR",
-    "Fisheye",
-    "Defog",
-    "DVS",
-    "Stitch",
-    "StitchCL"
+    "none",
+    "3dnr",
+    "waveletnr",
+    "fisheye",
+    "defog",
+    "dvs",
+    "stitch",
+    "stitchcl"
 };
 
 bool
 handle_name_equal (const char *name, HandleType type)
 {
-    return !strncmp (name, HandleNames[type], strlen(HandleNames[type]));
+    return !strcmp (name, HandleNames[type]);
 }
 
 ContextBase::ContextBase (HandleType type)
