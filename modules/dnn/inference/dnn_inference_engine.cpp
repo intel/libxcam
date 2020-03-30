@@ -968,27 +968,27 @@ DnnInferenceEngine::print_performance_counts (const std::map<std::string, Infere
             to_print += "...";
         }
 
-        std::cout << std::setw(max_layer_name) << std::left << to_print;
+        XCAM_LOG_DEBUG ("layer: %s", to_print.c_str ());
         switch (it.second.status) {
         case InferenceEngine::InferenceEngineProfileInfo::EXECUTED:
-            std::cout << std::setw (15) << std::left << "EXECUTED";
+            XCAM_LOG_DEBUG ("EXECUTED");
             break;
         case InferenceEngine::InferenceEngineProfileInfo::NOT_RUN:
-            std::cout << std::setw (15) << std::left << "NOT_RUN";
+            XCAM_LOG_DEBUG ("NOT_RUN");
             break;
         case InferenceEngine::InferenceEngineProfileInfo::OPTIMIZED_OUT:
-            std::cout << std::setw(15) << std::left << "OPTIMIZED_OUT";
+            XCAM_LOG_DEBUG ("OPTIMIZED_OUT");
             break;
         }
-        std::cout << std::setw (30) << std::left << "layerType: " + std::string (it.second.layer_type) + " ";
-        std::cout << std::setw (20) << std::left << "realTime: " + std::to_string (it.second.realTime_uSec);
-        std::cout << std::setw (20) << std::left << " cpu: " + std::to_string (it.second.cpu_uSec);
-        std::cout << " execType: " << it.second.exec_type << std::endl;
+        XCAM_LOG_DEBUG ("layerType: %s", std::string (it.second.layer_type).c_str ());
+        XCAM_LOG_DEBUG ("realTime: %d", it.second.realTime_uSec);
+        XCAM_LOG_DEBUG ("cpu: %d", it.second.cpu_uSec);
+        XCAM_LOG_DEBUG ("execType: %s", it.second.exec_type);
         if (it.second.realTime_uSec > 0) {
             total_time += it.second.realTime_uSec;
         }
     }
-    std::cout << std::setw (20) << std::left << "Total time: " + std::to_string (total_time) << " microseconds" << std::endl;
+    XCAM_LOG_DEBUG ("Total time: %d microseconds", total_time);
 }
 
 void

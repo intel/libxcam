@@ -739,10 +739,10 @@ ReconstructTask::work_range (const SmartPtr<Arguments> &base, const WorkRange &r
             luma_mask2[1] = luma_mask2[2];
             luma_mask2[2] = luma_mask2[4];
             luma_mask2[3] = luma_mask1[6];
-            if (lap_uv && gauss_uv && out_uv) {
+            if (lap_uv[0] && lap_uv[1] && gauss_uv && out_uv) {
                 reconstruct_uv (lap_uv, gauss_uv, out_uv, luma_mask1, luma_mask2, x, y);
             }
-            if (lap_u && lap_v && gauss_u && gauss_v && out_u && out_v) {
+            if (lap_u[0] && lap_u[1] && lap_v[0] && lap_v[1] && gauss_u && gauss_v && out_u && out_v) {
                 reconstruct_chroma (lap_u, gauss_u, out_u, luma_mask1, luma_mask2, x, y);
                 reconstruct_chroma (lap_v, gauss_v, out_v, luma_mask1, luma_mask2, x, y);
             }
