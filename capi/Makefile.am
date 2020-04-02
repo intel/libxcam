@@ -6,7 +6,10 @@ XCAMCAPI_CXXFLAGS = \
     -I$(top_srcdir)/modules \
     $(NULL)
 
-XCAMCAPI_LIBS = $(top_builddir)/xcore/libxcam_core.la
+XCAMCAPI_LIBS = \
+    $(top_builddir)/xcore/libxcam_core.la        \
+    $(top_builddir)/modules/soft/libxcam_soft.la \
+    $(NULL)
 
 if HAVE_LIBCL
 XCAMCAPI_CXXFLAGS += $(LIBCL_CFLAGS)
@@ -14,6 +17,14 @@ XCAMCAPI_LIBS += \
     $(LIBCL_LIBS) -ldl                         \
     $(top_builddir)/modules/ocl/libxcam_ocl.la \
     $(NULL)
+endif
+
+if HAVE_GLES
+XCAMCAPI_LIBS += $(top_builddir)/modules/gles/libxcam_gles.la
+endif
+
+if HAVE_VULKAN
+XCAMCAPI_LIBS += $(top_builddir)/modules/vulkan/libxcam_vulkan.la
 endif
 
 if HAVE_LIBDRM
