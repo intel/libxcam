@@ -469,18 +469,22 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar *array) const
     __m256 const_one_float = _mm256_set1_ps (1.0f);
     __m256i const_pitch = _mm256_set1_epi32 (_pitch);
     __m256i const_one_int = _mm256_set1_epi32 (1);
-    __m256i index_x = _mm256_setr_epi32 (0, 2, 4, 6, 8, 10, 12, 14);
-    __m256i index_y = _mm256_setr_epi32 (1, 3, 5, 7, 9, 11, 13, 15);
 
     for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS / 8; i++) {
         // load 8 interpolate pos ((8 x float2) x 32bit)
         __m512 interp_pos = _mm512_loadu_ps (&pos[8 * i]);
         __m512 interp_pos_xy = _mm512_floor_ps (interp_pos);
         __m512 interp_weight = _mm512_sub_ps (interp_pos, interp_pos_xy);
-        __m256 weight_x = _mm256_i32gather_ps ((float const*)(&interp_weight), index_x, 4);
-        __m256 weight_y = _mm256_i32gather_ps ((float const*)(&interp_weight), index_y, 4);
-        __m256 weight_x_1 = _mm256_sub_ps(const_one_float, weight_x);
-        __m256 weight_y_1 = _mm256_sub_ps(const_one_float, weight_y);
+        __m256 weight_lo = _mm512_extractf32x8_ps (interp_weight, 0);
+        __m256 weight_hi = _mm512_extractf32x8_ps (interp_weight, 1);
+
+        __m256 weight_x = _mm256_shuffle_ps (weight_lo, weight_hi, 0x88);
+        __m256 weight_y = _mm256_shuffle_ps (weight_lo, weight_hi, 0xDD);
+        weight_x = (__m256)_mm256_permute4x64_epi64 ((__m256i)weight_x, 0xD8);
+        weight_y = (__m256)_mm256_permute4x64_epi64 ((__m256i)weight_y, 0xD8);
+
+        __m256 weight_x_1 = _mm256_sub_ps (const_one_float, weight_x);
+        __m256 weight_y_1 = _mm256_sub_ps (const_one_float, weight_y);
 
         int32_t pos_x0 = (int32_t)(pos[8 * i].x);
         border_check_x (pos_x0);
@@ -492,8 +496,13 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar *array) const
                                         0, pos_xy[1], 0, pos_xy[1]);
 
         __m512i pos_index = _mm512_cvtps_epi32 (_mm512_sub_ps (interp_pos_xy, pos_00));
-        __m256i pos_idx_x = _mm256_i32gather_epi32 ((int32_t const*)(&pos_index), index_x, 4);
-        __m256i pos_idx_y = _mm256_i32gather_epi32 ((int32_t const*)(&pos_index), index_y, 4);
+        // No two-source shuffle for _epi32 type, so we use _ps here.
+        __m256 pos_idx_lo = _mm512_extractf32x8_ps ((__m512)pos_index, 0);
+        __m256 pos_idx_hi = _mm512_extractf32x8_ps ((__m512)pos_index, 1);
+        __m256i pos_idx_x = (__m256i)_mm256_shuffle_ps (pos_idx_lo, pos_idx_hi, 0x88);
+        __m256i pos_idx_y = (__m256i)_mm256_shuffle_ps (pos_idx_lo, pos_idx_hi, 0xDD);
+        pos_idx_x = _mm256_permute4x64_epi64 (pos_idx_x, 0xD8);
+        pos_idx_y = _mm256_permute4x64_epi64 (pos_idx_y, 0xD8);
 
         int32_t pos_y0 = (int32_t)(pos[8 * i].y);
         border_check_y (pos_y0);
