@@ -208,13 +208,13 @@ public:
 
 private:
     inline void border_check_x (int32_t &x) const {
-        if (x < 0) x = 0;
-        else if (x >= (int32_t)_width) x = (int32_t)(_width - 1);
+        x = x < 0 ? 0 : x;
+        x = x > (int32_t)(_width - 1) ? (int32_t)(_width - 1) : x;
     }
 
     inline void border_check_y (int32_t &y) const {
-        if (y < 0) y = 0;
-        else if (y >= (int32_t)_height) y = (int32_t)(_height - 1);
+        y = y < 0 ? 0 : y;
+        y = y > (int32_t)(_height - 1) ? (int32_t)(_height - 1) : y;
     }
 
     inline void border_check (int32_t &x, int32_t &y) const {
@@ -452,9 +452,9 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Float2 *array) const
         __m512 br = _mm512_i32gather_ps (idx_right, (float*) & (bottom_ptr[pos_x0]), 4);
 
         __m512 interp_value = _mm512_fmadd_ps (tl, _mm512_mul_ps (weight_x_1, weight_y_1),
-                              _mm512_mul_ps (tr, _mm512_mul_ps (weight_x, weight_y_1))) +
+                                               _mm512_mul_ps (tr, _mm512_mul_ps (weight_x, weight_y_1))) +
                               _mm512_fmadd_ps (bl, _mm512_mul_ps (weight_x_1, weight_y),
-                              _mm512_mul_ps (br, _mm512_mul_ps (weight_x, weight_y)));
+                                               _mm512_mul_ps (br, _mm512_mul_ps (weight_x, weight_y)));
 
         _mm512_storeu_ps (dest, interp_value);
         dest += 8;
@@ -523,7 +523,7 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar *array) const
         __m256 interp_value_f = _mm256_fmadd_ps (pixel_tl, _mm256_mul_ps (weight_x_1, weight_y_1),
                                 _mm256_mul_ps (pixel_tr, _mm256_mul_ps (weight_x, weight_y_1))) +
                                 _mm256_fmadd_ps (pixel_bl, _mm256_mul_ps (weight_x_1, weight_y),
-                                _mm256_mul_ps (pixel_br, _mm256_mul_ps (weight_x, weight_y)));
+                                        _mm256_mul_ps (pixel_br, _mm256_mul_ps (weight_x, weight_y)));
 
         interp_value_f = _mm256_round_ps (interp_value_f, _MM_FROUND_TO_NEAREST_INT);
         __m256i interp_value = _mm256_cvtps_epi32 (interp_value_f);
@@ -612,7 +612,7 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar2 *array) const
     __m512 interp_value_f = _mm512_fmadd_ps (pixel_tl, _mm512_mul_ps (weight_x_1, weight_y_1),
                             _mm512_mul_ps (pixel_tr, _mm512_mul_ps (weight_x, weight_y_1))) +
                             _mm512_fmadd_ps (pixel_bl, _mm512_mul_ps (weight_x_1, weight_y),
-                            _mm512_mul_ps (pixel_br, _mm512_mul_ps (weight_x, weight_y)));
+                                    _mm512_mul_ps (pixel_br, _mm512_mul_ps (weight_x, weight_y)));
 
     //interp_value_f = _mm512_round_ps (interp_value_f, _MM_FROUND_TO_NEAREST_INT);
 
