@@ -509,25 +509,32 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar *array) const
         const T* base = ((const T*)(_buf_ptr + pos_y0 * _pitch));
 
         __m256i offset_top0 = _mm256_add_epi32 (pos_idx_x, _mm256_mullo_epi32 (pos_idx_y, const_pitch));
-        int32_t* offset_tl = (int32_t*)&offset_top0;
 
         __m256i offset_top1 = _mm256_add_epi32 (offset_top0, const_one_int);
-        int32_t* offset_tr = (int32_t*)&offset_top1;
 
         __m256i offset_bottom0 = _mm256_add_epi32 (pos_idx_x, _mm256_mullo_epi32 (_mm256_add_epi32(pos_idx_y, const_one_int), const_pitch));
-        int32_t* offset_bl = (int32_t*)&offset_bottom0;
 
         __m256i offset_bottom1 = _mm256_add_epi32 (offset_bottom0, const_one_int);
-        int32_t* offset_br = (int32_t*)&offset_bottom1;
 
-        __m256 pixel_tl = _mm256_setr_ps (*(base + offset_tl[0]), *(base + offset_tl[1]), *(base + offset_tl[2]), *(base + offset_tl[3]),
-                                          *(base + offset_tl[4]), *(base + offset_tl[5]), *(base + offset_tl[6]), *(base + offset_tl[7]));
-        __m256 pixel_tr = _mm256_setr_ps (*(base + offset_tr[0]), *(base + offset_tr[1]), *(base + offset_tr[2]), *(base + offset_tr[3]),
-                                          *(base + offset_tr[4]), *(base + offset_tr[5]), *(base + offset_tr[6]), *(base + offset_tr[7]));
-        __m256 pixel_bl = _mm256_setr_ps (*(base + offset_bl[0]), *(base + offset_bl[1]), *(base + offset_bl[2]), *(base + offset_bl[3]),
-                                          *(base + offset_bl[4]), *(base + offset_bl[5]), *(base + offset_bl[6]), *(base + offset_bl[7]));
-        __m256 pixel_br = _mm256_setr_ps (*(base + offset_br[0]), *(base + offset_br[1]), *(base + offset_br[2]), *(base + offset_br[3]),
-                                          *(base + offset_br[4]), *(base + offset_br[5]), *(base + offset_br[6]), *(base + offset_br[7]));
+        // this emulates gather of byte, the only thing we need to ensure
+        // is that we should not read the last three-bytes of the buffer in-case we read out-of-bounds.
+        // The reason is that we read four-bytes instead of one-byte here.
+        __m256i mask = _mm256_set1_epi32 (0xFF);
+        __m256i tmp = _mm256_i32gather_epi32 ((const int*)base, offset_top0, 1);
+        tmp = _mm256_and_si256 (tmp, mask);
+        __m256 pixel_tl = _mm256_cvtepi32_ps(tmp);
+
+        tmp = _mm256_i32gather_epi32 ((const int*)base, offset_top1, 1);
+        tmp = _mm256_and_si256 (tmp, mask);
+        __m256 pixel_tr = _mm256_cvtepi32_ps(tmp);
+
+        tmp = _mm256_i32gather_epi32 ((const int*)base, offset_bottom0, 1);
+        tmp = _mm256_and_si256 (tmp, mask);
+        __m256 pixel_bl = _mm256_cvtepi32_ps(tmp);
+
+        tmp = _mm256_i32gather_epi32 ((const int*)base, offset_bottom1, 1);
+        tmp = _mm256_and_si256 (tmp, mask);
+        __m256 pixel_br = _mm256_cvtepi32_ps(tmp);
 
         __m256 interp_value_f = _mm256_fmadd_ps (pixel_tl, _mm256_mul_ps (weight_x_1, weight_y_1),
                                 _mm256_mul_ps (pixel_tr, _mm256_mul_ps (weight_x, weight_y_1))) +
