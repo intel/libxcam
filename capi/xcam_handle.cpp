@@ -196,7 +196,8 @@ copy_external_buf_to_drm_buf (XCamHandle *handle, XCamVideoBuffer *buf)
 }
 
 XCamReturn
-xcam_handle_execute (XCamHandle *handle, XCamVideoBuffer *buf_in, XCamVideoBuffer **buf_out)
+xcam_handle_execute (
+    XCamHandle *handle, XCamVideoBuffer **buf_in, XCamVideoBuffer **buf_out)
 {
     ContextBase *context = CONTEXT_BASE_CAST (handle);
     SmartPtr<VideoBuffer> input, output;
@@ -209,15 +210,25 @@ xcam_handle_execute (XCamHandle *handle, XCamVideoBuffer *buf_in, XCamVideoBuffe
         ERROR, context->is_handler_valid (), XCAM_RETURN_ERROR_PARAM,
         "context (%s) failed, handler was not initialized", context->get_type_name ());
 
-    if (buf_in->mem_type == XCAM_MEM_TYPE_GPU) {
-        input = external_buf_to_drm_buf (buf_in);
-    } else {
-        input = copy_external_buf_to_drm_buf (handle, buf_in);
+    SmartPtr<VideoBuffer> pre, cur;
+    for (int i = 0; buf_in[i] != NULL; i++) {
+        if (buf_in[i]->mem_type == XCAM_MEM_TYPE_GPU) {
+            cur = external_buf_to_drm_buf (buf_in[i]);
+        } else {
+            cur = copy_external_buf_to_drm_buf (handle, buf_in[i]);
+        }
+        XCAM_FAIL_RETURN (
+            ERROR, cur.ptr (), XCAM_RETURN_ERROR_MEM,
+            "xcam_handle(%s) execute failed, buf_in convert to DRM buffer failed.",
+            context->get_type_name ());
+
+        if (i == 0) {
+            input = cur;
+        } else {
+            pre->attach_buffer (cur);
+        }
+        pre = cur;
     }
-    XCAM_FAIL_RETURN (
-        ERROR, input.ptr (), XCAM_RETURN_ERROR_MEM,
-        "xcam_handle(%s) execute failed, buf_in convert to DRM buffer failed.",
-        context->get_type_name ());
 
     if (*buf_out) {
         output = external_buf_to_drm_buf (*buf_out);
@@ -228,7 +239,6 @@ xcam_handle_execute (XCamHandle *handle, XCamVideoBuffer *buf_in, XCamVideoBuffe
     }
 
     XCamReturn ret = context->execute (input, output);
-
     XCAM_FAIL_RETURN (
         ERROR, ret == XCAM_RETURN_NO_ERROR || ret == XCAM_RETURN_BYPASS,
         ret,
@@ -242,5 +252,6 @@ xcam_handle_execute (XCamHandle *handle, XCamVideoBuffer *buf_in, XCamVideoBuffe
             context->get_type_name ());
         *buf_out = new_buf;
     }
+
     return ret;
 }
