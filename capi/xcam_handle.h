@@ -54,11 +54,10 @@ XCamReturn xcam_handle_get_usage (XCamHandle *handle, char *usage_buf, int *usag
 /*! \brief set handle parameters before init
  *
  * \params[in]    handle       xcam handle
- * \params[in]    field0, value0, field1, value1, ..., fieldN, valueN    field and value in pairs
+ * \params[in]    params       handle params in pairs
  * \return        XCamReturn   XCAM_RETURN_NO_ERROR on sucess; others on errors.
  */
-XCamReturn xcam_handle_set_parameters (
-    XCamHandle *handle, const char *field, ...);
+XCamReturn xcam_handle_set_parameters (XCamHandle *handle, const char *params);
 
 /*! \brief    xcam handle initialize
  *

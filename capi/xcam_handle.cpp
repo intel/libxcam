@@ -91,6 +91,37 @@ xcam_handle_get_usage (XCamHandle *handle, char *usage_buf, int *usage_len)
 }
 
 XCamReturn
+xcam_handle_set_parameters (XCamHandle *handle, const char *params)
+{
+    ContextBase *context = CONTEXT_BASE_CAST (handle);
+    XCAM_FAIL_RETURN (
+        ERROR, context, XCAM_RETURN_ERROR_PARAM,
+        "xcam_handle_set_parameters failed, handle can NOT be NULL");
+
+    ContextParams ctx_params;
+    char pairs[XCAM_MAX_PARAMS_LENGTH] = { 0 };
+    strncpy (pairs, params, XCAM_MAX_PARAMS_LENGTH - 1);
+
+    char *pair = pairs;
+    char *saveptr = NULL;
+    char *value = NULL;
+    while ((pair = strtok_r (pair, " ", &saveptr)) != NULL)
+    {
+        char *field = strtok_r (pair, "=", &value);
+        XCAM_FAIL_RETURN (
+            ERROR, value, XCAM_RETURN_ERROR_PARAM,
+            "xcam_handle(%s) set parameters failed, param(%s) should never be NULL",
+            context->get_type_name (), field);
+
+        ctx_params[field] = value;
+        pair = NULL;
+    }
+
+    return context->set_parameters (ctx_params);
+}
+
+#if 0
+XCamReturn
 xcam_handle_set_parameters (
     XCamHandle *handle, const char *field, ...)
 {
@@ -119,6 +150,7 @@ xcam_handle_set_parameters (
 
     return context->set_parameters (params);
 }
+#endif
 
 SmartPtr<VideoBuffer>
 external_buf_to_drm_buf (XCamVideoBuffer *buf)
