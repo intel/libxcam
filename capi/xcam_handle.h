@@ -82,7 +82,7 @@ XCamReturn xcam_handle_uinit (XCamHandle *handle);
  *                                 if set param "alloc-out-buf" "true", allocate outside; else inside.
  * \return            XCamReturn   XCAM_RETURN_NO_ERROR on sucess; others on errors.
  */
-XCamReturn xcam_handle_execute (XCamHandle *handle, XCamVideoBuffer *buf_in, XCamVideoBuffer **buf_out);
+XCamReturn xcam_handle_execute (XCamHandle *handle, XCamVideoBuffer **buf_in, XCamVideoBuffer **buf_out);
 
 XCAM_END_DECLARE
 

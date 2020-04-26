@@ -148,7 +148,7 @@ StitchCLContext::~StitchCLContext ()
 SmartPtr<CLImageHandler>
 StitchCLContext::create_handler (SmartPtr<CLContext> &context)
 {
-    uint32_t sttch_width = get_image_width ();
+    uint32_t sttch_width = get_in_width ();
     uint32_t sttch_height = XCAM_ALIGN_UP (sttch_width / 2, 16);
     if (sttch_width != sttch_height * 2) {
         XCAM_LOG_ERROR ("incorrect stitch size width:%d height:%d", sttch_width, sttch_height);

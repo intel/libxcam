@@ -48,9 +48,12 @@ handle_name_equal (const char *name, HandleType type)
 ContextBase::ContextBase (HandleType type)
     : _type (type)
     , _usage (NULL)
-    , _image_width (0)
-    , _image_height (0)
-    , _alloc_out_buf (false)
+    , _input_width (0)
+    , _input_height (0)
+    , _output_width (0)
+    , _output_height (0)
+    , _format (V4L2_PIX_FMT_NV12)
+    , _alloc_out_buf (0)
 {
 }
 
@@ -59,56 +62,47 @@ ContextBase::~ContextBase ()
     xcam_free (_usage);
 }
 
-const char*
+void
+ContextBase::parse_value (const ContextParams &params, const char *name, uint32_t &value)
+{
+    ContextParams::const_iterator iter = params.find (name);
+    if (iter == params.end ())
+        return;
+    value = atoi (iter->second);
+}
+
+const char *
 ContextBase::get_type_name () const
 {
     XCAM_ASSERT ((int)_type < sizeof(HandleNames) / sizeof (HandleNames[0]));
     return HandleNames [_type];
 }
 
-static const char*
-find_value (const ContextParams &param_list, const char *name)
-{
-    ContextParams::const_iterator i = param_list.find (name);
-    if (i != param_list.end ())
-        return (i->second);
-    return NULL;
-}
-
 XCamReturn
 ContextBase::set_parameters (ContextParams &param_list)
 {
-    VideoBufferInfo buf_info;
-    uint32_t image_format = V4L2_PIX_FMT_NV12;
-    _image_width = 1920;
-    _image_height = 1080;
+    parse_value (param_list, "fmt", _format);
+    parse_value (param_list, "allocoutbuf", _alloc_out_buf);
 
-    const char *width = find_value (param_list, "width");
-    if (width) {
-        _image_width = atoi(width);
-    }
-    const char *height = find_value (param_list, "height");
-    if (height) {
-        _image_height = atoi(height);
-    }
-    if (_image_width == 0 || _image_height == 0) {
-        XCAM_LOG_ERROR ("illegal image size width:%d height:%d", _image_width, _image_height);
-        return XCAM_RETURN_ERROR_PARAM;
-    }
+    parse_value (param_list, "inw", _input_width);
+    parse_value (param_list, "inh", _input_height);
+    XCAM_FAIL_RETURN (
+        ERROR, _input_width || _input_height , XCAM_RETURN_ERROR_PARAM,
+        "illegal input size %dx%d", _input_width, _input_height);
 
-    buf_info.init (image_format, _image_width, _image_height);
-    _inbuf_pool->set_video_info (buf_info);
-    if (!_inbuf_pool->reserve (DEFAULT_INPUT_BUFFER_POOL_COUNT)) {
-        XCAM_LOG_ERROR ("init buffer pool failed");
-        return XCAM_RETURN_ERROR_MEM;
-    }
+    VideoBufferInfo info;
+    info.init (_format, _input_width, _input_height);
+    _inbuf_pool->set_video_info (info);
+    XCAM_FAIL_RETURN (
+        ERROR, _inbuf_pool->reserve (DEFAULT_INPUT_BUFFER_POOL_COUNT), XCAM_RETURN_ERROR_PARAM,
+        "init input buffer pool failed");
 
-    const char *flag = find_value (param_list, "alloc-out-buf");
-    if (flag && !strncasecmp (flag, "true", strlen("true"))) {
-        _alloc_out_buf = true;
-    } else {
-        _alloc_out_buf = false;
-    }
+    parse_value (param_list, "outw", _output_width);
+    parse_value (param_list, "outh", _output_height);
+    XCAM_FAIL_RETURN (
+        ERROR, _output_width || _output_height , XCAM_RETURN_ERROR_PARAM,
+        "illegal output size %dx%d", _output_width, _output_height);
+
     return XCAM_RETURN_NO_ERROR;
 }
 
@@ -117,6 +111,48 @@ ContextBase::is_handler_valid () const
 {
     XCAM_LOG_ERROR ("handler is invalid in abstract class");
     return false;
+}
+
+void
+ContextBase::set_buf_pool (const SmartPtr<BufferPool> &pool)
+{
+    _inbuf_pool = pool;
+}
+
+bool
+ContextBase::need_alloc_out_buf () const
+{
+    return _alloc_out_buf;
+}
+
+uint32_t
+ContextBase::get_in_width () const
+{
+    return _input_width;
+}
+
+uint32_t
+ContextBase::get_in_height () const
+{
+    return _input_height;
+}
+
+uint32_t
+ContextBase::get_out_width () const
+{
+    return _output_width;
+}
+
+uint32_t
+ContextBase::get_out_height () const
+{
+    return _output_height;
+}
+
+uint32_t
+ContextBase::get_format () const
+{
+    return _format;
 }
 
 ContextBase *

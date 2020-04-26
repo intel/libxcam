@@ -183,48 +183,38 @@ external_buf_to_drm_buf (XCamVideoBuffer *buf)
 SmartPtr<VideoBuffer>
 copy_external_buf_to_drm_buf (XCamHandle *handle, XCamVideoBuffer *buf)
 {
-    if (!handle || !buf) {
-        XCAM_LOG_WARNING ("xcam handle can NOT be NULL");
-        return NULL;
-    }
+    XCAM_FAIL_RETURN (ERROR, handle && buf, NULL, "xcam handle or buf can NOT be NULL");
 
     ContextBase *context = CONTEXT_BASE_CAST (handle);
-    if (!context) {
-        XCAM_LOG_WARNING ("xcam handle context can NOT be NULL");
-        return NULL;
-    }
+    XCAM_FAIL_RETURN (ERROR, context, NULL, "xcam context can NOT be NULL");
 
     const XCamVideoBufferInfo src_info = buf->info;
-    uint8_t* src = buf->map (buf);
-    if (!src) {
-        XCAM_LOG_WARNING ("xcam handle map buffer failed");
-        return NULL;
-    }
+    uint8_t *src = buf->map (buf);
+    XCAM_FAIL_RETURN (ERROR, src, NULL, "xcam map buffer failed");
 
     SmartPtr<BufferPool> buf_pool = context->get_input_buffer_pool();
     XCAM_ASSERT (buf_pool.ptr ());
-    SmartPtr<VideoBuffer> video_buf = buf_pool->get_buffer (buf_pool);
-    XCAM_ASSERT (video_buf.ptr ());
-    const VideoBufferInfo dest_info = video_buf->get_video_info ();
+    SmartPtr<VideoBuffer> inbuf = buf_pool->get_buffer (buf_pool);
+    XCAM_ASSERT (inbuf.ptr ());
+    const VideoBufferInfo dest_info = inbuf->get_video_info ();
 
     VideoBufferPlanarInfo planar;
-    uint8_t *dest = video_buf->map ();
-    for (uint32_t index = 0; index < src_info.components; index++) {
-        uint8_t *p_src = src + src_info.offsets[index];
-        uint8_t *p_dest = dest + dest_info.offsets[index];
-
-        dest_info.get_planar_info (planar, index);
+    uint8_t *dest = inbuf->map ();
+    for (uint32_t idx = 0; idx < src_info.components; idx++) {
+        uint8_t *p_src = src + src_info.offsets[idx];
+        uint8_t *p_dest = dest + dest_info.offsets[idx];
+        dest_info.get_planar_info (planar, idx);
 
         for (uint32_t h = 0; h < planar.height; h++) {
-            memcpy (p_dest, p_src, src_info.strides[index]);
-            p_src += src_info.strides[index];
-            p_dest += dest_info.strides[index];
+            memcpy (p_dest, p_src, src_info.strides[idx]);
+            p_src += src_info.strides[idx];
+            p_dest += dest_info.strides[idx];
         }
     }
     buf->unmap (buf);
-    video_buf->unmap ();
+    inbuf->unmap ();
 
-    return video_buf;
+    return inbuf;
 }
 
 XCamReturn

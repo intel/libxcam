@@ -19,9 +19,11 @@
  */
 
 #include "context_stitch.h"
+#include "stitch_params.h"
 #include "soft/soft_video_buf_allocator.h"
 #if HAVE_GLES
 #include "gles/gl_video_buffer.h"
+#include "gles/egl/egl_base.h"
 #endif
 #if HAVE_VULKAN
 #include "vulkan/vk_device.h"
@@ -29,71 +31,134 @@
 
 namespace XCam {
 
-static void
-init_default_params (FMConfig &cfg, FMRegionRatio &ratio, StitchInfo &info, float *range)
-{
-    cfg.stitch_min_width = 256;
-    cfg.min_corners = 4;
-    cfg.offset_factor = 0.6f;
-    cfg.delta_mean_offset = 256.0f;
-    cfg.recur_offset_error = 2.0f;
-    cfg.max_adjusted_offset = 24.0f;
-    cfg.max_valid_offset_y = 32.0f;
-    cfg.max_track_error = 10.0f;
+typedef struct Pair {
+    uint32_t id;
+    const char *name;
+} Pair;
 
-    ratio.pos_x = 0.0f;
-    ratio.width = 1.0f;
-    ratio.pos_y = 1.0f / 3.0f;
-    ratio.height = 1.0f / 3.0f;
+static const Pair cammodel_pairs[] = {
+    {CamA2C1080P, "cama2c1080p"},
+    {CamB4C1080P, "camb4c1080p"},
+    {CamC3C8K, "camc3c8k"},
+    {CamD3C8K, "camd3c8k"},
+    {0, NULL}
+};
 
-    range[0] =  154.0f;
-    range[1] =  154.0f;
-    range[2] =  154.0f;
+static const Pair module_pairs[] = {
+    {StitchNone, "none"},
+    {StitchSoft, "soft"},
+    {StitchGLES, "gles"},
+    {StitchVulkan, "vulkan"},
+    {0, NULL}
+};
 
-    info.merge_width[0] = 192;
-    info.merge_width[1] = 192;
-    info.merge_width[2] = 192;
-    info.fisheye_info[0].center_x = 1804.0f;
-    info.fisheye_info[0].center_y = 1532.0f;
-    info.fisheye_info[0].wide_angle = 190.0f;
-    info.fisheye_info[0].radius = 1900.0f;
-    info.fisheye_info[0].rotate_angle = 91.5f;
-    info.fisheye_info[1].center_x = 1836.0f;
-    info.fisheye_info[1].center_y = 1532.0f;
-    info.fisheye_info[1].wide_angle = 190.0f;
-    info.fisheye_info[1].radius = 1900.0f;
-    info.fisheye_info[1].rotate_angle = 92.0f;
-    info.fisheye_info[2].center_x = 1820.0f;
-    info.fisheye_info[2].center_y = 1532.0f;
-    info.fisheye_info[2].wide_angle = 190.0f;
-    info.fisheye_info[2].radius = 1900.0f;
-    info.fisheye_info[2].rotate_angle = 91.0f;
+static const Pair dewarp_pairs[] = {
+    {DewarpSphere, "sphere"},
+    {DewarpBowl, "bowl"},
+    {0, NULL}
+};
+
+static const Pair scopic_pairs[] = {
+    {ScopicMono, "mono"},
+    {ScopicStereoLeft, "stereoleft"},
+    {ScopicStereoRight, "stereoright"},
+    {0, NULL}
+};
+
+static const Pair scale_pairs[] = {
+    {ScaleSingleConst, "singleconst"},
+    {ScaleDualConst, "dualconst"},
+    {ScaleDualCurve, "dualcurve"},
+    {0, NULL}
+};
+
+static const Pair fm_pairs[] = {
+    {FMNone, "none"},
+    {FMDefault, "default"},
+    {FMCluster, "cluster"},
+    {FMCapi, "capi"},
+    {0, NULL}
+};
+
+static const Pair fmstatus_pairs[] = {
+    {FMStatusWholeWay, "wholeway"},
+    {FMStatusHalfWay, "halfway"},
+    {FMStatusFMFirst, "fmfirst"},
+    {0, NULL}
+};
+
+template <typename TypeT>
+static void parse_enum (const ContextParams &params, const Pair *pairs, const char *name, TypeT &value) {
+    ContextParams::const_iterator iter = params.find (name);
+    if (iter == params.end ())
+        return;
+    for (uint32_t i = 0; pairs[i].name != NULL; i++) {
+        if (!strcasecmp (iter->second, pairs[i].name)) {
+            value = (TypeT)pairs[i].id;
+            break;
+        }
+    }
 }
 
 StitchContext::StitchContext ()
     : ContextBase (HandleTypeStitch)
-    , _input_width (3840)
-    , _input_height (2880)
-    , _output_width (7680)
-    , _output_height (3840)
-    , _fisheye_num (3)
     , _module (StitchSoft)
-    , _scale_mode (ScaleDualConst)
+    , _cam_model (CamC3C8K)
+    , _scopic_mode (ScopicStereoLeft)
+    , _fisheye_num (3)
     , _blend_pyr_levels (1)
-    , _fm_mode (FMCluster)
+    , _scale_mode (ScaleSingleConst)
     , _dewarp_mode (DewarpSphere)
+    , _fm_mode (FMDefault)
     , _fm_frames (120)
-    , _fm_status (FMStatusFMFirst)
-
+    , _fm_status (FMStatusWholeWay)
 {
     xcam_mem_clear (_viewpoints_range);
-    init_default_params (_fm_cfg, _fm_region_ratio, _stich_info, _viewpoints_range);
-
-    create_buf_pool (V4L2_PIX_FMT_NV12);
 }
 
 StitchContext::~StitchContext ()
 {
+}
+
+XCamReturn
+StitchContext::set_parameters (ContextParams &param_list)
+{
+    uint32_t help = 0;
+    parse_value (param_list, "help", help);
+    if (help)
+        show_help ();
+
+    parse_enum (param_list, cammodel_pairs, "cammodel", _cam_model);
+    parse_enum (param_list, scopic_pairs, "scopic", _scopic_mode);
+    parse_enum (param_list, module_pairs, "module", _module);
+    parse_enum (param_list, dewarp_pairs, "dewarp", _dewarp_mode);
+    parse_enum (param_list, scale_pairs, "scale", _scale_mode);
+    parse_enum (param_list, fm_pairs, "fm", _fm_mode);
+    parse_enum (param_list, fmstatus_pairs, "fmstatus", _fm_status);
+    parse_value (param_list, "fmframes", _fm_frames);
+    parse_value (param_list, "fisheyenum", _fisheye_num);
+    parse_value (param_list, "levels", _blend_pyr_levels);
+
+    create_buf_pool (_module);
+
+    ContextBase::set_parameters (param_list);
+    show_options ();
+
+    CamModel cam_model = (CamModel)_cam_model;
+    StitchScopicMode scopic_mode = (StitchScopicMode)_scopic_mode;
+
+    _fm_region_ratio = fm_region_ratio (cam_model);
+    _fm_cfg = (_module == StitchVulkan) ? vk_fm_config (cam_model) :
+        ((_module == StitchGLES) ? gl_fm_config (cam_model) : soft_fm_config (cam_model));
+    _stich_info = (_module == StitchSoft) ?
+        soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
+
+    viewpoints_range (cam_model, _viewpoints_range);
+    if (_dewarp_mode == DewarpBowl) {
+        _bowl_cfg = bowl_config (cam_model);
+    }
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
 XCamReturn
@@ -152,7 +217,9 @@ StitchContext::execute (SmartPtr<VideoBuffer> &buf_in, SmartPtr<VideoBuffer> &bu
         in_buffers.push_back (cur_buf);
     }
 
-    return _stitcher->stitch_buffers (in_buffers, buf_out);
+    _stitcher->stitch_buffers (in_buffers, buf_out);
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
 SmartPtr<Stitcher>
@@ -177,23 +244,24 @@ StitchContext::create_stitcher (StitchModule module)
 }
 
 XCamReturn
-StitchContext::create_buf_pool (uint32_t format)
+StitchContext::create_buf_pool (StitchModule module)
 {
-    VideoBufferInfo info;
-    info.init (format, _input_width, _input_height);
-
     SmartPtr<BufferPool> pool;
-    if (_module == StitchSoft) {
-        pool = new SoftVideoBufAllocator (info);
-    } else if (_module == StitchGLES) {
+    if (module == StitchSoft) {
+        pool = new SoftVideoBufAllocator ();
+    } else if (module == StitchGLES) {
 #if HAVE_GLES
-        pool = new GLVideoBufferPool (info);
+        SmartPtr<EGLBase> egl = new EGLBase ();
+        XCAM_ASSERT (egl.ptr ());
+
+        XCAM_FAIL_RETURN (ERROR, egl->init (), XCAM_RETURN_ERROR_MEM, "init EGL failed");
+
+        pool = new GLVideoBufferPool ();
 #endif
-    } else if (_module == StitchVulkan) {
+    } else if (module == StitchVulkan) {
 #if HAVE_VULKAN
         pool = create_vk_buffer_pool (VKDevice::default_device ());
         XCAM_ASSERT (pool.ptr ());
-        pool->set_video_info (info);
 #endif
     }
     XCAM_ASSERT (pool.ptr ());
@@ -209,7 +277,7 @@ StitchContext::init_config ()
     XCAM_ASSERT (_stitcher.ptr ());
 
     _stitcher->set_camera_num (_fisheye_num);
-    _stitcher->set_output_size (_output_width, _output_height);
+    _stitcher->set_output_size (get_out_width (), get_out_height ());
     _stitcher->set_dewarp_mode (_dewarp_mode);
     _stitcher->set_scale_mode (_scale_mode);
     _stitcher->set_blend_pyr_levels (_blend_pyr_levels);
@@ -218,12 +286,96 @@ StitchContext::init_config ()
     _stitcher->set_fm_frames (_fm_frames);
     _stitcher->set_fm_status (_fm_status);
     _stitcher->set_fm_config (_fm_cfg);
-    _stitcher->set_fm_region_ratio (_fm_region_ratio);
 #endif
     _stitcher->set_viewpoints_range (_viewpoints_range);
     _stitcher->set_stitch_info (_stich_info);
 
+    if (_dewarp_mode == DewarpSphere) {
+#if HAVE_OPENCV
+        _stitcher->set_fm_region_ratio (_fm_region_ratio);
+#endif
+        _stitcher->set_stitch_info (_stich_info);
+    } else {
+        _stitcher->set_instrinsic_names (instrinsic_names);
+        _stitcher->set_exstrinsic_names (exstrinsic_names);
+        _stitcher->set_bowl_config (_bowl_cfg);
+    }
+
     return XCAM_RETURN_NO_ERROR;
+}
+
+void
+StitchContext::show_help ()
+{
+    printf (
+        "Usage:  params=help=1 module=soft fisheyenum=3 ...\n"
+        "  module      : Processing module\n"
+        "                Range   : [soft, gles, vulkan]\n"
+        "                Default : soft\n"
+        "  fisheyenum  : Number of fisheye lens\n"
+        "                Range   : [2 - %d]\n"
+        "                Default : 3\n"
+        "  cammodel    : Camera model\n"
+        "                Range   : [cama2c1080p, camb4c1080p, camc3c8k, camd3c8k]\n"
+        "                Default : camc3c8k\n"
+        "  levels      : The pyramid levels of blender\n"
+        "                Range   : [1 - 4]\n"
+        "                Default : 1\n"
+        "  dewarp      : Fisheye dewarp mode\n"
+        "                Range   : [sphere, bowl]\n"
+        "                Default : sphere\n"
+        "  scopic      : Scopic mode\n"
+        "                Range   : [mono, stereoleft, stereoright]\n"
+        "                Default : mono\n"
+        "  scale       : Scaling mode for geometric mapping\n"
+        "                Range   : [singleconst, dualconst, dualcurve]\n"
+        "                Default : singleconst\n"
+#if HAVE_OPENCV
+        "  fm          : Feature match mode\n"
+        "                Range   : [none, default, cluster, capi]\n"
+        "                Default : default\n"
+        "  fmframes    : How many frames need to run feature match at the beginning\n"
+        "                Range   : [0 - INT_MAX]\n"
+        "                Default : 120\n"
+        "  fmstatus    : Running status of feature match\n"
+        "                Range   : [fmfirst, halfway, wholeway]\n"
+        "                Default : wholeway\n"
+        "                  wholeway: run feature match during the entire runtime\n"
+        "                  halfway : run feature match with stitching in the first fmframes frames\n"
+        "                  fmfirst : run feature match without stitching in the first fmframes frames\n"
+#else
+        "  fm          : Feature match mode\n"
+        "                Range   : [none]\n"
+        "                Default : none\n"
+#endif
+        "  help        : Printf usage\n"
+        "                Range   : [0, 1]\n"
+        "                Default : 0\n",
+        XCAM_MAX_INPUTS_NUM);
+}
+
+void
+StitchContext::show_options ()
+{
+    printf ("Options:\n");
+    printf ("  Camera model\t\t: %s\n", cammodel_pairs[_cam_model].name);
+    printf ("  Stitch module\t\t: %s\n", module_pairs[_module].name);
+    printf ("  Input width\t\t: %d\n", get_in_width ());
+    printf ("  Input height\t\t: %d\n", get_in_height ());
+    printf ("  Output width\t\t: %d\n", get_out_width ());
+    printf ("  Output height\t\t: %d\n", get_out_height ());
+    printf ("  Pixel format\t\t: %s\n", get_format () == V4L2_PIX_FMT_YUV420 ? "yuv420" : "nv12");
+    printf ("  Fisheye number\t: %d\n", _fisheye_num);
+    printf ("  Blend pyr levels\t: %d\n", _blend_pyr_levels);
+    printf ("  Alloc output buffer\t: %d\n", need_alloc_out_buf ());
+    printf ("  Dewarp mode\t\t: %s\n", dewarp_pairs[_dewarp_mode].name);
+    printf ("  Scopic mode\t\t: %s\n", scopic_pairs[_scopic_mode].name);
+    printf ("  Scaling mode\t\t: %s\n", scale_pairs[_scale_mode].name);
+    printf ("  Feature match\t\t: %s\n", fm_pairs[_fm_mode].name);
+#if HAVE_OPENCV
+    printf ("  Feature match frames\t: %d\n", _fm_frames);
+    printf ("  Feature match status\t: %s\n", fmstatus_pairs[_fm_status].name);
+#endif
 }
 
 }
