@@ -31,6 +31,45 @@
 
 namespace XCam {
 
+typedef struct Pair {
+    uint32_t id;
+    const char *name;
+} Pair;
+
+static const Pair dewarp_pairs[] = {
+    {DewarpSphere, "sphere"},
+    {DewarpBowl,   "bowl"},
+    {0, NULL}
+};
+
+static const Pair res_pairs[] = {
+    {StitchRes1080P2Cams, "1080p2cams"},
+    {StitchRes1080P4Cams, "1080p4cams"},
+    {StitchRes4K2Cams,    "4k2cams"},
+    {StitchRes8K3Cams,    "8k3cams"},
+    {StitchRes8K6Cams,    "8k6cams"},
+    {0, NULL}
+};
+
+static const Pair scale_pairs[] = {
+    {CLBlenderScaleLocal,  "local"},
+    {CLBlenderScaleGlobal, "global"},
+    {0, NULL}
+};
+
+template <typename TypeT>
+static void parse_enum (const ContextParams &params, const Pair *pairs, const char *name, TypeT &value) {
+    ContextParams::const_iterator iter = params.find (name);
+    if (iter == params.end ())
+        return;
+    for (uint32_t i = 0; pairs[i].name != NULL; i++) {
+        if (!strcasecmp (iter->second, pairs[i].name)) {
+            value = (TypeT)pairs[i].id;
+            break;
+        }
+    }
+}
+
 CLContextBase::CLContextBase (HandleType type)
     : ContextBase (type)
 {
@@ -132,12 +171,15 @@ DVSContext::create_handler (SmartPtr<CLContext> &context)
 }
 
 StitchCLContext::StitchCLContext ()
-    : CLContextBase (HandleTypeStitch)
-    , _need_seam (false)
-    , _fisheye_map (false)
-    , _need_lsc (false)
-    , _scale_mode (CLBlenderScaleLocal)
+    : CLContextBase (HandleTypeStitchCL)
+    , _enable_fisheyemap (false)
+    , _enable_fm (true)
+    , _enable_lsc (false)
+    , _enable_seam (false)
+    , _fisheye_num (2)
+    , _dewarp_mode (DewarpSphere)
     , _res_mode (StitchRes1080P2Cams)
+    , _scale_mode (CLBlenderScaleLocal)
 {
 }
 
@@ -145,25 +187,99 @@ StitchCLContext::~StitchCLContext ()
 {
 }
 
+XCamReturn
+StitchCLContext::set_parameters (ContextParams &param_list)
+{
+    uint32_t help = 0;
+    parse_value (param_list, "help", help);
+    if (help)
+        show_help ();
+
+    parse_enum (param_list, dewarp_pairs, "dewarp", _dewarp_mode);
+    parse_enum (param_list, res_pairs, "dewarp", _res_mode);
+    parse_enum (param_list, scale_pairs, "dewarp", _scale_mode);
+    parse_value (param_list, "fisheyemap", _enable_fisheyemap);
+    parse_value (param_list, "fm", _enable_fm);
+    parse_value (param_list, "lsc", _enable_lsc);
+    parse_value (param_list, "seam", _enable_seam);
+    parse_value (param_list, "fisheyenum", _fisheye_num);
+
+    ContextBase::set_parameters (param_list);
+    show_options ();
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+void
+StitchCLContext::show_help ()
+{
+    printf (
+        "Usage:  params=help=1 res=1080p2cams dewarp=sphere ...\n"
+        "  res         : Resolution mode\n"
+        "                Range   : [1080p2cams, 1080p4cams, 4k2cams, 8k3cams, 8k6cams]\n"
+        "                Default : 1080p2cams\n"
+        "  dewarp      : Fisheye dewarp mode\n"
+        "                Range   : [sphere, bowl]\n"
+        "                Default : sphere\n"
+        "  scale       : Scaling mode for geometric mapping\n"
+        "                Range   : [local, global]\n"
+        "                Default : local\n"
+        "  fisheyenum  : Number of fisheye lens\n"
+        "                Range   : [2 - %d]\n"
+        "                Default : 2\n"
+#if HAVE_OPENCV
+        "  fm          : Enable feature match\n"
+        "                Range   : [0, 1]\n"
+        "                Default : 1\n"
+#endif
+        "  fisheyemap  : Enable fisheye map\n"
+        "                Range   : [0, 1]\n"
+        "                Default : 0\n"
+        "  lsc         : Enable lens shading correction\n"
+        "                Range   : [0, 1]\n"
+        "                Default : 0\n"
+        "  seam        : Enable seam finder in blending area\n"
+        "                Range   : [0, 1]\n"
+        "                Default : 0\n"
+        "  help        : Printf usage\n"
+        "                Range   : [0, 1]\n"
+        "                Default : 0\n",
+        XCAM_MAX_INPUTS_NUM);
+}
+
+void
+StitchCLContext::show_options ()
+{
+    printf ("Options:\n");
+    printf ("  Input width\t\t: %d\n", get_in_width ());
+    printf ("  Input height\t\t: %d\n", get_in_height ());
+    printf ("  Output width\t\t: %d\n", get_out_width ());
+    printf ("  Output height\t\t: %d\n", get_out_height ());
+    printf ("  Pixel format\t\t: %s\n", get_format () == V4L2_PIX_FMT_YUV420 ? "yuv420" : "nv12");
+    printf ("  Alloc output buffer\t: %d\n", need_alloc_out_buf ());
+    printf ("  Resolution mode\t: %s\n", res_pairs[_res_mode].name);
+    printf ("  Dewarp mode\t\t: %s\n", dewarp_pairs[_dewarp_mode].name);
+    printf ("  Scaling mode\t\t: %s\n", scale_pairs[_scale_mode].name);
+    printf ("  Fisheye number\t: %d\n", _fisheye_num);
+#if HAVE_OPENCV
+    printf ("  Enable feature match\t: %d\n", _enable_fm);
+#endif
+    printf ("  Enable fisheye map\t: %d\n", _enable_fisheyemap);
+    printf ("  Enable lsc\t\t: %d\n", _enable_lsc);
+    printf ("  Enable seam\t\t: %d\n", _enable_seam);
+}
+
 SmartPtr<CLImageHandler>
 StitchCLContext::create_handler (SmartPtr<CLContext> &context)
 {
-    uint32_t sttch_width = get_in_width ();
-    uint32_t sttch_height = XCAM_ALIGN_UP (sttch_width / 2, 16);
-    if (sttch_width != sttch_height * 2) {
-        XCAM_LOG_ERROR ("incorrect stitch size width:%d height:%d", sttch_width, sttch_height);
-        return NULL;
-    }
-
-    FisheyeDewarpMode dewarp_mode = DewarpSphere;
-    StitchResMode res_mode = (_res_mode == StitchRes1080P2Cams) ? StitchRes1080P2Cams : StitchRes4K2Cams;
-
-    SmartPtr<CLImage360Stitch> image_360 =
-        create_image_360_stitch (context, _need_seam, _scale_mode,
-                                 _fisheye_map, _need_lsc, dewarp_mode, res_mode).dynamic_cast_ptr<CLImage360Stitch> ();
+    SmartPtr<CLImage360Stitch> image_360 = create_image_360_stitch (context, _enable_seam, _scale_mode,
+        _enable_fisheyemap, _enable_lsc, _dewarp_mode, _res_mode).dynamic_cast_ptr<CLImage360Stitch> ();
     XCAM_FAIL_RETURN (ERROR, image_360.ptr (), NULL, "create image stitch handler failed");
-    image_360->set_output_size (sttch_width, sttch_height);
-    XCAM_LOG_INFO ("stitch output size width:%d height:%d", sttch_width, sttch_height);
+
+    image_360->set_output_size (get_out_width (), get_out_height ());
+#if HAVE_OPENCV
+    image_360->set_feature_match (_enable_fm);
+#endif
 
     return image_360;
 }

@@ -119,13 +119,21 @@ public:
     virtual ~StitchCLContext ();
 
     virtual SmartPtr<CLImageHandler> create_handler (SmartPtr<CLContext> &context);
+    virtual XCamReturn set_parameters (ContextParams &param_list);
 
 private:
-    bool                  _need_seam;
-    bool                  _fisheye_map;
-    bool                  _need_lsc;
-    CLBlenderScaleMode    _scale_mode;
+    void show_help ();
+    void show_options ();
+
+private:
+    uint32_t              _enable_fisheyemap;
+    uint32_t              _enable_fm;
+    uint32_t              _enable_lsc;
+    uint32_t              _enable_seam;
+    uint32_t              _fisheye_num;
+    FisheyeDewarpMode     _dewarp_mode;
     StitchResMode         _res_mode;
+    CLBlenderScaleMode    _scale_mode;
 };
 
 }
