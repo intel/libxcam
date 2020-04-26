@@ -95,6 +95,7 @@ VKInstance::create_instance ()
     return vk_instance;
 }
 
+#ifdef DEBUG
 static const char *s_device_types[] = {
     "OTHER_DEVICE",
     "INTEGRATED_GPU",
@@ -112,6 +113,7 @@ device_type_to_str(VkPhysicalDeviceType type)
         return s_device_types [type];
     return "UNKNOWN_TYPE";
 }
+#endif
 
 XCamReturn
 VKInstance::query_physical_info ()
@@ -168,7 +170,7 @@ VKInstance::query_physical_info ()
     }
 
     vkGetPhysicalDeviceProperties (_physical_device, &dev_prop);
-    XCAM_LOG_INFO ("choose vk physical dev properties dev_id:%d, name:%s, type:%s, API:%d\n",
+    XCAM_LOG_DEBUG ("choose vk physical dev properties dev_id:%d, name:%s, type:%s, API:%d\n",
                    dev_prop.deviceID, dev_prop.deviceName,
                    device_type_to_str (dev_prop.deviceType), dev_prop.apiVersion);
     _device_properties = dev_prop;

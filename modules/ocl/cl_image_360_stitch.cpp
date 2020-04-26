@@ -485,7 +485,7 @@ CLImage360Stitch::calc_fisheye_initial_info (SmartPtr<VideoBuffer> &output)
 
         _fisheye[0].height = out_info.height + _stitch_info.crop[0].top + _stitch_info.crop[0].bottom;
         _fisheye[0].height = XCAM_ALIGN_UP (_fisheye[0].height, 16);
-        XCAM_LOG_INFO (
+        XCAM_LOG_DEBUG (
             "fisheye correction output size width:%d height:%d", _fisheye[0].width, _fisheye[0].height);
 
         for (int i = 0; i < _fisheye_num; ++i) {
