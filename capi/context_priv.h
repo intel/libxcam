@@ -51,7 +51,7 @@ class ContextBase {
 public:
     virtual ~ContextBase ();
 
-    XCamReturn set_parameters (ContextParams &param_list);
+    virtual XCamReturn set_parameters (ContextParams &param_list);
     const char* get_usage () const {
         return _usage;
     }
@@ -70,18 +70,15 @@ public:
 protected:
     ContextBase (HandleType type);
 
-    void set_buf_pool (const SmartPtr<BufferPool> &pool) {
-        _inbuf_pool = pool;
-    }
-    uint32_t get_image_width () const {
-        return _image_width;
-    }
-    uint32_t get_image_height () const {
-        return _image_height;
-    }
-    bool need_alloc_out_buf () const {
-        return _alloc_out_buf;
-    }
+    void set_buf_pool (const SmartPtr<BufferPool> &pool);
+    bool need_alloc_out_buf () const;
+    uint32_t get_in_width () const;
+    uint32_t get_in_height () const;
+    uint32_t get_out_width () const;
+    uint32_t get_out_height () const;
+    uint32_t get_format () const;
+
+    void parse_value (const ContextParams &params, const char *name, uint32_t &value);
 
 private:
     XCAM_DEAD_COPY (ContextBase);
@@ -92,9 +89,12 @@ protected:
     SmartPtr<BufferPool>             _inbuf_pool;
 
     //parameters
-    uint32_t                         _image_width;
-    uint32_t                         _image_height;
-    bool                             _alloc_out_buf;
+    uint32_t                         _input_width;
+    uint32_t                         _input_height;
+    uint32_t                         _output_width;
+    uint32_t                         _output_height;
+    uint32_t                         _format;
+    uint32_t                         _alloc_out_buf;
 };
 
 ContextBase *create_context (const char *name);

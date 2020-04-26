@@ -42,6 +42,8 @@ public:
     StitchContext ();
     virtual ~StitchContext ();
 
+    virtual XCamReturn set_parameters (ContextParams &param_list);
+
     virtual XCamReturn init_handler ();
     virtual XCamReturn uinit_handler ();
     virtual bool is_handler_valid () const;
@@ -50,8 +52,11 @@ public:
 
 private:
     SmartPtr<Stitcher> create_stitcher (StitchModule module);
-    XCamReturn create_buf_pool (uint32_t format);
+    XCamReturn create_buf_pool (StitchModule module);
     XCamReturn init_config ();
+
+    void show_help ();
+    void show_options ();
 
 private:
     XCAM_DEAD_COPY (StitchContext);
@@ -59,25 +64,21 @@ private:
 private:
     SmartPtr<Stitcher>        _stitcher;
 
-    uint32_t                  _input_width;
-    uint32_t                  _input_height;
-    uint32_t                  _output_width;
-    uint32_t                  _output_height;
-
-    uint32_t                  _fisheye_num;
     StitchModule              _module;
-    GeoMapScaleMode           _scale_mode;
-
+    uint32_t                  _cam_model;
+    uint32_t                  _scopic_mode;
+    uint32_t                  _fisheye_num;
     uint32_t                  _blend_pyr_levels;
-
-    FeatureMatchMode          _fm_mode;
+    GeoMapScaleMode           _scale_mode;
     FisheyeDewarpMode         _dewarp_mode;
+    FeatureMatchMode          _fm_mode;
     uint32_t                  _fm_frames;
     FeatureMatchStatus        _fm_status;
 
     FMConfig                  _fm_cfg;
     FMRegionRatio             _fm_region_ratio;
     StitchInfo                _stich_info;
+    BowlDataConfig            _bowl_cfg;
     float                     _viewpoints_range[XCAM_STITCH_FISHEYE_MAX_NUM];
 };
 
