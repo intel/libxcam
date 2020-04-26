@@ -56,7 +56,7 @@ EGLBase::init ()
     EGLint major, minor;
     ret = initialize (_display, &major, &minor);
     XCAM_FAIL_RETURN (ERROR, ret, false, "EGLInit: EGL initialize failed");
-    XCAM_LOG_INFO ("EGL version: %d.%d", major, minor);
+    XCAM_LOG_DEBUG ("EGL version: %d.%d", major, minor);
 
     EGLConfig configs;
     EGLint num_config;

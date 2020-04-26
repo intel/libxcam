@@ -120,7 +120,7 @@ CLDevice::init ()
         //continue
         XCAM_LOG_WARNING ("cl get device info failed but continue");
     } else {
-        XCAM_LOG_INFO (
+        XCAM_LOG_DEBUG (
             "cl get device info,\n"
             "\tmax_compute_unit:%" PRIu32
             "\tmax_work_item_dims:%" PRIu32
