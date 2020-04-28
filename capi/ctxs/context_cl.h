@@ -82,11 +82,15 @@ class FisheyeContext
     : public CLContextBase
 {
 public:
-    FisheyeContext ()
-        : CLContextBase (HandleTypeFisheye)
-    {}
+    FisheyeContext ();
+    virtual ~FisheyeContext ();
 
     virtual SmartPtr<CLImageHandler> create_handler (SmartPtr<CLContext> &context);
+
+private:
+    FisheyeInfo    _info;
+    float          _range_longitude;
+    float          _range_latitude;
 };
 
 class DefogContext

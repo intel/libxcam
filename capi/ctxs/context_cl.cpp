@@ -152,10 +152,34 @@ NRWaveletContext::create_handler (SmartPtr<CLContext> &context)
                context, CL_IMAGE_CHANNEL_UV | CL_IMAGE_CHANNEL_Y, false);
 }
 
+FisheyeContext::FisheyeContext ()
+    : CLContextBase (HandleTypeFisheye)
+    , _range_longitude (228.0f)
+    , _range_latitude (180.0f)
+{
+    _info.center_x = 480.0f;
+    _info.center_y = 480.0f;
+    _info.wide_angle = 202.8f;
+    _info.radius = 480.0f;
+    _info.rotate_angle = -90.0f;
+}
+
+FisheyeContext::~FisheyeContext ()
+{
+}
+
 SmartPtr<CLImageHandler>
 FisheyeContext::create_handler (SmartPtr<CLContext> &context)
 {
-    return create_fisheye_handler (context);
+    SmartPtr<CLImageHandler> handler = create_fisheye_handler (context);
+    SmartPtr<CLFisheyeHandler> fisheye = handler.dynamic_cast_ptr<CLFisheyeHandler> ();
+    XCAM_ASSERT (fisheye.ptr ());
+
+    fisheye->set_fisheye_info (_info);
+    fisheye->set_dst_range (_range_longitude, _range_latitude);
+    fisheye->set_output_size (get_out_width (), get_out_height ());
+
+    return handler;
 }
 
 SmartPtr<CLImageHandler>
