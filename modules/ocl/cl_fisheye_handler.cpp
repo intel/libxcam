@@ -236,9 +236,6 @@ CLFisheyeHandler::prepare_buffer_pool_video_info (
         "CLFisheyeHandler(%s) input buffer format(%s) is not supported, try NV12",
         get_name (), xcam_fourcc_to_string (input.format));
 
-    if (!_output_width || !_output_height) {
-        return XCAM_RETURN_ERROR_PARAM;
-    }
     XCAM_FAIL_RETURN (
         WARNING, _output_width && _output_height, XCAM_RETURN_ERROR_PARAM,
         "CLFisheyeHandler output size(%d, %d) should > 0",
