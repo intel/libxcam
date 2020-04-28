@@ -201,7 +201,7 @@ copy_external_buf_to_drm_buf (XCamHandle *handle, XCamVideoBuffer *buf)
     VideoBufferPlanarInfo planar;
     uint8_t *dest = inbuf->map ();
     for (uint32_t idx = 0; idx < src_info.components; idx++) {
-        uint8_t *p_src = src + src_info.offsets[idx];
+        uint8_t *p_src = src +  (int32_t)src_info.offsets[idx];
         uint8_t *p_dest = dest + dest_info.offsets[idx];
         dest_info.get_planar_info (planar, idx);
 
