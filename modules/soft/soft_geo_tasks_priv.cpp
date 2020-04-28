@@ -137,10 +137,19 @@ static void map_image (
 
     Float2 interp_value[XCAM_SOFT_WORKUNIT_PIXELS / 2];
     Uchar2 interp_pixel_value[XCAM_SOFT_WORKUNIT_PIXELS / 2];
+
+#if ENABLE_AVX512
+    assert(XCAM_SOFT_WORKUNIT_PIXELS == 16);
+    __m512i index = _mm512_setr_epi32(0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29);
+    __m512 multiplier = _mm512_set1_ps(0.5f);
+    __m512 value = _mm512_i32gather_ps (index, interp_pos, 4);
+    value = _mm512_mul_ps(value, multiplier);
+    _mm512_store_ps(interp_pos, value);
+#else
     for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i += 2) {
         interp_pos[i / 2] = interp_pos[i] / 2.0f;
     }
-
+#endif
     check_bound (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2 - 1, bound);
     if (bound == BoundExternal) {
         out->write_array_no_check < XCAM_SOFT_WORKUNIT_PIXELS / 2 > (out_x, out_y, zero_byte);
