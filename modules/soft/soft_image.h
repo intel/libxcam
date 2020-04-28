@@ -552,6 +552,23 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar *array) const
     }
 }
 
+static inline __m512 gather_uchar2x8(const int *base, __m256i offset)
+{
+    __m256i mask = _mm256_set1_epi32 (0xFF);
+    __m256i value = _mm256_i32gather_epi32 (base, offset, 2);
+    __m256i lo8 = _mm256_and_si256 (value, mask);
+    __m256i shift8 = _mm256_srli_epi16 (value, 8);
+    __m256i hi8 = _mm256_and_si256 (shift8, mask);
+    __m256i tmp0 = _mm256_unpacklo_epi32 (lo8, hi8);
+    __m256i tmp1 = _mm256_unpackhi_epi32 (lo8, hi8);
+    __m256i tmp2 =  _mm256_permute2f128_si256 (tmp0, tmp1, 0x20);
+    __m256i tmp3 =  _mm256_permute2f128_si256 (tmp0, tmp1, 0x31);
+
+    __m512i tmp4 = _mm512_inserti64x4 (_mm512_castsi256_si512 (tmp2), tmp3, 1);
+
+    return _mm512_cvtepi32_ps (tmp4);
+}
+
 template <typename T>
 void
 SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar2 *array) const
@@ -597,33 +614,17 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar2 *array) const
     const T* base = ((const T*)(_buf_ptr + pos_y0 * _pitch));
     __m256i offset_top0 = _mm256_add_epi32 (pos_idx_x, _mm256_mullo_epi32 (pos_idx_y, const_pitch));
 
-    int32_t* offset_tl = (int32_t*)&offset_top0;
 
     __m256i offset_top1 = _mm256_add_epi32 (offset_top0, const_one_int);
-    int32_t* offset_tr = (int32_t*)&offset_top1;
 
     __m256i offset_bottom0 = _mm256_add_epi32 (pos_idx_x, _mm256_mullo_epi32 (_mm256_add_epi32(pos_idx_y, const_one_int), const_pitch));
-    int32_t* offset_bl = (int32_t*)&offset_bottom0;
 
     __m256i offset_bottom1 = _mm256_add_epi32 (offset_bottom0, const_one_int);
-    int32_t* offset_br = (int32_t*)&offset_bottom1;
 
-    __m512 pixel_tl = _mm512_setr_ps ((base + offset_tl[0])->x, (base + offset_tl[0])->y, (base + offset_tl[1])->x, (base + offset_tl[1])->y,
-                                      (base + offset_tl[2])->x, (base + offset_tl[2])->y, (base + offset_tl[3])->x, (base + offset_tl[3])->y,
-                                      (base + offset_tl[4])->x, (base + offset_tl[4])->y, (base + offset_tl[5])->x, (base + offset_tl[5])->y,
-                                      (base + offset_tl[6])->x, (base + offset_tl[6])->y, (base + offset_tl[7])->x, (base + offset_tl[7])->y);
-    __m512 pixel_tr = _mm512_setr_ps ((base + offset_tr[0])->x, (base + offset_tr[0])->y, (base + offset_tr[1])->x, (base + offset_tr[1])->y,
-                                      (base + offset_tr[2])->x, (base + offset_tr[2])->y, (base + offset_tr[3])->x, (base + offset_tr[3])->y,
-                                      (base + offset_tr[4])->x, (base + offset_tr[4])->y, (base + offset_tr[5])->x, (base + offset_tr[5])->y,
-                                      (base + offset_tr[6])->x, (base + offset_tr[6])->y, (base + offset_tr[7])->x, (base + offset_tr[7])->y);
-    __m512 pixel_bl = _mm512_setr_ps ((base + offset_bl[0])->x, (base + offset_bl[0])->y, (base + offset_bl[1])->x, (base + offset_bl[1])->y,
-                                      (base + offset_bl[2])->x, (base + offset_bl[2])->y, (base + offset_bl[3])->x, (base + offset_bl[3])->y,
-                                      (base + offset_bl[4])->x, (base + offset_bl[4])->y, (base + offset_bl[5])->x, (base + offset_bl[5])->y,
-                                      (base + offset_bl[6])->x, (base + offset_bl[6])->y, (base + offset_bl[7])->x, (base + offset_bl[7])->y);
-    __m512 pixel_br = _mm512_setr_ps ((base + offset_br[0])->x, (base + offset_br[0])->y, (base + offset_br[1])->x, (base + offset_br[1])->y,
-                                      (base + offset_br[2])->x, (base + offset_br[2])->y, (base + offset_br[3])->x, (base + offset_br[3])->y,
-                                      (base + offset_br[4])->x, (base + offset_br[4])->y, (base + offset_br[5])->x, (base + offset_br[5])->y,
-                                      (base + offset_br[6])->x, (base + offset_br[6])->y, (base + offset_br[7])->x, (base + offset_br[7])->y);
+    __m512 pixel_tl = gather_uchar2x8((const int*)base, offset_top0);
+    __m512 pixel_tr = gather_uchar2x8((const int*)base, offset_top1);
+    __m512 pixel_bl = gather_uchar2x8((const int*)base, offset_bottom0);
+    __m512 pixel_br = gather_uchar2x8((const int*)base, offset_bottom1);
 
     __m512 interp_value_f = _mm512_fmadd_ps (pixel_tl, _mm512_mul_ps (weight_x_1, weight_y_1),
                             _mm512_mul_ps (pixel_tr, _mm512_mul_ps (weight_x, weight_y_1))) +
