@@ -70,6 +70,23 @@ inline void calc_critical_pixels (const uint32_t &img_w, const uint32_t &img_h, 
 
 static void interp_sample_pos (const Float2Image *lut, Float2* interp_pos, const Float2 &first, const Float2 &step)
 {
+#if ENABLE_AVX512
+    Float2 lut_pos[16];
+    __m512 x512 = _mm512_set1_ps(step.x);
+    __m512 multiplier = _mm512_setr_ps(0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
+                                       9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f);
+    x512 = _mm512_fmadd_ps(x512, multiplier, _mm512_set1_ps(first.x));
+    __m512 y512 = _mm512_set1_ps(first.y);
+    __m512 Lo = _mm512_unpacklo_ps(x512, y512);
+    __m512 Hi = _mm512_unpackhi_ps(x512, y512);
+
+    __m512i idx0 = _mm512_setr_epi32(0, 1, 2, 3, 0x10, 0x11, 0x12, 0x13, 4, 5, 6, 7, 0x14, 0x15, 0x16, 0x17);
+    __m512i idx1 = _mm512_setr_epi32(8, 9, 0xa, 0xb, 0x18, 0x19, 0x1a, 0x1b, 0xc, 0xd, 0xe, 0xf, 0x1c, 0x1d, 0x1e, 0x1f);
+    __m512 data0 = _mm512_permutex2var_ps(Lo, idx0, Hi);
+    __m512 data1 = _mm512_permutex2var_ps(Lo, idx1, Hi);
+    _mm512_store_ps(lut_pos, data0);
+    _mm512_store_ps(&lut_pos[8], data1);
+#else
     Float2 lut_pos[16] = {
         first, Float2(first.x + step.x, first.y),
         Float2(first.x + step.x * 2, first.y), Float2(first.x + step.x * 3, first.y),
@@ -80,7 +97,7 @@ static void interp_sample_pos (const Float2Image *lut, Float2* interp_pos, const
         Float2(first.x + step.x * 12, first.y), Float2(first.x + step.x * 13, first.y),
         Float2(first.x + step.x * 14, first.y), Float2(first.x + step.x * 15, first.y)
     };
-
+#endif
 #if ENABLE_AVX512
     BoundState interp_bound = BoundInternal;
     check_interp_bound (lut->get_width (), lut->get_height (), interp_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, interp_bound);
