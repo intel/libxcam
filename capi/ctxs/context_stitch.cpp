@@ -200,21 +200,14 @@ StitchContext::execute (SmartPtr<VideoBuffer> &buf_in, SmartPtr<VideoBuffer> &bu
     VideoBufferList in_buffers;
     in_buffers.push_back (buf_in);
 
-    SmartPtr<VideoBuffer> pre_buf;
-    SmartPtr<VideoBuffer> cur_buf = buf_in;
-    for (uint32_t i = 0; i < _fisheye_num; i++) {
-        pre_buf = cur_buf;
-        cur_buf = cur_buf->find_typed_attach<VideoBuffer> ();
+    SmartPtr<VideoBuffer> pre_buf = buf_in;
+    SmartPtr<VideoBuffer> att_buf = pre_buf->find_typed_attach<VideoBuffer> ();
+    while (att_buf.ptr ()) {
+        pre_buf->detach_buffer (att_buf);
+        in_buffers.push_back (att_buf);
 
-        if (!cur_buf.ptr ()) {
-            XCAM_FAIL_RETURN (
-                ERROR, i == (_fisheye_num - 1), XCAM_RETURN_ERROR_PARAM,
-                "conflicting attached buffers and fisheye number");
-            break;
-        }
-
-        pre_buf->detach_buffer (cur_buf);
-        in_buffers.push_back (cur_buf);
+        pre_buf = att_buf;
+        att_buf = pre_buf->find_typed_attach<VideoBuffer> ();
     }
 
     _stitcher->stitch_buffers (in_buffers, buf_out);
