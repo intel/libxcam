@@ -23,7 +23,6 @@
 #include "test_inline.h"
 #include "test_stream.h"
 #include <image_file_handle.h>
-#include <calibration_parser.h>
 #include <ocl/cl_device.h>
 #include <ocl/cl_context.h>
 #include <ocl/cl_fisheye_handler.h>
@@ -104,25 +103,6 @@ CLStream::create_buf_pool (uint32_t reserve_count, uint32_t format)
     set_buf_pool (pool);
 
     return XCAM_RETURN_NO_ERROR;
-}
-
-static bool
-parse_calibration_params (
-    const char *path, uint32_t idx, IntrinsicParameter &intr_param, ExtrinsicParameter &extr_param)
-{
-    char intr_path[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
-    char extr_path[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
-    snprintf (intr_path, XCAM_TEST_MAX_STR_SIZE, "%s/%s", path, intrinsic_names[idx]);
-    snprintf (extr_path, XCAM_TEST_MAX_STR_SIZE, "%s/%s", path, extrinsic_names[idx]);
-    CHECK_ACCESS (intr_path);
-    CHECK_ACCESS (extr_path);
-
-    CalibrationParser parser;
-    CHECK (parser.parse_intrinsic_file (intr_path, intr_param), "parse intrinsic params(%s) failed", intr_path);
-    CHECK (parser.parse_extrinsic_file (extr_path, extr_param), "parse extrinsic params(%s) failed", extr_path);
-    extr_param.trans_x += TEST_CAMERA_POSITION_OFFSET_X;
-
-    return true;
 }
 
 static void
@@ -566,23 +546,8 @@ int main (int argc, char *argv[])
 #endif
 
     if (dewarp_mode == DewarpBowl) {
-        std::string fisheye_cfg_path = FISHEYE_CONFIG_PATH;
-        const char *env = std::getenv (FISHEYE_CONFIG_ENV_VAR);
-        if (env)
-            fisheye_cfg_path.assign (env, strlen (env));
-        XCAM_LOG_INFO ("calibration config path: %s", fisheye_cfg_path.c_str ());
-
-        IntrinsicParameter intr_param;
-        ExtrinsicParameter extr_param;
-        for (int i = 0; i < fisheye_num; i++) {
-            if (!parse_calibration_params (fisheye_cfg_path.c_str (), i, intr_param, extr_param)) {
-                XCAM_LOG_ERROR ("parse calibration data failed in surround view");
-                return -1;
-            }
-
-            stitcher->set_fisheye_intrinsic (intr_param, i);
-            stitcher->set_fisheye_extrinsic (extr_param, i);
-        }
+        stitcher->set_intrinsic_names (intrinsic_names);
+        stitcher->set_extrinsic_names (extrinsic_names);
     }
 
     add_stream (outs, "topview", topview_width, topview_height);

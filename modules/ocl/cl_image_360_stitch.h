@@ -78,8 +78,8 @@ public:
     bool set_fisheye_handler (SmartPtr<CLFisheyeHandler> fisheye, int index);
     bool set_blender (SmartPtr<CLBlender> blender, int idx);
 
-    void set_fisheye_intrinsic (IntrinsicParameter intrinsic_param, int index);
-    void set_fisheye_extrinsic (ExtrinsicParameter extrinsic_param, int index);
+    bool set_intrinsic_names (const char *intr_names[]);
+    bool set_extrinsic_names (const char *extr_names[]);
 
     const BowlDataConfig &get_fisheye_bowl_config (int index = 0);
 
@@ -118,12 +118,15 @@ protected:
 
     virtual XCamReturn sub_handler_execute_done (SmartPtr<CLImageHandler> &handler);
 
-    void calc_fisheye_initial_info (SmartPtr<VideoBuffer> &output);
     void update_image_overlap ();
 
 private:
+    XCamReturn init_fisheye_info (SmartPtr<VideoBuffer> &output);
     void init_feature_match ();
     void update_scale_factors (uint32_t fm_idx, const Rect &crop_left, const Rect &crop_right);
+
+    void init_sphere_fisheye_params (SmartPtr<VideoBuffer> &output);
+    void init_bowl_fisheye_params (SmartPtr<VideoBuffer> &output);
 
 private:
     XCAM_DEAD_COPY (CLImage360Stitch);
@@ -152,6 +155,9 @@ private:
     bool                        _is_stitch_inited;
     int                         _fisheye_num;
     StitchInfo                  _stitch_info;
+
+    char                       *_intr_names[XCAM_STITCH_FISHEYE_MAX_NUM];
+    char                       *_extr_names[XCAM_STITCH_FISHEYE_MAX_NUM];
 };
 
 SmartPtr<CLImageHandler>

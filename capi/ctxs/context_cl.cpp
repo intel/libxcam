@@ -31,6 +31,19 @@
 
 namespace XCam {
 
+static const char *intrinsic_names[] = {
+    "intrinsic_camera_front.txt",
+    "intrinsic_camera_right.txt",
+    "intrinsic_camera_rear.txt",
+    "intrinsic_camera_left.txt"
+};
+static const char *extrinsic_names[] = {
+    "extrinsic_camera_front.txt",
+    "extrinsic_camera_right.txt",
+    "extrinsic_camera_rear.txt",
+    "extrinsic_camera_left.txt"
+};
+
 typedef struct Pair {
     uint32_t id;
     const char *name;
@@ -304,6 +317,11 @@ StitchCLContext::create_handler (SmartPtr<CLContext> &context)
 #if HAVE_OPENCV
     image_360->set_feature_match (_enable_fm);
 #endif
+
+    if (_dewarp_mode == DewarpBowl) {
+        image_360->set_intrinsic_names (intrinsic_names);
+        image_360->set_extrinsic_names (extrinsic_names);
+    }
 
     return image_360;
 }

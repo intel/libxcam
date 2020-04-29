@@ -18,12 +18,16 @@
  * Author: Wind Yuan <feng.yuan@intel.com>
  */
 
+#include "calibration_parser.h"
 #include "cl_utils.h"
 #include "cl_device.h"
 #include "cl_image_360_stitch.h"
 #include "interface/feature_match.h"
 
 #define XCAM_BLENDER_GLOBAL_SCALE_EXT_WIDTH 64
+
+#define XCAM_CAMERA_POSITION_OFFSET_X 2000
+#define FISHEYE_CONFIG_ENV_VAR "FISHEYE_CONFIG_PATH"
 
 #define STITCH_CHECK(ret, msg, ...) \
     if ((ret) != XCAM_RETURN_NO_ERROR) {        \
@@ -436,16 +440,28 @@ CLImage360Stitch::set_blender (SmartPtr<CLBlender> blender, int idx)
     return add_image_handler (handler);
 }
 
-void
-CLImage360Stitch::set_fisheye_intrinsic (IntrinsicParameter intrinsic_param, int index)
+bool
+CLImage360Stitch::set_intrinsic_names (const char *intr_names[])
 {
-    _fisheye[index].handler->set_intrinsic_param(intrinsic_param);
+    XCAM_FAIL_RETURN (ERROR, _fisheye_num, false, "set intrinsic names failed, fisheye num is 0");
+
+    for(int i = 0; i < _fisheye_num; ++i) {
+        _intr_names[i] = strndup (intr_names[i], XCAM_MAX_STR_SIZE);
+    }
+
+    return true;
 }
 
-void
-CLImage360Stitch::set_fisheye_extrinsic (ExtrinsicParameter extrinsic_param, int index)
+bool
+CLImage360Stitch::set_extrinsic_names (const char *extr_names[])
 {
-    _fisheye[index].handler->set_extrinsic_param(extrinsic_param);
+    XCAM_FAIL_RETURN (ERROR, _fisheye_num, false, "set extrinsic names failed, fisheye num is 0");
+
+    for(int i = 0; i < _fisheye_num; ++i) {
+        _extr_names[i] = strndup (extr_names[i], XCAM_MAX_STR_SIZE);
+    }
+
+    return true;
 }
 
 const BowlDataConfig &
@@ -465,90 +481,139 @@ CLImage360Stitch::set_image_overlap (const int idx, const Rect &overlap0, const 
 }
 
 void
-CLImage360Stitch::calc_fisheye_initial_info (SmartPtr<VideoBuffer> &output)
+CLImage360Stitch::init_sphere_fisheye_params (SmartPtr<VideoBuffer> &output)
 {
     const VideoBufferInfo &out_info = output->get_video_info ();
 
-    if(_dewarp_mode == DewarpSphere) {
-        if (_res_mode == StitchRes8K6Cams && _scale_mode == CLBlenderScaleGlobal) {
-            _fisheye[0].width = out_info.width / _fisheye_num * 2;
-        } else {
-            uint32_t fisheye_width_sum = out_info.width;
-            for (int i = 0; i < _fisheye_num; i++) {
-                fisheye_width_sum += _stitch_info.merge_width[i] +
-                                     _stitch_info.crop[i].left + _stitch_info.crop[i].right;
-            }
-            _fisheye[0].width = fisheye_width_sum / _fisheye_num;
-        }
-        _fisheye[0].width = XCAM_ALIGN_UP (_fisheye[0].width, 16);
-
-        _fisheye[0].height = out_info.height + _stitch_info.crop[0].top + _stitch_info.crop[0].bottom;
-        _fisheye[0].height = XCAM_ALIGN_UP (_fisheye[0].height, 16);
-        XCAM_LOG_DEBUG (
-            "fisheye correction output size width:%d height:%d", _fisheye[0].width, _fisheye[0].height);
-
-        for (int i = 0; i < _fisheye_num; ++i) {
-            _fisheye[i].width = _fisheye[0].width;
-            _fisheye[i].height = _fisheye[0].height;
-
-            float max_dst_latitude = (_stitch_info.fisheye_info[i].wide_angle > 180.0f) ?
-                                     180.0f : _stitch_info.fisheye_info[i].wide_angle;
-            float max_dst_longitude = max_dst_latitude * _fisheye[i].width / _fisheye[i].height;
-
-            _fisheye[i].handler->set_dst_range (max_dst_longitude, max_dst_latitude);
-            _fisheye[i].handler->set_output_size (_fisheye[i].width, _fisheye[i].height);
-        }
+    if (_res_mode == StitchRes8K6Cams && _scale_mode == CLBlenderScaleGlobal) {
+        _fisheye[0].width = out_info.width / _fisheye_num * 2;
     } else {
-        _fisheye[0].height = out_info.height + _stitch_info.crop[0].top + _stitch_info.crop[0].bottom;
-
-        float view_angle[XCAM_STITCH_FISHEYE_MAX_NUM] = {
-            64.0f, 158.0f, 60.0f, 158.0f
-        };
-
-        XCAM_ASSERT (_fisheye_num <= XCAM_STITCH_FISHEYE_MAX_NUM);
+        uint32_t fisheye_width_sum = out_info.width;
         for (int i = 0; i < _fisheye_num; i++) {
-            _fisheye[i].width = view_angle[i] / 360.0f * out_info.width;
-            _fisheye[i].width = XCAM_ALIGN_UP (_fisheye[i].width, 32);
+            fisheye_width_sum += _stitch_info.merge_width[i] +
+                                 _stitch_info.crop[i].left + _stitch_info.crop[i].right;
         }
+        _fisheye[0].width = fisheye_width_sum / _fisheye_num;
+    }
+    _fisheye[0].width = XCAM_ALIGN_UP (_fisheye[0].width, 16);
 
-        XCAM_LOG_INFO (
-            "fisheye correction output size width:%d height:%d",
-            _fisheye[0].width, _fisheye[0].height);
+    _fisheye[0].height = out_info.height + _stitch_info.crop[0].top + _stitch_info.crop[0].bottom;
+    _fisheye[0].height = XCAM_ALIGN_UP (_fisheye[0].height, 16);
+    XCAM_LOG_DEBUG ("fisheye correction output size width:%d height:%d", _fisheye[0].width, _fisheye[0].height);
 
-        BowlDataConfig bowl_data_config[XCAM_STITCH_FISHEYE_MAX_NUM];
+    for (int i = 0; i < _fisheye_num; ++i) {
+        _fisheye[i].width = _fisheye[0].width;
+        _fisheye[i].height = _fisheye[0].height;
 
-        bowl_data_config[0].angle_start = -view_angle[0] / 2;
-        bowl_data_config[0].angle_end = view_angle[0] / 2;
+        float max_dst_latitude = (_stitch_info.fisheye_info[i].wide_angle > 180.0f) ?
+                                     180.0f : _stitch_info.fisheye_info[i].wide_angle;
+        float max_dst_longitude = max_dst_latitude * _fisheye[i].width / _fisheye[i].height;
 
-        for (int i = 1; i < _fisheye_num; i++) {
-            _fisheye[i].height = _fisheye[0].height;
-            float angle_center = 360.0f / _fisheye_num * i;
-            bowl_data_config[i].angle_start = angle_center - view_angle[i] / 2;
-            bowl_data_config[i].angle_end = angle_center + view_angle[i] / 2;
-        }
+        _fisheye[i].handler->set_dst_range (max_dst_longitude, max_dst_latitude);
+        _fisheye[i].handler->set_output_size (_fisheye[i].width, _fisheye[i].height);
+    }
+}
 
-        float wall_image_height = bowl_data_config[0].wall_height /
-                                  (float)(bowl_data_config[0].wall_height + bowl_data_config[0].ground_length) *
-                                  _fisheye[0].height;
-        float stable_y_start = (wall_image_height + _fisheye[0].height ) / 2.0f;
+void
+CLImage360Stitch::init_bowl_fisheye_params (SmartPtr<VideoBuffer> &output)
+{
+    const VideoBufferInfo &out_info = output->get_video_info ();
 
-        if (stable_y_start < 0.5f)
-            stable_y_start = 1.0f;
+    _fisheye[0].height = out_info.height + _stitch_info.crop[0].top + _stitch_info.crop[0].bottom;
 
-        for(int i = 0; i < _fisheye_num; i++) {
-            _fisheye[i].handler->set_stable_y_start (stable_y_start);
-            _fisheye[i].handler->set_bowl_config(bowl_data_config[i]);
-            _fisheye[i].handler->set_output_size (_fisheye[i].width, _fisheye[i].height);
-        }
+    float view_angle[XCAM_STITCH_FISHEYE_MAX_NUM] = {
+        64.0f, 158.0f, 60.0f, 158.0f
+    };
 
-        int idx_next;
+    XCAM_ASSERT (_fisheye_num <= XCAM_STITCH_FISHEYE_MAX_NUM);
+    for (int i = 0; i < _fisheye_num; i++) {
+        _fisheye[i].width = view_angle[i] / 360.0f * out_info.width;
+        _fisheye[i].width = XCAM_ALIGN_UP (_fisheye[i].width, 32);
+    }
+    XCAM_LOG_DEBUG ("fisheye correction output size width:%d height:%d", _fisheye[0].width, _fisheye[0].height);
+
+    BowlDataConfig bowl_data_config[XCAM_STITCH_FISHEYE_MAX_NUM];
+
+    bowl_data_config[0].angle_start = -view_angle[0] / 2;
+    bowl_data_config[0].angle_end = view_angle[0] / 2;
+
+    for (int i = 1; i < _fisheye_num; i++) {
+        _fisheye[i].height = _fisheye[0].height;
+        float angle_center = 360.0f / _fisheye_num * i;
+        bowl_data_config[i].angle_start = angle_center - view_angle[i] / 2;
+        bowl_data_config[i].angle_end = angle_center + view_angle[i] / 2;
+    }
+
+    float wall_image_height = bowl_data_config[0].wall_height /
+        (float)(bowl_data_config[0].wall_height + bowl_data_config[0].ground_length) * _fisheye[0].height;
+    float stable_y_start = (wall_image_height + _fisheye[0].height ) / 2.0f;
+
+    if (stable_y_start < 0.5f)
+        stable_y_start = 1.0f;
+
+    for(int i = 0; i < _fisheye_num; i++) {
+        _fisheye[i].handler->set_stable_y_start (stable_y_start);
+        _fisheye[i].handler->set_bowl_config(bowl_data_config[i]);
+        _fisheye[i].handler->set_output_size (_fisheye[i].width, _fisheye[i].height);
+    }
+
+    int idx_next;
+    for (int i = 0; i < _fisheye_num; i++) {
+        idx_next = (i == (_fisheye_num - 1)) ? 0 : (i + 1);
+
+        _stitch_info.merge_width[idx_next] =
+            _fisheye[i].width / 2 + _fisheye[idx_next].width / 2 - out_info.width / _fisheye_num;
+        _stitch_info.merge_width[idx_next] = XCAM_ALIGN_UP (_stitch_info.merge_width[idx_next], 32);
+    }
+}
+
+static bool parse_calibration_params (
+    const char *cfg_path, uint32_t idx, const char *intr_name, const char *extr_name,
+    IntrinsicParameter &intr_param, ExtrinsicParameter &extr_param)
+{
+    CalibrationParser parser;
+    char path[XCAM_MAX_STR_SIZE] = {'\0'};
+
+    snprintf (path, XCAM_MAX_STR_SIZE, "%s/%s", cfg_path, intr_name);
+    XCamReturn ret = parser.parse_intrinsic_file (path, intr_param);
+    XCAM_FAIL_RETURN (ERROR, ret == XCAM_RETURN_NO_ERROR, false, "parse intrinsic params(%s) failed", path);
+
+    snprintf (path, XCAM_MAX_STR_SIZE, "%s/%s", cfg_path, extr_name);
+    ret = parser.parse_extrinsic_file (path, extr_param);
+    XCAM_FAIL_RETURN (ERROR, ret == XCAM_RETURN_NO_ERROR, false, "parse extrinsic params(%s) failed", path);
+
+    extr_param.trans_x += XCAM_CAMERA_POSITION_OFFSET_X;
+
+    return true;
+}
+
+XCamReturn
+CLImage360Stitch::init_fisheye_info (SmartPtr<VideoBuffer> &output)
+{
+    if(_dewarp_mode == DewarpSphere) {
+        init_sphere_fisheye_params (output);
+    } else {
+        init_bowl_fisheye_params (output);
+
+        const char *cfg_path = std::getenv (FISHEYE_CONFIG_ENV_VAR);
+        XCAM_FAIL_RETURN (ERROR, cfg_path, XCAM_RETURN_ERROR_PARAM,
+            "FISHEYE_CONFIG_PATH is NULL, export FISHEYE_CONFIG_PATH first");
+        XCAM_LOG_DEBUG ("fisheye calibration config path: %s", cfg_path);
+
+        IntrinsicParameter intr_param;
+        ExtrinsicParameter extr_param;
         for (int i = 0; i < _fisheye_num; i++) {
-            idx_next = (i == (_fisheye_num - 1)) ? 0 : (i + 1);
+            if (!parse_calibration_params (cfg_path, i, _intr_names[i], _extr_names[i], intr_param, extr_param)) {
+                XCAM_LOG_ERROR ("parse calibration data failed in surround view");
+                return XCAM_RETURN_ERROR_PARAM;
+            }
 
-            _stitch_info.merge_width[idx_next] = _fisheye[i].width / 2 + _fisheye[idx_next].width / 2 - out_info.width / _fisheye_num;
-            _stitch_info.merge_width[idx_next] = XCAM_ALIGN_UP (_stitch_info.merge_width[idx_next], 32);
+            _fisheye[i].handler->set_intrinsic_param (intr_param);
+            _fisheye[i].handler->set_extrinsic_param (extr_param);
         }
     }
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
 void
@@ -607,7 +672,7 @@ CLImage360Stitch::ensure_fisheye_parameters (
     static bool is_fisheye_inited = false;
 
     if (!is_fisheye_inited) {
-        calc_fisheye_initial_info (output);
+        init_fisheye_info (output);
         is_fisheye_inited = true;
     }
 
