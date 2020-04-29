@@ -556,8 +556,8 @@ int main (int argc, char *argv[])
 
     SmartPtr<CLContext> context = CLDevice::instance ()->get_context ();
     SmartPtr<CLImage360Stitch> stitcher = create_image_360_stitch (
-            context, enable_seam, scale_mode, enable_fisheye_map, enable_lsc, dewarp_mode,
-            res_mode, fisheye_num, (ins.size () == 1)).dynamic_cast_ptr<CLImage360Stitch> ();
+            context, enable_seam, scale_mode, enable_fisheye_map, enable_lsc,
+            dewarp_mode, res_mode, fisheye_num).dynamic_cast_ptr<CLImage360Stitch> ();
     XCAM_ASSERT (stitcher.ptr ());
     stitcher->set_output_size (output_width, output_height);
     stitcher->set_pool_type (CLImageHandler::CLVideoPoolType);

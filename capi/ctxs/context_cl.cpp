@@ -297,7 +297,7 @@ SmartPtr<CLImageHandler>
 StitchCLContext::create_handler (SmartPtr<CLContext> &context)
 {
     SmartPtr<CLImage360Stitch> image_360 = create_image_360_stitch (context, _enable_seam, _scale_mode,
-        _enable_fisheyemap, _enable_lsc, _dewarp_mode, _res_mode).dynamic_cast_ptr<CLImage360Stitch> ();
+        _enable_fisheyemap, _enable_lsc, _dewarp_mode, _res_mode, _fisheye_num).dynamic_cast_ptr<CLImage360Stitch> ();
     XCAM_FAIL_RETURN (ERROR, image_360.ptr (), NULL, "create image stitch handler failed");
 
     image_360->set_output_size (get_out_width (), get_out_height ());

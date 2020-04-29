@@ -358,8 +358,8 @@ get_default_stitch_info (StitchResMode res_mode)
 }
 
 CLImage360Stitch::CLImage360Stitch (
-    const SmartPtr<CLContext> &context, CLBlenderScaleMode scale_mode, FisheyeDewarpMode dewarp_mode,
-    StitchResMode res_mode, int fisheye_num, bool all_in_one_img)
+    const SmartPtr<CLContext> &context, CLBlenderScaleMode scale_mode,
+    FisheyeDewarpMode dewarp_mode, StitchResMode res_mode, int fisheye_num)
     : CLMultiImageHandler (context, "CLImage360Stitch")
     , _context (context)
     , _output_width (0)
@@ -370,7 +370,6 @@ CLImage360Stitch::CLImage360Stitch (
     , _enable_fm (true)
     , _is_stitch_inited (false)
     , _fisheye_num (fisheye_num)
-    , _all_in_one_img (all_in_one_img)
 {
 #if !HAVE_OPENCV
     _enable_fm = false;
@@ -612,10 +611,9 @@ CLImage360Stitch::ensure_fisheye_parameters (
         is_fisheye_inited = true;
     }
 
-    SmartPtr<VideoBuffer> pre_buf;
     SmartPtr<VideoBuffer> cur_buf = input;
+    SmartPtr<VideoBuffer> att_buf = cur_buf->find_typed_attach<VideoBuffer> ();
     for (int i = 0; i < _fisheye_num; i++) {
-
         if (!_fisheye[i].pool.ptr ()) {
             create_buffer_pool (_fisheye[i].pool, _fisheye[i].width, _fisheye[i].height,
                                 XCAM_ALIGN_UP (_fisheye[i].width, 16), XCAM_ALIGN_UP (_fisheye[i].height, 16));
@@ -627,14 +625,11 @@ CLImage360Stitch::ensure_fisheye_parameters (
         XCamReturn ret = ensure_handler_parameters (_fisheye[i].handler, cur_buf, _fisheye[i].buf);
         STITCH_CHECK (ret, "execute fisheye prepare_parameters failed");
 
-        if (!_all_in_one_img) {
-            pre_buf = cur_buf;
-            cur_buf = cur_buf->find_typed_attach<VideoBuffer> ();
-            if (!cur_buf.ptr () && (i != (_fisheye_num - 1))) {
-                XCAM_LOG_ERROR ("conflicting attached buffers and fisheye number");
-                return XCAM_RETURN_ERROR_PARAM;
-            }
-            pre_buf->detach_buffer (cur_buf);
+        if (att_buf.ptr ()) {
+            cur_buf->detach_buffer (att_buf);
+
+            cur_buf = att_buf;
+            att_buf = cur_buf->find_typed_attach<VideoBuffer> ();
         }
     }
 
@@ -1046,14 +1041,14 @@ SmartPtr<CLImageHandler>
 create_image_360_stitch (
     const SmartPtr<CLContext> &context, bool need_seam,
     CLBlenderScaleMode scale_mode, bool fisheye_map, bool need_lsc, FisheyeDewarpMode dewarp_mode,
-    StitchResMode res_mode, int fisheye_num, bool all_in_one_img)
+    StitchResMode res_mode, int fisheye_num)
 {
     const int layer = 2;
     const bool need_uv = true;
     SmartPtr<CLFisheyeHandler> fisheye;
     SmartPtr<CLBlender> blender;
     SmartPtr<CLImage360Stitch> stitch = new CLImage360Stitch (
-        context, scale_mode, dewarp_mode, res_mode, fisheye_num, all_in_one_img);
+        context, scale_mode, dewarp_mode, res_mode, fisheye_num);
     XCAM_ASSERT (stitch.ptr ());
 
     bool need_scale = (dewarp_mode == DewarpBowl) ? true : false;
