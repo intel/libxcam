@@ -463,6 +463,9 @@ int main (int argc, char *argv[])
     printf ("save output:\t\t%s\n", save_output ? "true" : "false");
     printf ("loop count:\t\t%d\n", loop);
 
+    XCAM_UNUSED (intrinsic_names);
+    XCAM_UNUSED (extrinsic_names);
+
     for (uint32_t i = 0; i < ins.size (); ++i) {
         ins[i]->set_buf_size (input_width, input_height);
         CHECK (ins[i]->create_buf_pool (6, input_format), "create buffer pool failed");
