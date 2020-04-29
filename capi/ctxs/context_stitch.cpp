@@ -145,16 +145,17 @@ StitchContext::set_parameters (ContextParams &param_list)
     show_options ();
 
     CamModel cam_model = (CamModel)_cam_model;
-    StitchScopicMode scopic_mode = (StitchScopicMode)_scopic_mode;
-
-    _fm_region_ratio = fm_region_ratio (cam_model);
+    viewpoints_range (cam_model, _viewpoints_range);
     _fm_cfg = (_module == StitchVulkan) ? vk_fm_config (cam_model) :
         ((_module == StitchGLES) ? gl_fm_config (cam_model) : soft_fm_config (cam_model));
-    _stich_info = (_module == StitchSoft) ?
-        soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
 
-    viewpoints_range (cam_model, _viewpoints_range);
-    if (_dewarp_mode == DewarpBowl) {
+    if (_dewarp_mode == DewarpSphere) {
+        _fm_region_ratio = fm_region_ratio (cam_model);
+
+        StitchScopicMode scopic_mode = (StitchScopicMode)_scopic_mode;
+        _stich_info = (_module == StitchSoft) ?
+           soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
+    } else {
         _bowl_cfg = bowl_config (cam_model);
     }
 
@@ -281,7 +282,6 @@ StitchContext::init_config ()
     _stitcher->set_fm_config (_fm_cfg);
 #endif
     _stitcher->set_viewpoints_range (_viewpoints_range);
-    _stitcher->set_stitch_info (_stich_info);
 
     if (_dewarp_mode == DewarpSphere) {
 #if HAVE_OPENCV
