@@ -243,8 +243,8 @@ public:
     }
 
     bool set_viewpoints_range (const float *range);
-    bool set_instrinsic_names (const char *instr_names[]);
-    bool set_exstrinsic_names (const char *exstr_names[]);
+    bool set_intrinsic_names (const char *intr_names[]);
+    bool set_extrinsic_names (const char *extr_names[]);
 
     virtual XCamReturn stitch_buffers (const VideoBufferList &in_bufs, SmartPtr<VideoBuffer> &out_buf) = 0;
 
@@ -281,8 +281,8 @@ private:
     float                       _out_start_angle;
     uint32_t                    _camera_num;
     CameraInfo                  _camera_info[XCAM_STITCH_MAX_CAMERAS];
-    char                       *_instr_names[XCAM_STITCH_MAX_CAMERAS];
-    char                       *_exstr_names[XCAM_STITCH_MAX_CAMERAS];
+    char                       *_intr_names[XCAM_STITCH_MAX_CAMERAS];
+    char                       *_extr_names[XCAM_STITCH_MAX_CAMERAS];
 
     RoundViewSlice              _round_view_slices[XCAM_STITCH_MAX_CAMERAS];
     bool                        _is_round_view_set;

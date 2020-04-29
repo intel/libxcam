@@ -35,14 +35,14 @@ enum StitchScopicMode {
     ScopicStereoRight
 };
 
-static const char *instrinsic_names[] = {
+static const char *intrinsic_names[] = {
     "intrinsic_camera_front.txt",
     "intrinsic_camera_right.txt",
     "intrinsic_camera_rear.txt",
     "intrinsic_camera_left.txt"
 };
 
-static const char *exstrinsic_names[] = {
+static const char *extrinsic_names[] = {
     "extrinsic_camera_front.txt",
     "extrinsic_camera_right.txt",
     "extrinsic_camera_rear.txt",

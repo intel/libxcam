@@ -289,8 +289,8 @@ StitchContext::init_config ()
 #endif
         _stitcher->set_stitch_info (_stich_info);
     } else {
-        _stitcher->set_instrinsic_names (instrinsic_names);
-        _stitcher->set_exstrinsic_names (exstrinsic_names);
+        _stitcher->set_intrinsic_names (intrinsic_names);
+        _stitcher->set_extrinsic_names (extrinsic_names);
         _stitcher->set_bowl_config (_bowl_cfg);
     }
 
