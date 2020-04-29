@@ -63,8 +63,8 @@ class CLImage360Stitch
 {
 public:
     explicit CLImage360Stitch (
-        const SmartPtr<CLContext> &context, CLBlenderScaleMode scale_mode, FisheyeDewarpMode dewarp_mode,
-        StitchResMode res_mode, int fisheye_num, bool all_in_one_img);
+        const SmartPtr<CLContext> &context, CLBlenderScaleMode scale_mode,
+        FisheyeDewarpMode dewarp_mode, StitchResMode res_mode, int fisheye_num);
 
     void set_feature_match (bool enable);
 
@@ -151,7 +151,6 @@ private:
 
     bool                        _is_stitch_inited;
     int                         _fisheye_num;
-    bool                        _all_in_one_img;
     StitchInfo                  _stitch_info;
 };
 
@@ -164,8 +163,7 @@ create_image_360_stitch (
     bool need_lsc = false,
     FisheyeDewarpMode dewarp_mode = DewarpSphere,
     StitchResMode res_mode = StitchRes1080P2Cams,
-    int fisheye_num = 2,
-    bool all_in_one_img = true);
+    int fisheye_num = 2);
 
 }
 
