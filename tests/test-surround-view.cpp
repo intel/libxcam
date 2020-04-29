@@ -876,8 +876,8 @@ int main (int argc, char *argv[])
                           soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
         stitcher->set_stitch_info (info);
     } else {
-        stitcher->set_instrinsic_names (instrinsic_names);
-        stitcher->set_exstrinsic_names (exstrinsic_names);
+        stitcher->set_intrinsic_names (intrinsic_names);
+        stitcher->set_extrinsic_names (extrinsic_names);
         stitcher->set_bowl_config (bowl_config (cam_model));
     }
 

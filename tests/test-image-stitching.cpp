@@ -55,13 +55,13 @@ enum SVOutIdx {
     IdxCount
 };
 
-static const char *instrinsic_names[] = {
+static const char *intrinsic_names[] = {
     "intrinsic_camera_front.txt",
     "intrinsic_camera_right.txt",
     "intrinsic_camera_rear.txt",
     "intrinsic_camera_left.txt"
 };
-static const char *exstrinsic_names[] = {
+static const char *extrinsic_names[] = {
     "extrinsic_camera_front.txt",
     "extrinsic_camera_right.txt",
     "extrinsic_camera_rear.txt",
@@ -112,8 +112,8 @@ parse_calibration_params (
 {
     char intr_path[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
     char extr_path[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
-    snprintf (intr_path, XCAM_TEST_MAX_STR_SIZE, "%s/%s", path, instrinsic_names[idx]);
-    snprintf (extr_path, XCAM_TEST_MAX_STR_SIZE, "%s/%s", path, exstrinsic_names[idx]);
+    snprintf (intr_path, XCAM_TEST_MAX_STR_SIZE, "%s/%s", path, intrinsic_names[idx]);
+    snprintf (extr_path, XCAM_TEST_MAX_STR_SIZE, "%s/%s", path, extrinsic_names[idx]);
     CHECK_ACCESS (intr_path);
     CHECK_ACCESS (extr_path);
 

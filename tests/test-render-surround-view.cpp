@@ -57,14 +57,14 @@ enum SVModule {
     SVModuleVulkan
 };
 
-static const char *instrinsic_names[] = {
+static const char *intrinsic_names[] = {
     "intrinsic_camera_front.txt",
     "intrinsic_camera_right.txt",
     "intrinsic_camera_rear.txt",
     "intrinsic_camera_left.txt"
 };
 
-static const char *exstrinsic_names[] = {
+static const char *extrinsic_names[] = {
     "extrinsic_camera_front.txt",
     "extrinsic_camera_right.txt",
     "extrinsic_camera_rear.txt",
@@ -742,8 +742,8 @@ int main (int argc, char *argv[])
     stitcher->set_fm_mode (fm_mode);
 
     stitcher->set_viewpoints_range (viewpoints_range);
-    stitcher->set_instrinsic_names (instrinsic_names);
-    stitcher->set_exstrinsic_names (exstrinsic_names);
+    stitcher->set_intrinsic_names (intrinsic_names);
+    stitcher->set_extrinsic_names (extrinsic_names);
 
     BowlDataConfig bowl;
     bowl.wall_height = 1800.0f;

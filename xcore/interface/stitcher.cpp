@@ -105,15 +105,15 @@ Stitcher::Stitcher (uint32_t align_x, uint32_t align_y)
     XCAM_ASSERT (align_x >= 1);
     XCAM_ASSERT (align_y >= 1);
 
-    xcam_mem_clear (_instr_names);
-    xcam_mem_clear (_exstr_names);
+    xcam_mem_clear (_intr_names);
+    xcam_mem_clear (_extr_names);
     xcam_mem_clear (_viewpoints_range);
 }
 
 Stitcher::~Stitcher ()
 {
-    xcam_free (_instr_names);
-    xcam_free (_exstr_names);
+    xcam_free (_intr_names);
+    xcam_free (_extr_names);
 }
 
 bool
@@ -233,28 +233,28 @@ Stitcher::set_viewpoints_range (const float *range)
 }
 
 bool
-Stitcher::set_instrinsic_names (const char *instr_names[])
+Stitcher::set_intrinsic_names (const char *intr_names[])
 {
     XCAM_FAIL_RETURN (
         ERROR, _camera_num, false,
-        "stitcher: set instrinsic names failed, please set camera num(%d) first", _camera_num);
+        "stitcher: set intrinsic names failed, please set camera num(%d) first", _camera_num);
 
     for(uint32_t i = 0; i < _camera_num; ++i) {
-        _instr_names[i] = strndup (instr_names[i], XCAM_MAX_STR_SIZE);
+        _intr_names[i] = strndup (intr_names[i], XCAM_MAX_STR_SIZE);
     }
 
     return true;
 }
 
 bool
-Stitcher::set_exstrinsic_names (const char *exstr_names[])
+Stitcher::set_extrinsic_names (const char *extr_names[])
 {
     XCAM_FAIL_RETURN (
         ERROR, _camera_num, false,
-        "stitcher: set exstrinsic names failed, please set camera num(%d) first", _camera_num);
+        "stitcher: set extrinsic names failed, please set camera num(%d) first", _camera_num);
 
     for(uint32_t i = 0; i < _camera_num; ++i) {
-        _exstr_names[i] = strndup (exstr_names[i], XCAM_MAX_STR_SIZE);
+        _extr_names[i] = strndup (extr_names[i], XCAM_MAX_STR_SIZE);
     }
 
     return true;
@@ -281,17 +281,17 @@ Stitcher::init_camera_info ()
         for (uint32_t i = 0; i < _camera_num; ++i) {
             CameraInfo &info = _camera_info[i];
 
-            snprintf (path, XCAM_STITCH_NAME_LEN, "%s/%s", cfg_path, _instr_names[i]);
+            snprintf (path, XCAM_STITCH_NAME_LEN, "%s/%s", cfg_path, _intr_names[i]);
             XCamReturn ret = parser.parse_intrinsic_file (path, info.calibration.intrinsic);
             XCAM_FAIL_RETURN (
                 ERROR, ret == XCAM_RETURN_NO_ERROR, XCAM_RETURN_ERROR_PARAM,
                 "stitcher parse intrinsic params(%s) failed", path);
 
-            snprintf (path, XCAM_STITCH_NAME_LEN, "%s/%s", cfg_path, _exstr_names[i]);
+            snprintf (path, XCAM_STITCH_NAME_LEN, "%s/%s", cfg_path, _extr_names[i]);
             ret = parser.parse_extrinsic_file (path, info.calibration.extrinsic);
             XCAM_FAIL_RETURN (
                 ERROR, ret == XCAM_RETURN_NO_ERROR, XCAM_RETURN_ERROR_PARAM,
-                "stitcher parse exstrinsic params(%s) failed", path);
+                "stitcher parse extrinsic params(%s) failed", path);
 
             info.calibration.extrinsic.trans_x += XCAM_CAMERA_POSITION_OFFSET_X;
 
