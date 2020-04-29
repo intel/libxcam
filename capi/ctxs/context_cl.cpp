@@ -220,8 +220,8 @@ StitchCLContext::set_parameters (ContextParams &param_list)
         show_help ();
 
     parse_enum (param_list, dewarp_pairs, "dewarp", _dewarp_mode);
-    parse_enum (param_list, res_pairs, "dewarp", _res_mode);
-    parse_enum (param_list, scale_pairs, "dewarp", _scale_mode);
+    parse_enum (param_list, res_pairs, "res", _res_mode);
+    parse_enum (param_list, scale_pairs, "scale", _scale_mode);
     parse_value (param_list, "fisheyemap", _enable_fisheyemap);
     parse_value (param_list, "fm", _enable_fm);
     parse_value (param_list, "lsc", _enable_lsc);
