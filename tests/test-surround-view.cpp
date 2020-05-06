@@ -874,6 +874,23 @@ int main (int argc, char *argv[])
     if (dewarp_mode == DewarpSphere) {
         StitchInfo info = (module == SVModuleSoft) ?
                           soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
+
+        get_fisheye_info (cam_model, scopic_mode, info.fisheye_info);
+
+        for (uint32_t cam_id = 0; cam_id < XCAM_STITCH_FISHEYE_MAX_NUM; cam_id++) {
+            XCAM_LOG_DEBUG ("cam[%d]: flip=%d ", cam_id, info.fisheye_info[cam_id].flip);
+            XCAM_LOG_DEBUG ("fx=%f ", info.fisheye_info[cam_id].focal_x);
+            XCAM_LOG_DEBUG ("fy=%f ", info.fisheye_info[cam_id].focal_y);
+            XCAM_LOG_DEBUG ("cx=%f ", info.fisheye_info[cam_id].center_x);
+            XCAM_LOG_DEBUG ("cy=%f ", info.fisheye_info[cam_id].center_y);
+            XCAM_LOG_DEBUG ("w=%d ", info.fisheye_info[cam_id].width);
+            XCAM_LOG_DEBUG ("h=%d ", info.fisheye_info[cam_id].height);
+            XCAM_LOG_DEBUG ("fov=%f ", info.fisheye_info[cam_id].wide_angle);
+            XCAM_LOG_DEBUG ("skew=%f ", info.fisheye_info[cam_id].skew);
+            XCAM_LOG_DEBUG ("rotate angle=%f ", info.fisheye_info[cam_id].rotate_angle);
+            XCAM_LOG_DEBUG ("radius=%f ", info.fisheye_info[cam_id].radius);
+        }
+
         stitcher->set_stitch_info (info);
     } else {
         stitcher->set_intrinsic_names (intrinsic_names);

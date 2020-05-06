@@ -16,10 +16,17 @@
  * limitations under the License.
  *
  * Author: Junkai Wu <junkai.wu@intel.com>
+ * Author: Zong Wei <wei.zong@intel.com>
  */
 
 #include "calibration_parser.h"
 #include "file_handle.h"
+
+#if HAVE_JSON
+#include <fstream>
+#include <json.hpp>
+using json = nlohmann::json;
+#endif
 
 namespace XCam {
 
@@ -237,5 +244,112 @@ CalibrationParser::parse_extrinsic_file(const char *file_path, ExtrinsicParamete
 
     return parse_extrinsic_param (&context[0], extrinsic_param);
 }
+
+#if HAVE_JSON
+XCamReturn
+CalibrationParser::parse_fisheye_camera_param (const char *file_path, FisheyeInfo *fisheye_info, uint32_t camera_count)
+{
+    XCAM_LOG_DEBUG ("Parse camera calibration file: %s", file_path);
+    if (NULL == file_path) {
+        XCAM_LOG_ERROR ("invalide input file path !");
+        return XCAM_RETURN_ERROR_PARAM;
+    }
+    std::ifstream calibFile(file_path);
+
+    try {
+        json calib_params = json::parse(calibFile);
+
+        auto const rig = calib_params.find("rig");
+        if (rig == calib_params.end()) {
+            XCAM_LOG_ERROR ("rig Not Found");
+        }
+
+        auto const model = rig->find("model");
+        if (model != rig->end()) {
+            XCAM_LOG_DEBUG ("camera model=%d ", rig->find("model")->get<int>());
+        } else {
+            XCAM_LOG_WARNING ("model Not Found");
+        }
+
+        auto const cameras = rig->find("cameras");
+        if (cameras == rig->end()) {
+            XCAM_LOG_ERROR ("cameras Not Found");
+            return XCAM_RETURN_ERROR_PARAM;
+        }
+
+        auto const camera = cameras->find("camera");
+        if (camera == cameras->end()) {
+            XCAM_LOG_ERROR ("camera Not Found");
+            return XCAM_RETURN_ERROR_PARAM;
+        }
+
+        uint32_t cam_id = 0;
+        for (json::iterator cam = camera->begin(); cam != camera->end(), cam_id < camera_count; cam++) {
+            fisheye_info[cam_id].focal_x = cam->find("fx")->get<float>();
+            fisheye_info[cam_id].focal_y = cam->find("fy")->get<float>();
+            fisheye_info[cam_id].center_x = cam->find("cx")->get<float>();
+            fisheye_info[cam_id].center_y = cam->find("cy")->get<float>();
+            fisheye_info[cam_id].width = cam->find("w")->get<int>();
+            fisheye_info[cam_id].height = cam->find("h")->get<int>();
+            fisheye_info[cam_id].skew = cam->find("skew")->get<float>();
+            fisheye_info[cam_id].wide_angle = cam->find("fov")->get<float>();
+            fisheye_info[cam_id].flip = (strcasecmp(cam->find("flip")->get<std::string>().c_str(), "true") == 0 ? true : false);
+            XCAM_LOG_DEBUG ("cam[%d]: flip=%d ", cam_id, fisheye_info[cam_id].flip);
+            XCAM_LOG_DEBUG ("fx=%f ", fisheye_info[cam_id].focal_x);
+            XCAM_LOG_DEBUG ("fy=%f ", fisheye_info[cam_id].focal_y);
+            XCAM_LOG_DEBUG ("cx=%f ", fisheye_info[cam_id].center_x);
+            XCAM_LOG_DEBUG ("cy=%f ", fisheye_info[cam_id].center_y);
+            XCAM_LOG_DEBUG ("w=%d ", fisheye_info[cam_id].width);
+            XCAM_LOG_DEBUG ("h=%d ", fisheye_info[cam_id].height);
+            XCAM_LOG_DEBUG ("fov=%f ", fisheye_info[cam_id].wide_angle);
+            XCAM_LOG_DEBUG ("skew=%f ", fisheye_info[cam_id].skew);
+
+            auto const k = cam->find("K");
+            uint32_t i = 0;
+            for (json::iterator k_mat = k->begin(); k_mat != k->end(), i < 9; k_mat++) {
+                fisheye_info[cam_id].camera_mat(i / 3, i % 3) = k_mat->get<float>();
+                i ++;
+                //XCAM_LOG_DEBUG ("k[%d]: %f ", i, k_mat->get<float>());
+            }
+
+            auto const d = cam->find("D");
+            i = 0;
+            for (json::iterator d_vec = d->begin(); d_vec != d->end(), i < 4; d_vec++) {
+                fisheye_info[cam_id].distort_coeff[i++] = d_vec->get<float>();
+                //XCAM_LOG_DEBUG ("d[%d]: %f ", i, d_vec->get<float>());
+            }
+
+            auto const r = cam->find("R");
+            i = 0;
+            for (json::iterator r_mat = r->begin(); r_mat != r->end(), i < 9; r_mat++) {
+                fisheye_info[cam_id].rotation_mat(i / 3, i % 3) = r_mat->get<float>();
+                i ++;
+                //XCAM_LOG_DEBUG ("r[%d]: %f ", i, r_mat->get<float>());
+            }
+
+            auto const t = cam->find("t");
+            i = 0;
+            for (json::iterator t_vec = t->begin(); t_vec != t->end(), i < 3; t_vec++) {
+                fisheye_info[cam_id].trans_vect[i++] = t_vec->get<float>();
+                //XCAM_LOG_DEBUG ("t[%d]: %f ", i, t_vec->get<float>());
+            }
+
+            auto const c = cam->find("c");
+            i = 0;
+            for (json::iterator c_vec = c->begin(); c_vec != c->end(), i < 3; c_vec++) {
+                fisheye_info[cam_id].c_coeff[i++] = c_vec->get<float>();
+                //XCAM_LOG_DEBUG ("c[%d]: %f ", i, c_vec->get<float>());
+            }
+
+            cam_id++;
+        }
+    } catch (std::exception&) {
+        XCAM_LOG_ERROR ("parse camera calibration JSON file failed!");
+        return XCAM_RETURN_ERROR_PARAM;
+    }
+
+    return XCAM_RETURN_NO_ERROR;
+}
+#endif
 
 }

@@ -68,6 +68,7 @@ XCAM_ARG_ENABLE(dnn, --enable-dnn, enable_dnn, no, enable dnn with OpenVino libr
 XCAM_ARG_ENABLE(docs, --enable-docs, enable_docs, no, build Doxygen documentation)
 XCAM_ARG_ENABLE(3alib, --enable-3alib, enable_3alib, no, enable 3A library)
 XCAM_ARG_ENABLE(smartlib, --enable-smartlib, enable_smartlib, no, enable smart analysis library)
+XCAM_ARG_ENABLE(json, --enable-json, enable_json, no, enable camera calibration json parser)
 
 XCAM_CHECK_MODULE($enable_drm, libdrm, LIBDRM, HAVE_LIBDRM=1, HAVE_LIBDRM=0)
 XCAM_CHECK_MODULE($enable_libcl, OpenCL, LIBCL, HAVE_LIBCL=1, HAVE_LIBCL=0)
@@ -85,6 +86,7 @@ XCAM_CHECK_DVS_OCL($HAVE_OPENCV, ENABLE_DVS_CL_PATH=1, ENABLE_DVS_CL_PATH=0)
 XCAM_CHECK_GST($enable_gst, $GST_API_VERSION, $GST_VERSION_MIN, ENABLE_GST=1, ENABLE_GST=0)
 XCAM_CHECK_AIQ($enable_aiq, ENABLE_IA_AIQ=1, ENABLE_IA_AIQ=0, USE_LOCAL_AIQ=1, USE_LOCAL_AIQ=0)
 XCAM_CHECK_LOCAL_ATOMISP($enable_aiq, USE_LOCAL_ATOMISP=1, USE_LOCAL_ATOMISP=0)
+XCAM_CHECK_JSON($enable_json, HAVE_JSON=1, HAVE_JSON=0)
 
 XCAM_IF($enable_capi, yes, ENABLE_CAPI=1, ENABLE_CAPI=0)
 XCAM_IF($enable_profiling, yes, ENABLE_PROFILING=1, ENABLE_PROFILING=0)
@@ -116,6 +118,7 @@ XCAM_DEFINE_MACOR(ENABLE_DVS, $ENABLE_DVS, have dvs)
 XCAM_DEFINE_MACOR(ENABLE_DVS_CL_PATH, $ENABLE_DVS_CL_PATH, enable dvs cl path)
 XCAM_DEFINE_MACOR(ENABLE_CAPI, $ENABLE_CAPI, enable capi)
 XCAM_DEFINE_MACOR(HAVE_IA_AIQ, $ENABLE_IA_AIQ, have aiq binary)
+XCAM_DEFINE_MACOR(HAVE_JSON, $HAVE_JSON, have json)
 
 XCAM_CONDITIONAL(DEBUG, $enable_debug, yes)
 XCAM_CONDITIONAL(ENABLE_DOCS, $enable_docs, yes)
@@ -172,6 +175,8 @@ XCAM_IF($ENABLE_RENDER, 1, enable_render="yes", enable_render="no")
 XCAM_IF($ENABLE_DNN, 1, enable_dnn="yes", enable_dnn="no")
 XCAM_IF($ENABLE_DVS, 1, enable_dvs="yes", enable_dvs="no")
 XCAM_IF($ENABLE_CAPI, 1, enable_capi="yes", enable_capi="no")
+XCAM_IF($HAVE_JSON, 1, have_json="yes", have_json="no")
+
 
 echo "
      libxcam configuration summary
@@ -194,4 +199,5 @@ echo "
      enable smart analysis lib  : $enable_smartlib
      enable dvs                 : $enable_dvs
      enable libxcam-capi lib    : $enable_capi
+     enable json parser         : $have_json
 "
