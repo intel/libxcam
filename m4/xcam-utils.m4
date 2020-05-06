@@ -135,6 +135,19 @@ AC_DEFUN([XCAM_CHECK_AVX512],
         [$3])
 ])
 
+# XCAM_CHECK_JSON([$1:value], [$2:if-found], [$3:if-not-found])
+AC_DEFUN([XCAM_CHECK_JSON],
+[
+    AS_IF([test "x$1" = "xyes"],
+        [
+            #wget -c https://github.com/nlohmann/json/releases/download/v3.6.1/json.hpp
+
+            AC_LANG(C++)
+            AC_CHECK_HEADER([json.hpp], [$2], [$3])
+        ],
+        [$3])
+])
+
 # XCAM_CHECK_OSG([$1:value], [$2:osg-min], [$3:if-found], [$4:if-not-found])
 AC_DEFUN([XCAM_CHECK_OSG],
 [

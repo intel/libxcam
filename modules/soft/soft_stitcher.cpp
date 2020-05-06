@@ -254,7 +254,16 @@ FisheyeMap::set_map_table (
         dewarper = fd;
     } else {
         float max_dst_latitude = (fisheye_info.wide_angle > 180.0f) ? 180.0f : fisheye_info.wide_angle;
-        float max_dst_longitude = max_dst_latitude * view_slice.width / view_slice.height;
+        float max_dst_longitude;
+        if (0 != fisheye_info.width && 0 != fisheye_info.height) {
+            if (abs (abs (fisheye_info.rotate_angle) - 90) < 10) {
+                max_dst_longitude = fisheye_info.wide_angle * fisheye_info.height / fisheye_info.width;
+            } else {
+                max_dst_longitude = fisheye_info.wide_angle * fisheye_info.width / fisheye_info.height;
+            }
+        } else {
+            max_dst_longitude = max_dst_latitude * view_slice.width / view_slice.height;
+        }
 
         SmartPtr<SphereFisheyeDewarp> fd = new SphereFisheyeDewarp ();
         fd->set_fisheye_info (fisheye_info);
@@ -275,6 +284,14 @@ FisheyeMap::set_map_table (
 
     FisheyeDewarp::MapTable map_table (table_width * table_height);
     dewarper->gen_table (map_table);
+
+#if DUMP_STITCHER
+    char table_name[XCAM_MAX_STR_SIZE] = {'\0'};
+    snprintf (table_name, XCAM_MAX_STR_SIZE, "map_table_cam%d_width_%d_%dx%d.data", cam_idx, view_slice.width, table_width, table_height);
+    FILE* f_map = fopen (table_name, "wb");
+    fwrite (map_table.data (), table_width * table_height, 2 * sizeof (float), f_map);
+    fclose (f_map);
+#endif
 
     XCAM_FAIL_RETURN (
         ERROR, mapper->set_lookup_table (map_table.data (), table_width, table_height), XCAM_RETURN_ERROR_UNKNOWN,

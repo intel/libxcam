@@ -17,12 +17,14 @@
  *
  * Author: Wind Yuan <feng.yuan@intel.com>
  * Author: Yinhang Liu <yinhangx.liu@intel.com>
+ * Author: Zong Wei <wei.zong@intel.com>
  */
 
 #ifndef XCAM_INTERFACE_DATA_TYPES_H
 #define XCAM_INTERFACE_DATA_TYPES_H
 
 #include <xcam_std.h>
+#include <vec_mat.h>
 
 namespace XCam {
 
@@ -68,15 +70,31 @@ struct ImageCropInfo {
 };
 
 struct FisheyeInfo {
+    float    focal_x;
+    float    focal_y;
     float    center_x;
     float    center_y;
+    uint32_t width;
+    uint32_t height;
     float    wide_angle;
+    float    skew;
     float    radius;
     float    rotate_angle; // clockwise
+    bool     flip;
+
+    Mat3f camera_mat;
+    Mat3f rotation_mat;
+    Vec3f trans_vect;
+    Vec4f distort_coeff;
+    Vec4f c_coeff;
 
     FisheyeInfo ()
-        : center_x (0.0f), center_y (0.0f), wide_angle (0.0f)
+        : focal_x (0.0f), focal_y (0.0f)
+        , center_x (0.0f), center_y (0.0f)
+        , width (0), height (0)
+        , wide_angle (0.0f), skew (0.0f)
         , radius (0.0f), rotate_angle (0.0f)
+        , flip (false)
     {}
     bool is_valid () const {
         return wide_angle >= 1.0f && radius >= 1.0f;
