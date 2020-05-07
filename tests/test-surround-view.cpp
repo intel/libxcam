@@ -475,6 +475,7 @@ static void usage(const char* arg0)
             "\t--out-h             optional, output height, default: 640\n"
             "\t--topview-w         optional, output width, default: 1280\n"
             "\t--topview-h         optional, output height, default: 720\n"
+            "\t--in-format         optional, pixel format, select from [nv12/yuv], default: nv12\n"
             "\t--fisheye-num       optional, the number of fisheye lens, default: 4\n"
             "\t--cam-model         optional, camera model\n"
             "\t                    select from [cama2c1080p/camb4c1080p/camc3c8k/camd3c8k], default: camb4c1080p\n"
@@ -543,11 +544,11 @@ int main (int argc, char *argv[])
         {"output", required_argument, NULL, 'o'},
         {"in-w", required_argument, NULL, 'w'},
         {"in-h", required_argument, NULL, 'h'},
-        {"in-format", required_argument, NULL, 'p'},
         {"out-w", required_argument, NULL, 'W'},
         {"out-h", required_argument, NULL, 'H'},
         {"topview-w", required_argument, NULL, 'P'},
         {"topview-h", required_argument, NULL, 'V'},
+        {"in-format", required_argument, NULL, 'p'},
         {"fisheye-num", required_argument, NULL, 'N'},
         {"cam-model", required_argument, NULL, 'C'},
         {"blend-pyr-levels", required_argument, NULL, 'b'},
@@ -605,7 +606,15 @@ int main (int argc, char *argv[])
             output_height = atoi(optarg);
             break;
         case 'p':
-            input_format = (strcasecmp (optarg, "yuv") == 0 ? V4L2_PIX_FMT_YUV420 : V4L2_PIX_FMT_NV12);
+            if (!strcasecmp (optarg, "nv12"))
+                input_format = V4L2_PIX_FMT_NV12;
+            else if (!strcasecmp (optarg, "yuv"))
+                input_format = V4L2_PIX_FMT_YUV420;
+            else {
+                XCAM_LOG_ERROR ("unsupported input format: %s", optarg);
+                usage (argv[0]);
+                return -1;
+            }
             break;
         case 'P':
             topview_width = atoi(optarg);
@@ -774,6 +783,7 @@ int main (int argc, char *argv[])
     printf ("output height:\t\t%d\n", output_height);
     printf ("topview width:\t\t%d\n", topview_width);
     printf ("topview height:\t\t%d\n", topview_height);
+    printf ("input format:\t\t%s\n", input_format == V4L2_PIX_FMT_YUV420 ? "yuv" : "nv12");
     printf ("fisheye number:\t\t%d\n", fisheye_num);
     printf ("camera model:\t\t%s\n", cam_model == CamA2C1080P ? "cama2c1080p" :
             (cam_model == CamB4C1080P ? "camb4c1080p" : (cam_model == CamC3C8K ? "camc3c8k" : "camd3c8k")));
