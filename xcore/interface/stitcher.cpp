@@ -172,7 +172,7 @@ void
 Stitcher::set_fm_region_ratio (const FMRegionRatio &ratio)
 {
     if (ratio.pos_x < 0.0f || ratio.width < 0.0f || ratio.pos_y < 0.0f || ratio.height < 0.0f ||
-        (ratio.pos_x + ratio.width) > 1.0f || (ratio.pos_y + ratio.height) > 1.0f) {
+            (ratio.pos_x + ratio.width) > 1.0f || (ratio.pos_y + ratio.height) > 1.0f) {
         XCAM_LOG_ERROR (
             "invalid FM region ratio (%f, %f, %f, %f)",
             ratio.pos_x, ratio.width, ratio.pos_y, ratio.height);
@@ -394,7 +394,7 @@ Stitcher::mark_centers ()
             ERROR, center_in_slice < slice.hori_angle_range,
             XCAM_RETURN_ERROR_PARAM,
             "stitcher mark center failed, slice:%d  calculated center-angle:%.2f is out of slice angle(start:%.2f, range:%.2f)",
-            center_angle, slice.hori_angle_start, slice.hori_angle_range);
+            i, center_angle, slice.hori_angle_start, slice.hori_angle_range);
 
         uint32_t slice_pos = (uint32_t)(center_in_slice / slice.hori_angle_range * slice.width);
         slice_pos = XCAM_ALIGN_AROUND (slice_pos, _alignment_x);
