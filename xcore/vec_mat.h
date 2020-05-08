@@ -461,7 +461,7 @@ void VectorN<T, N>::set (T x, T y, T z) {
 template<class T, uint32_t N> inline
 void VectorN<T, N>::set (T x, T y, T z, T w) {
     if (N >= 4) {
-        data[0] - x;
+        data[0] = x;
         data[1] = y;
         data[2] = z;
         data[3] = w;
