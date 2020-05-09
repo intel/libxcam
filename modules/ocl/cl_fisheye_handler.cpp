@@ -102,8 +102,8 @@ CLFisheye2GPSKernel::prepare_arguments (CLArgList &args, CLWorkSize &work_size)
     radian_per_pixel[1] = degree2radian (dst_range_y) / (float)dst_h;
 
     fisheye_info = _handler->get_fisheye_info ();
-    fisheye_info.wide_angle = degree2radian (fisheye_info.wide_angle);
-    fisheye_info.rotate_angle = degree2radian (fisheye_info.rotate_angle);
+    fisheye_info.intrinsic.fov = degree2radian (fisheye_info.intrinsic.fov);
+    fisheye_info.extrinsic.roll = degree2radian (fisheye_info.extrinsic.roll);
 
     XCAM_LOG_DEBUG ("@CLFisheye2GPSKernel input size(%d, %d), out_center:(%d, %d), range:(%d,%d)",
                     (int)input_y_size[0], (int)input_y_size[1],

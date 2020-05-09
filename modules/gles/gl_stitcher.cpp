@@ -57,9 +57,9 @@ dump_buf (const SmartPtr<VideoBuffer> buf, ...) {
 
 static inline bool complete_stitch (Stitcher *stitcher, uint32_t frame_count)
 {
-     return (stitcher->get_fm_mode () == FMNone ||
-             stitcher->get_fm_status () != FMStatusFMFirst ||
-             frame_count >= stitcher->get_fm_frames ());
+    return (stitcher->get_fm_mode () == FMNone ||
+            stitcher->get_fm_status () != FMStatusFMFirst ||
+            frame_count >= stitcher->get_fm_frames ());
 }
 
 namespace GLStitcherPriv {
@@ -209,7 +209,7 @@ FisheyeMap::set_map_table (
         fd->set_bowl_config (bowl);
         dewarper = fd;
     } else {
-        float max_dst_latitude = (fisheye_info.wide_angle > 180.0f) ? 180.0f : fisheye_info.wide_angle;
+        float max_dst_latitude = (fisheye_info.intrinsic.fov > 180.0f) ? 180.0f : fisheye_info.intrinsic.fov;
         float max_dst_longitude = max_dst_latitude * view_slice.width / view_slice.height;
 
         SmartPtr<SphereFisheyeDewarp> fd = new SphereFisheyeDewarp ();
@@ -493,7 +493,7 @@ StitcherImpl::init_copier (Stitcher::CopyArea area)
         ext_width = XCAM_ALIGN_UP (ext_width, GL_STITCHER_ALIGNMENT_X);
 
         area.in_area.width = (area.in_idx == 0) ?
-            (area.in_area.width + ext_width) : (area.in_area.width + ext_width * 2);
+                             (area.in_area.width + ext_width) : (area.in_area.width + ext_width * 2);
         area.out_area.width = area.in_area.width;
         if (area.out_area.pos_x > 0) {
             area.in_area.pos_x -= ext_width;

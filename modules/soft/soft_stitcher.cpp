@@ -253,13 +253,13 @@ FisheyeMap::set_map_table (
         fd->set_bowl_config (bowl);
         dewarper = fd;
     } else {
-        float max_dst_latitude = (fisheye_info.wide_angle > 180.0f) ? 180.0f : fisheye_info.wide_angle;
+        float max_dst_latitude = (fisheye_info.intrinsic.fov > 180.0f) ? 180.0f : fisheye_info.intrinsic.fov;
         float max_dst_longitude;
-        if (0 != fisheye_info.width && 0 != fisheye_info.height) {
-            if (abs (abs (fisheye_info.rotate_angle) - 90) < 10) {
-                max_dst_longitude = fisheye_info.wide_angle * fisheye_info.height / fisheye_info.width;
+        if (0 != fisheye_info.intrinsic.width && 0 != fisheye_info.intrinsic.height) {
+            if (abs (abs (fisheye_info.extrinsic.roll) - 90) < 10) {
+                max_dst_longitude = fisheye_info.intrinsic.fov * fisheye_info.intrinsic.height / fisheye_info.intrinsic.width;
             } else {
-                max_dst_longitude = fisheye_info.wide_angle * fisheye_info.width / fisheye_info.height;
+                max_dst_longitude = fisheye_info.intrinsic.fov * fisheye_info.intrinsic.width / fisheye_info.intrinsic.height;
             }
         } else {
             max_dst_longitude = max_dst_latitude * view_slice.width / view_slice.height;
