@@ -101,18 +101,18 @@ PointFloat3 bowl_view_image_to_world (
     float z_step = config.wall_height / wall_image_height;
     float angle_step = fabs(config.angle_end - config.angle_start) / img_width;
 
-    if(img_pos.y < wall_image_height) {
+    if (img_pos.y < wall_image_height) {
         world.z = config.wall_height - img_pos.y * z_step; // TODO world.z
         angle = degree2radian (config.angle_start + img_pos.x * angle_step);
         float r2 = 1 - (world.z - config.center_z) * (world.z - config.center_z) / (c * c);
 
-        if(XCAM_DOUBLE_EQUAL_AROUND (angle, XCAM_PI / 2)) {
+        if (XCAM_DOUBLE_EQUAL_AROUND (angle, XCAM_PI / 2)) {
             world.x = 0.0f;
             world.y = -sqrt(r2 * b * b);
         } else if (XCAM_DOUBLE_EQUAL_AROUND (angle, XCAM_PI * 3 / 2)) {
             world.x = 0.0f;
             world.y = sqrt(r2 * b * b);
-        } else if((angle < XCAM_PI / 2) || (angle > XCAM_PI * 3 / 2)) {
+        } else if ((angle < XCAM_PI / 2) || (angle > XCAM_PI * 3 / 2)) {
             world.x = sqrt(r2 * a * a * b * b / (b * b + a * a * tan(angle) * tan(angle)));
             world.y = -world.x * tan(angle);
         } else {
@@ -131,13 +131,13 @@ PointFloat3 bowl_view_image_to_world (
 
         angle = degree2radian (config.angle_start + img_pos.x * angle_step);
 
-        if(XCAM_DOUBLE_EQUAL_AROUND (angle, XCAM_PI / 2)) {
+        if (XCAM_DOUBLE_EQUAL_AROUND (angle, XCAM_PI / 2)) {
             world.x = 0.0f;
             world.y = -b;
         } else if (XCAM_DOUBLE_EQUAL_AROUND (angle, XCAM_PI * 3 / 2)) {
             world.x = 0.0f;
             world.y = b;
-        } else if((angle < XCAM_PI / 2) || (angle > XCAM_PI * 3 / 2)) {
+        } else if ((angle < XCAM_PI / 2) || (angle > XCAM_PI * 3 / 2)) {
             world.x = a * b / sqrt(b * b + a * a * tan(angle) * tan(angle));
             world.y = -world.x * tan(angle);
         } else {
@@ -276,7 +276,7 @@ get_gauss_table (uint32_t radius, float sigma, std::vector<float> &table, bool n
     if (!normalize)
         return;
 
-    for(i = 0; i < scale; i++)
+    for (i = 0; i < scale; i++)
         table[i] /= sum;
 }
 
