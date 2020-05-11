@@ -476,11 +476,11 @@ int main (int argc, char *argv[])
         FisheyeInfo fisheye_info;
         //fisheye0 {480.0f, 480.0f, 190.0f, 480.0f, -90.0f},
         //fisheye1 {1440.0f, 480.0f, 190.0f, 480.0f, 90.0f}
-        fisheye_info.center_x = 480.0f;
-        fisheye_info.center_y = 480.0f;
-        fisheye_info.wide_angle = 190.0f;
+        fisheye_info.intrinsic.cx = 480.0f;
+        fisheye_info.intrinsic.cy = 480.0f;
+        fisheye_info.intrinsic.fov = 190.0f;
         fisheye_info.radius = 480.0f;
-        fisheye_info.rotate_angle = -90.0f;
+        fisheye_info.extrinsic.roll = -90.0f;
         fisheye->set_fisheye_info (fisheye_info);
         fisheye->set_dst_range (210.0f, 180.0f);
         fisheye->set_output_size (1120, 960);

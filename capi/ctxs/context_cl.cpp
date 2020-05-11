@@ -170,11 +170,11 @@ FisheyeContext::FisheyeContext ()
     , _range_longitude (228.0f)
     , _range_latitude (180.0f)
 {
-    _info.center_x = 480.0f;
-    _info.center_y = 480.0f;
-    _info.wide_angle = 202.8f;
+    _info.intrinsic.cx = 480.0f;
+    _info.intrinsic.cy = 480.0f;
+    _info.intrinsic.fov = 202.8f;
     _info.radius = 480.0f;
-    _info.rotate_angle = -90.0f;
+    _info.extrinsic.roll = -90.0f;
 }
 
 FisheyeContext::~FisheyeContext ()
@@ -310,7 +310,7 @@ SmartPtr<CLImageHandler>
 StitchCLContext::create_handler (SmartPtr<CLContext> &context)
 {
     SmartPtr<CLImage360Stitch> image_360 = create_image_360_stitch (context, _enable_seam, _scale_mode,
-        _enable_fisheyemap, _enable_lsc, _dewarp_mode, _res_mode, _fisheye_num).dynamic_cast_ptr<CLImage360Stitch> ();
+                                           _enable_fisheyemap, _enable_lsc, _dewarp_mode, _res_mode, _fisheye_num).dynamic_cast_ptr<CLImage360Stitch> ();
     XCAM_FAIL_RETURN (ERROR, image_360.ptr (), NULL, "create image stitch handler failed");
 
     image_360->set_output_size (get_out_width (), get_out_height ());

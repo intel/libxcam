@@ -12,11 +12,37 @@
 #define PIXEL_PER_WI 4
 
 typedef struct {
-    float    center_x;
-    float    center_y;
-    float    wide_angle;
-    float    radius;
-    float    rotate_angle;
+    uint width;
+    uint height;
+    float cx;
+    float cy;
+    float fx;
+    float fy;
+    float fov;
+    float skew;
+    float c;
+    float d;
+    float e;
+    uint poly_length;
+    float poly_coeff[16];
+    int  flip;
+} IntrinsicParameter;
+
+typedef struct {
+    float trans_x;
+    float trans_y;
+    float trans_z;
+    float roll;
+    float pitch;
+    float yaw;
+} ExtrinsicParameter;
+
+typedef struct  {
+    IntrinsicParameter intrinsic;
+    ExtrinsicParameter extrinsic;
+    float radius;
+    float distort_coeff[4];
+    float c_coeff[4];
 } FisheyeInfo;
 
 __inline float2 calculate_fisheye_pos (float2 gps_pos, const FisheyeInfo *info)
@@ -25,7 +51,7 @@ __inline float2 calculate_fisheye_pos (float2 gps_pos, const FisheyeInfo *info)
     float x = sin (gps_pos.y) * cos (gps_pos.x);
     float y = sin (gps_pos.y) * sin (gps_pos.x);
     float r_angle = acos (y);
-    float r = r_angle * (info->radius * 2.0f) / info->wide_angle;
+    float r = r_angle * (info->radius * 2.0f) / info->intrinsic.fov;
     float xz_size = sqrt(x * x + z * z);
 
     float2 dst;
@@ -33,10 +59,10 @@ __inline float2 calculate_fisheye_pos (float2 gps_pos, const FisheyeInfo *info)
     dst.y = -r * z / xz_size;
 
     float2 ret;
-    ret.x = cos(info->rotate_angle) * dst.x - sin(info->rotate_angle) * dst.y;
-    ret.y = sin(info->rotate_angle) * dst.x + cos (info->rotate_angle) * dst.y;
+    ret.x = cos(info->extrinsic.roll) * dst.x - sin(info->extrinsic.roll) * dst.y;
+    ret.y = sin(info->extrinsic.roll) * dst.x + cos (info->extrinsic.roll) * dst.y;
 
-    return ret + (float2)(info->center_x, info->center_y);
+    return ret + (float2)(info->intrinsic.cx, info->intrinsic.cy);
 }
 
 __kernel void
@@ -47,8 +73,8 @@ kernel_fisheye_table (
     int2 out_pos = (int2)(get_global_id (0), get_global_id (1));
     float2 gps_pos = (convert_float2 (out_pos) - table_center) * radian_per_pixel + PI / 2.0f;
     float2 pos = calculate_fisheye_pos (gps_pos, &info);
-    float2 min_pos = (float2)(info.center_x - info.radius, info.center_y - info.radius);
-    float2 max_pos = (float2)(info.center_x + info.radius, info.center_y + info.radius);
+    float2 min_pos = (float2)(info.intrinsic.cx - info.radius, info.intrinsic.cy - info.radius);
+    float2 max_pos = (float2)(info.intrinsic.cx + info.radius, info.intrinsic.cy + info.radius);
     pos = clamp (pos, min_pos, max_pos);
     pos /= fisheye_image_size;
     write_imagef (table, out_pos, (float4)(pos, 0.0f, 0.0f));
@@ -63,7 +89,7 @@ kernel_lsc_table (
     int2 pos = (int2) (get_global_id (0), get_global_id (1));
 
     float2 geo_data = read_imagef (geo_table, sampler, pos).xy * fisheye_image_size;
-    float2 dist = geo_data - (float2)(info.center_x, info.center_y);
+    float2 dist = geo_data - (float2)(info.intrinsic.cx, info.intrinsic.cy);
     float r = sqrt (dist.x * dist.x + dist.y * dist.y);
     r /= (1.0f * info.radius / array_size);
 

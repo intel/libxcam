@@ -213,16 +213,16 @@ soft_stitch_info (CamModel model, StitchScopicMode scopic_mode)
 
     switch (model) {
     case CamA2C1080P: {
-        info.fisheye_info[0].center_x = 480.0f;
-        info.fisheye_info[0].center_y = 480.0f;
-        info.fisheye_info[0].wide_angle = 202.8f;
+        info.fisheye_info[0].intrinsic.cx = 480.0f;
+        info.fisheye_info[0].intrinsic.cy = 480.0f;
+        info.fisheye_info[0].intrinsic.fov = 202.8f;
         info.fisheye_info[0].radius = 480.0f;
-        info.fisheye_info[0].rotate_angle = -90.0f;
-        info.fisheye_info[1].center_x = 1436.0f;
-        info.fisheye_info[1].center_y = 480.0f;
-        info.fisheye_info[1].wide_angle = 202.8f;
+        info.fisheye_info[0].extrinsic.roll = -90.0f;
+        info.fisheye_info[1].intrinsic.cx = 1436.0f;
+        info.fisheye_info[1].intrinsic.cy = 480.0f;
+        info.fisheye_info[1].intrinsic.fov = 202.8f;
         info.fisheye_info[1].radius = 480.0f;
-        info.fisheye_info[1].rotate_angle = 89.7f;
+        info.fisheye_info[1].extrinsic.roll = 89.7f;
         break;
     }
     case CamC3C8K: {
@@ -232,21 +232,21 @@ soft_stitch_info (CamModel model, StitchScopicMode scopic_mode)
             info.merge_width[1] = 256;
             info.merge_width[2] = 256;
 
-            info.fisheye_info[0].center_x = 1907.0f;
-            info.fisheye_info[0].center_y = 1440.0f;
-            info.fisheye_info[0].wide_angle = 200.0f;
+            info.fisheye_info[0].intrinsic.cx = 1907.0f;
+            info.fisheye_info[0].intrinsic.cy = 1440.0f;
+            info.fisheye_info[0].intrinsic.fov = 200.0f;
             info.fisheye_info[0].radius = 1984.0f;
-            info.fisheye_info[0].rotate_angle = 90.3f;
-            info.fisheye_info[1].center_x = 1920.0f;
-            info.fisheye_info[1].center_y = 1440.0f;
-            info.fisheye_info[1].wide_angle = 200.0f;
+            info.fisheye_info[0].extrinsic.roll = 90.3f;
+            info.fisheye_info[1].intrinsic.cx = 1920.0f;
+            info.fisheye_info[1].intrinsic.cy = 1440.0f;
+            info.fisheye_info[1].intrinsic.fov = 200.0f;
             info.fisheye_info[1].radius = 1984.0f;
-            info.fisheye_info[1].rotate_angle = 90.2f;
-            info.fisheye_info[2].center_x = 1920.0f;
-            info.fisheye_info[2].center_y = 1440.0f;
-            info.fisheye_info[2].wide_angle = 200.0f;
+            info.fisheye_info[1].extrinsic.roll = 90.2f;
+            info.fisheye_info[2].intrinsic.cx = 1920.0f;
+            info.fisheye_info[2].intrinsic.cy = 1440.0f;
+            info.fisheye_info[2].intrinsic.fov = 200.0f;
             info.fisheye_info[2].radius = 1984.0f;
-            info.fisheye_info[2].rotate_angle = 91.2f;
+            info.fisheye_info[2].extrinsic.roll = 91.2f;
             break;
         }
         case ScopicStereoRight: {
@@ -254,21 +254,21 @@ soft_stitch_info (CamModel model, StitchScopicMode scopic_mode)
             info.merge_width[1] = 256;
             info.merge_width[2] = 256;
 
-            info.fisheye_info[0].center_x = 1920.0f;
-            info.fisheye_info[0].center_y = 1440.0f;
-            info.fisheye_info[0].wide_angle = 200.0f;
+            info.fisheye_info[0].intrinsic.cx = 1920.0f;
+            info.fisheye_info[0].intrinsic.cy = 1440.0f;
+            info.fisheye_info[0].intrinsic.fov = 200.0f;
             info.fisheye_info[0].radius = 1984.0f;
-            info.fisheye_info[0].rotate_angle = 90.0f;
-            info.fisheye_info[1].center_x = 1920.0f;
-            info.fisheye_info[1].center_y = 1440.0f;
-            info.fisheye_info[1].wide_angle = 200.0f;
+            info.fisheye_info[0].extrinsic.roll = 90.0f;
+            info.fisheye_info[1].intrinsic.cx = 1920.0f;
+            info.fisheye_info[1].intrinsic.cy = 1440.0f;
+            info.fisheye_info[1].intrinsic.fov = 200.0f;
             info.fisheye_info[1].radius = 1984.0f;
-            info.fisheye_info[1].rotate_angle = 90.0f;
-            info.fisheye_info[2].center_x = 1914.0f;
-            info.fisheye_info[2].center_y = 1440.0f;
-            info.fisheye_info[2].wide_angle = 200.0f;
+            info.fisheye_info[1].extrinsic.roll = 90.0f;
+            info.fisheye_info[2].intrinsic.cx = 1914.0f;
+            info.fisheye_info[2].intrinsic.cy = 1440.0f;
+            info.fisheye_info[2].intrinsic.fov = 200.0f;
             info.fisheye_info[2].radius = 1984.0f;
-            info.fisheye_info[2].rotate_angle = 90.1f;
+            info.fisheye_info[2].extrinsic.roll = 90.1f;
             break;
         }
         default:
@@ -283,42 +283,42 @@ soft_stitch_info (CamModel model, StitchScopicMode scopic_mode)
             info.merge_width[0] = 192;
             info.merge_width[1] = 192;
             info.merge_width[2] = 192;
-            info.fisheye_info[0].center_x = 1804.0f;
-            info.fisheye_info[0].center_y = 1532.0f;
-            info.fisheye_info[0].wide_angle = 190.0f;
+            info.fisheye_info[0].intrinsic.cx = 1804.0f;
+            info.fisheye_info[0].intrinsic.cy = 1532.0f;
+            info.fisheye_info[0].intrinsic.fov = 190.0f;
             info.fisheye_info[0].radius = 1900.0f;
-            info.fisheye_info[0].rotate_angle = 91.5f;
-            info.fisheye_info[1].center_x = 1836.0f;
-            info.fisheye_info[1].center_y = 1532.0f;
-            info.fisheye_info[1].wide_angle = 190.0f;
+            info.fisheye_info[0].extrinsic.roll = 91.5f;
+            info.fisheye_info[1].intrinsic.cx = 1836.0f;
+            info.fisheye_info[1].intrinsic.cy = 1532.0f;
+            info.fisheye_info[1].intrinsic.fov = 190.0f;
             info.fisheye_info[1].radius = 1900.0f;
-            info.fisheye_info[1].rotate_angle = 92.0f;
-            info.fisheye_info[2].center_x = 1820.0f;
-            info.fisheye_info[2].center_y = 1532.0f;
-            info.fisheye_info[2].wide_angle = 190.0f;
+            info.fisheye_info[1].extrinsic.roll = 92.0f;
+            info.fisheye_info[2].intrinsic.cx = 1820.0f;
+            info.fisheye_info[2].intrinsic.cy = 1532.0f;
+            info.fisheye_info[2].intrinsic.fov = 190.0f;
             info.fisheye_info[2].radius = 1900.0f;
-            info.fisheye_info[2].rotate_angle = 91.0f;
+            info.fisheye_info[2].extrinsic.roll = 91.0f;
             break;
         }
         case ScopicStereoRight: {
             info.merge_width[0] = 192;
             info.merge_width[1] = 192;
             info.merge_width[2] = 192;
-            info.fisheye_info[0].center_x = 1836.0f;
-            info.fisheye_info[0].center_y = 1532.0f;
-            info.fisheye_info[0].wide_angle = 190.0f;
+            info.fisheye_info[0].intrinsic.cx = 1836.0f;
+            info.fisheye_info[0].intrinsic.cy = 1532.0f;
+            info.fisheye_info[0].intrinsic.fov = 190.0f;
             info.fisheye_info[0].radius = 1900.0f;
-            info.fisheye_info[0].rotate_angle = 88.0f;
-            info.fisheye_info[1].center_x = 1852.0f;
-            info.fisheye_info[1].center_y = 1576.0f;
-            info.fisheye_info[1].wide_angle = 190.0f;
+            info.fisheye_info[0].extrinsic.roll = 88.0f;
+            info.fisheye_info[1].intrinsic.cx = 1852.0f;
+            info.fisheye_info[1].intrinsic.cy = 1576.0f;
+            info.fisheye_info[1].intrinsic.fov = 190.0f;
             info.fisheye_info[1].radius = 1900.0f;
-            info.fisheye_info[1].rotate_angle = 90.0f;
-            info.fisheye_info[2].center_x = 1836.0f;
-            info.fisheye_info[2].center_y = 1532.0f;
-            info.fisheye_info[2].wide_angle = 190.0f;
+            info.fisheye_info[1].extrinsic.roll = 90.0f;
+            info.fisheye_info[2].intrinsic.cx = 1836.0f;
+            info.fisheye_info[2].intrinsic.cy = 1532.0f;
+            info.fisheye_info[2].intrinsic.fov = 190.0f;
             info.fisheye_info[2].radius = 1900.0f;
-            info.fisheye_info[2].rotate_angle = 91.0f;
+            info.fisheye_info[2].extrinsic.roll = 91.0f;
             break;
         }
         default:
@@ -392,16 +392,16 @@ gl_stitch_info (CamModel model, StitchScopicMode scopic_mode)
 
     switch (model) {
     case CamA2C1080P: {
-        info.fisheye_info[0].center_x = 480.0f;
-        info.fisheye_info[0].center_y = 480.0f;
-        info.fisheye_info[0].wide_angle = 202.8f;
+        info.fisheye_info[0].intrinsic.cx = 480.0f;
+        info.fisheye_info[0].intrinsic.cy = 480.0f;
+        info.fisheye_info[0].intrinsic.fov = 202.8f;
         info.fisheye_info[0].radius = 480.0f;
-        info.fisheye_info[0].rotate_angle = -90.0f;
-        info.fisheye_info[1].center_x = 1436.0f;
-        info.fisheye_info[1].center_y = 480.0f;
-        info.fisheye_info[1].wide_angle = 202.8f;
+        info.fisheye_info[0].extrinsic.roll = -90.0f;
+        info.fisheye_info[1].intrinsic.cx = 1436.0f;
+        info.fisheye_info[1].intrinsic.cy = 480.0f;
+        info.fisheye_info[1].intrinsic.fov = 202.8f;
         info.fisheye_info[1].radius = 480.0f;
-        info.fisheye_info[1].rotate_angle = 89.7f;
+        info.fisheye_info[1].extrinsic.roll = 89.7f;
         break;
     }
     case CamC3C8K: {
@@ -411,21 +411,21 @@ gl_stitch_info (CamModel model, StitchScopicMode scopic_mode)
             info.merge_width[1] = 256;
             info.merge_width[2] = 256;
 
-            info.fisheye_info[0].center_x = 1907.0f;
-            info.fisheye_info[0].center_y = 1440.0f;
-            info.fisheye_info[0].wide_angle = 200.0f;
+            info.fisheye_info[0].intrinsic.cx = 1907.0f;
+            info.fisheye_info[0].intrinsic.cy = 1440.0f;
+            info.fisheye_info[0].intrinsic.fov = 200.0f;
             info.fisheye_info[0].radius = 1984.0f;
-            info.fisheye_info[0].rotate_angle = 90.3f;
-            info.fisheye_info[1].center_x = 1920.0f;
-            info.fisheye_info[1].center_y = 1440.0f;
-            info.fisheye_info[1].wide_angle = 200.0f;
+            info.fisheye_info[0].extrinsic.roll = 90.3f;
+            info.fisheye_info[1].intrinsic.cx = 1920.0f;
+            info.fisheye_info[1].intrinsic.cy = 1440.0f;
+            info.fisheye_info[1].intrinsic.fov = 200.0f;
             info.fisheye_info[1].radius = 1984.0f;
-            info.fisheye_info[1].rotate_angle = 90.2f;
-            info.fisheye_info[2].center_x = 1920.0f;
-            info.fisheye_info[2].center_y = 1440.0f;
-            info.fisheye_info[2].wide_angle = 200.0f;
+            info.fisheye_info[1].extrinsic.roll = 90.2f;
+            info.fisheye_info[2].intrinsic.cx = 1920.0f;
+            info.fisheye_info[2].intrinsic.cy = 1440.0f;
+            info.fisheye_info[2].intrinsic.fov = 200.0f;
             info.fisheye_info[2].radius = 1984.0f;
-            info.fisheye_info[2].rotate_angle = 91.2f;
+            info.fisheye_info[2].extrinsic.roll = 91.2f;
             break;
         }
         case ScopicStereoRight: {
@@ -433,21 +433,21 @@ gl_stitch_info (CamModel model, StitchScopicMode scopic_mode)
             info.merge_width[1] = 256;
             info.merge_width[2] = 256;
 
-            info.fisheye_info[0].center_x = 1920.0f;
-            info.fisheye_info[0].center_y = 1440.0f;
-            info.fisheye_info[0].wide_angle = 200.0f;
+            info.fisheye_info[0].intrinsic.cx = 1920.0f;
+            info.fisheye_info[0].intrinsic.cy = 1440.0f;
+            info.fisheye_info[0].intrinsic.fov = 200.0f;
             info.fisheye_info[0].radius = 1984.0f;
-            info.fisheye_info[0].rotate_angle = 90.0f;
-            info.fisheye_info[1].center_x = 1920.0f;
-            info.fisheye_info[1].center_y = 1440.0f;
-            info.fisheye_info[1].wide_angle = 200.0f;
+            info.fisheye_info[0].extrinsic.roll = 90.0f;
+            info.fisheye_info[1].intrinsic.cx = 1920.0f;
+            info.fisheye_info[1].intrinsic.cy = 1440.0f;
+            info.fisheye_info[1].intrinsic.fov = 200.0f;
             info.fisheye_info[1].radius = 1984.0f;
-            info.fisheye_info[1].rotate_angle = 90.0f;
-            info.fisheye_info[2].center_x = 1914.0f;
-            info.fisheye_info[2].center_y = 1440.0f;
-            info.fisheye_info[2].wide_angle = 200.0f;
+            info.fisheye_info[1].extrinsic.roll = 90.0f;
+            info.fisheye_info[2].intrinsic.cx = 1914.0f;
+            info.fisheye_info[2].intrinsic.cy = 1440.0f;
+            info.fisheye_info[2].intrinsic.fov = 200.0f;
             info.fisheye_info[2].radius = 1984.0f;
-            info.fisheye_info[2].rotate_angle = 90.1f;
+            info.fisheye_info[2].extrinsic.roll = 90.1f;
             break;
         }
         default:

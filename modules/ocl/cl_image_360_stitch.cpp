@@ -206,16 +206,16 @@ get_default_stitch_info (StitchResMode res_mode)
         stitch_info.crop[1].top = 0;
         stitch_info.crop[1].bottom = 0;
 
-        stitch_info.fisheye_info[0].center_x = 480.0f;
-        stitch_info.fisheye_info[0].center_y = 480.0f;
-        stitch_info.fisheye_info[0].wide_angle = 202.8f;
+        stitch_info.fisheye_info[0].intrinsic.cx = 480.0f;
+        stitch_info.fisheye_info[0].intrinsic.cy = 480.0f;
+        stitch_info.fisheye_info[0].intrinsic.fov = 202.8f;
         stitch_info.fisheye_info[0].radius = 480.0f;
-        stitch_info.fisheye_info[0].rotate_angle = -90.0f;
-        stitch_info.fisheye_info[1].center_x = 1440.0f;
-        stitch_info.fisheye_info[1].center_y = 480.0f;
-        stitch_info.fisheye_info[1].wide_angle = 202.8f;
+        stitch_info.fisheye_info[0].extrinsic.roll = -90.0f;
+        stitch_info.fisheye_info[1].intrinsic.cx = 1440.0f;
+        stitch_info.fisheye_info[1].intrinsic.cy = 480.0f;
+        stitch_info.fisheye_info[1].intrinsic.fov = 202.8f;
         stitch_info.fisheye_info[1].radius = 480.0f;
-        stitch_info.fisheye_info[1].rotate_angle = 89.4f;
+        stitch_info.fisheye_info[1].extrinsic.roll = 89.4f;
         break;
     }
     case StitchRes1080P4Cams: {
@@ -241,26 +241,26 @@ get_default_stitch_info (StitchResMode res_mode)
         stitch_info.crop[3].top = 0;
         stitch_info.crop[3].bottom = 0;
 
-        stitch_info.fisheye_info[0].center_x = 640.0f;
-        stitch_info.fisheye_info[0].center_y = 400.0f;
-        stitch_info.fisheye_info[0].wide_angle = 120.0f;
+        stitch_info.fisheye_info[0].intrinsic.cx = 640.0f;
+        stitch_info.fisheye_info[0].intrinsic.cy = 400.0f;
+        stitch_info.fisheye_info[0].intrinsic.fov = 120.0f;
         stitch_info.fisheye_info[0].radius = 640.0f;
-        stitch_info.fisheye_info[0].rotate_angle = 0.0f;
-        stitch_info.fisheye_info[1].center_x = 640.0f;
-        stitch_info.fisheye_info[1].center_y = 400.0f;
-        stitch_info.fisheye_info[1].wide_angle = 120.0f;
+        stitch_info.fisheye_info[0].extrinsic.roll = 0.0f;
+        stitch_info.fisheye_info[1].intrinsic.cx = 640.0f;
+        stitch_info.fisheye_info[1].intrinsic.cy = 400.0f;
+        stitch_info.fisheye_info[1].intrinsic.fov = 120.0f;
         stitch_info.fisheye_info[1].radius = 640.0f;
-        stitch_info.fisheye_info[1].rotate_angle = 0.0f;
-        stitch_info.fisheye_info[2].center_x = 640.0f;
-        stitch_info.fisheye_info[2].center_y = 400.0f;
-        stitch_info.fisheye_info[2].wide_angle = 120.0f;
+        stitch_info.fisheye_info[1].extrinsic.roll = 0.0f;
+        stitch_info.fisheye_info[2].intrinsic.cx = 640.0f;
+        stitch_info.fisheye_info[2].intrinsic.cy = 400.0f;
+        stitch_info.fisheye_info[2].intrinsic.fov = 120.0f;
         stitch_info.fisheye_info[2].radius = 640.0f;
-        stitch_info.fisheye_info[2].rotate_angle = 0.0f;
-        stitch_info.fisheye_info[3].center_x = 640.0f;
-        stitch_info.fisheye_info[3].center_y = 400.0f;
-        stitch_info.fisheye_info[3].wide_angle = 120.0f;
+        stitch_info.fisheye_info[2].extrinsic.roll = 0.0f;
+        stitch_info.fisheye_info[3].intrinsic.cx = 640.0f;
+        stitch_info.fisheye_info[3].intrinsic.cy = 400.0f;
+        stitch_info.fisheye_info[3].intrinsic.fov = 120.0f;
         stitch_info.fisheye_info[3].radius = 640.0f;
-        stitch_info.fisheye_info[3].rotate_angle = 0.0f;
+        stitch_info.fisheye_info[3].extrinsic.roll = 0.0f;
         break;
     }
     case StitchRes4K2Cams: {
@@ -276,16 +276,16 @@ get_default_stitch_info (StitchResMode res_mode)
         stitch_info.crop[1].top = 0;
         stitch_info.crop[1].bottom = 0;
 
-        stitch_info.fisheye_info[0].center_x = 1024.0f;
-        stitch_info.fisheye_info[0].center_y = 1024.0f;
-        stitch_info.fisheye_info[0].wide_angle = 195.0f;
+        stitch_info.fisheye_info[0].intrinsic.cx = 1024.0f;
+        stitch_info.fisheye_info[0].intrinsic.cy = 1024.0f;
+        stitch_info.fisheye_info[0].intrinsic.fov = 195.0f;
         stitch_info.fisheye_info[0].radius = 1040.0f;
-        stitch_info.fisheye_info[0].rotate_angle = 0.0f;
-        stitch_info.fisheye_info[1].center_x = 3072.0f;
-        stitch_info.fisheye_info[1].center_y = 1016.0f;
-        stitch_info.fisheye_info[1].wide_angle = 192.0f;
+        stitch_info.fisheye_info[0].extrinsic.roll = 0.0f;
+        stitch_info.fisheye_info[1].intrinsic.cx = 3072.0f;
+        stitch_info.fisheye_info[1].intrinsic.cy = 1016.0f;
+        stitch_info.fisheye_info[1].intrinsic.fov = 192.0f;
         stitch_info.fisheye_info[1].radius = 1040.0f;
-        stitch_info.fisheye_info[1].rotate_angle = 0.4f;
+        stitch_info.fisheye_info[1].extrinsic.roll = 0.4f;
         break;
     }
     case StitchRes8K6Cams: {
@@ -321,36 +321,36 @@ get_default_stitch_info (StitchResMode res_mode)
         stitch_info.crop[5].top = 0;
         stitch_info.crop[5].bottom = 0;
 
-        stitch_info.fisheye_info[0].center_x = 1920.0f;
-        stitch_info.fisheye_info[0].center_y = 1440.0f;
-        stitch_info.fisheye_info[0].wide_angle = 200.0f;
+        stitch_info.fisheye_info[0].intrinsic.cx = 1920.0f;
+        stitch_info.fisheye_info[0].intrinsic.cy = 1440.0f;
+        stitch_info.fisheye_info[0].intrinsic.fov = 200.0f;
         stitch_info.fisheye_info[0].radius = 1920.0f;
-        stitch_info.fisheye_info[0].rotate_angle = 90.0f;
-        stitch_info.fisheye_info[1].center_x = 1920.0f;
-        stitch_info.fisheye_info[1].center_y = 1440.0f;
-        stitch_info.fisheye_info[1].wide_angle = 200.0f;
+        stitch_info.fisheye_info[0].extrinsic.roll = 90.0f;
+        stitch_info.fisheye_info[1].intrinsic.cx = 1920.0f;
+        stitch_info.fisheye_info[1].intrinsic.cy = 1440.0f;
+        stitch_info.fisheye_info[1].intrinsic.fov = 200.0f;
         stitch_info.fisheye_info[1].radius = 1920.0f;
-        stitch_info.fisheye_info[1].rotate_angle = 89.9f;
-        stitch_info.fisheye_info[2].center_x = 1920.0f;
-        stitch_info.fisheye_info[2].center_y = 1440.0f;
-        stitch_info.fisheye_info[2].wide_angle = 200.0f;
+        stitch_info.fisheye_info[1].extrinsic.roll = 89.9f;
+        stitch_info.fisheye_info[2].intrinsic.cx = 1920.0f;
+        stitch_info.fisheye_info[2].intrinsic.cy = 1440.0f;
+        stitch_info.fisheye_info[2].intrinsic.fov = 200.0f;
         stitch_info.fisheye_info[2].radius = 1960.0f;
-        stitch_info.fisheye_info[2].rotate_angle = 90.0f;
-        stitch_info.fisheye_info[3].center_x = 1920.0f;
-        stitch_info.fisheye_info[3].center_y = 1440.0f;
-        stitch_info.fisheye_info[3].wide_angle = 200.0f;
+        stitch_info.fisheye_info[2].extrinsic.roll = 90.0f;
+        stitch_info.fisheye_info[3].intrinsic.cx = 1920.0f;
+        stitch_info.fisheye_info[3].intrinsic.cy = 1440.0f;
+        stitch_info.fisheye_info[3].intrinsic.fov = 200.0f;
         stitch_info.fisheye_info[3].radius = 2020.0f;
-        stitch_info.fisheye_info[3].rotate_angle = 90.0f;
-        stitch_info.fisheye_info[4].center_x = 1920.0f;
-        stitch_info.fisheye_info[4].center_y = 1440.0f;
-        stitch_info.fisheye_info[4].wide_angle = 200.0f;
+        stitch_info.fisheye_info[3].extrinsic.roll = 90.0f;
+        stitch_info.fisheye_info[4].intrinsic.cx = 1920.0f;
+        stitch_info.fisheye_info[4].intrinsic.cy = 1440.0f;
+        stitch_info.fisheye_info[4].intrinsic.fov = 200.0f;
         stitch_info.fisheye_info[4].radius = 2020.0f;
-        stitch_info.fisheye_info[4].rotate_angle = 90.0f;
-        stitch_info.fisheye_info[5].center_x = 1920.0f;
-        stitch_info.fisheye_info[5].center_y = 1440.0f;
-        stitch_info.fisheye_info[5].wide_angle = 200.0f;
+        stitch_info.fisheye_info[4].extrinsic.roll = 90.0f;
+        stitch_info.fisheye_info[5].intrinsic.cx = 1920.0f;
+        stitch_info.fisheye_info[5].intrinsic.cy = 1440.0f;
+        stitch_info.fisheye_info[5].intrinsic.fov = 200.0f;
         stitch_info.fisheye_info[5].radius = 1920.0f;
-        stitch_info.fisheye_info[5].rotate_angle = 90.4f;
+        stitch_info.fisheye_info[5].extrinsic.roll = 90.4f;
         break;
     }
     default:
@@ -505,8 +505,8 @@ CLImage360Stitch::init_sphere_fisheye_params (SmartPtr<VideoBuffer> &output)
         _fisheye[i].width = _fisheye[0].width;
         _fisheye[i].height = _fisheye[0].height;
 
-        float max_dst_latitude = (_stitch_info.fisheye_info[i].wide_angle > 180.0f) ?
-                                     180.0f : _stitch_info.fisheye_info[i].wide_angle;
+        float max_dst_latitude = (_stitch_info.fisheye_info[i].intrinsic.fov > 180.0f) ?
+                                 180.0f : _stitch_info.fisheye_info[i].intrinsic.fov;
         float max_dst_longitude = max_dst_latitude * _fisheye[i].width / _fisheye[i].height;
 
         _fisheye[i].handler->set_dst_range (max_dst_longitude, max_dst_latitude);
@@ -545,7 +545,7 @@ CLImage360Stitch::init_bowl_fisheye_params (SmartPtr<VideoBuffer> &output)
     }
 
     float wall_image_height = bowl_data_config[0].wall_height /
-        (float)(bowl_data_config[0].wall_height + bowl_data_config[0].ground_length) * _fisheye[0].height;
+                              (float)(bowl_data_config[0].wall_height + bowl_data_config[0].ground_length) * _fisheye[0].height;
     float stable_y_start = (wall_image_height + _fisheye[0].height ) / 2.0f;
 
     if (stable_y_start < 0.5f)
@@ -597,7 +597,7 @@ CLImage360Stitch::init_fisheye_info (SmartPtr<VideoBuffer> &output)
 
         const char *cfg_path = std::getenv (FISHEYE_CONFIG_ENV_VAR);
         XCAM_FAIL_RETURN (ERROR, cfg_path, XCAM_RETURN_ERROR_PARAM,
-            "FISHEYE_CONFIG_PATH is NULL, export FISHEYE_CONFIG_PATH first");
+                          "FISHEYE_CONFIG_PATH is NULL, export FISHEYE_CONFIG_PATH first");
         XCAM_LOG_DEBUG ("fisheye calibration config path: %s", cfg_path);
 
         IntrinsicParameter intr_param;

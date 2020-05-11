@@ -961,14 +961,14 @@ class Quaternion
 {
 public:
 
-    Vec3d v;
+    VectorN<T, 3> v;
     T w;
 
     Quaternion () : v(0, 0, 0), w(0) {};
     Quaternion (const Quaternion<T>& q) : v(q.v), w(q.w) {};
 
-    Quaternion (const Vec3d& vec, T _w) : v(vec), w(_w) {};
-    Quaternion (const Vec4d& vec)  : v(vec[0], vec[1], vec[2]), w(vec[3]) {};
+    Quaternion (const VectorN<T, 3>& vec, T _w) : v(vec), w(_w) {};
+    Quaternion (const VectorN<T, 4>& vec)  : v(vec[0], vec[1], vec[2]), w(vec[3]) {};
     Quaternion (T _x, T _y, T _z, T _w) : v(_x, _y, _z), w(_w) {};
 
     inline void reset () {
@@ -1062,75 +1062,11 @@ public:
         return ret;
     }
 
-    static Quaternion<T> create_quaternion (Vec3d axis, T angle_rad) {
-        T theta_over_two = angle_rad / (T) 2.0;
-        T sin_theta_over_two = std::sin(theta_over_two);
-        T cos_theta_over_two = std::cos(theta_over_two);
-        return Quaternion<T>(axis * sin_theta_over_two, cos_theta_over_two);
-    }
-
-    static Quaternion<T> create_quaternion (Vec3d euler) {
-        return create_quaternion(Vec3d(1, 0, 0), euler[0]) *
-               create_quaternion(Vec3d(0, 1, 0), euler[1]) *
-               create_quaternion(Vec3d(0, 0, 1), euler[2]);
-    }
-
-    static Quaternion<T> create_quaternion (const Mat3d& mat) {
-        Quaternion<T> q;
-
-        T trace, s;
-        T diag1 = mat(0, 0);
-        T diag2 = mat(1, 1);
-        T diag3 = mat(2, 2);
-
-        trace = diag1 + diag2 + diag3;
-
-        if (trace >= FLT_EPSILON)
-        {
-            s = 2.0 * (T) sqrt(trace + 1.0);
-            q.w = 0.25 * s;
-            q.v[0] = (mat(2, 1) - mat(1, 2)) / s;
-            q.v[1] = (mat(0, 2) - mat(2, 0)) / s;
-            q.v[2] = (mat(1, 0) - mat(0, 1)) / s;
-        }
-        else
-        {
-            char max_diag = (diag1 > diag2) ? ((diag1 > diag3) ? 1 : 3) : ((diag2 > diag3) ? 2 : 3);
-
-            if (max_diag == 1)
-            {
-                s = 2.0 * (T) sqrt(1.0 + mat(0, 0) - mat(1, 1) - mat(2, 2));
-                q.w = (mat(2, 1) - mat(1, 2)) / s;
-                q.v[0] = 0.25 * s;
-                q.v[1] = (mat(0, 1) + mat(1, 0)) / s;
-                q.v[2] = (mat(0, 2) + mat(2, 0)) / s;
-            }
-            else if (max_diag == 2)
-            {
-                s = 2.0 * (T) sqrt(1.0 + mat(1, 1) - mat(0, 0) - mat(2, 2));
-                q.w = (mat(0, 2) - mat(2, 0)) / s;
-                q.v[0] = (mat(0, 1) + mat(1, 0)) / s;
-                q.v[1] = 0.25 * s;
-                q.v[2] = (mat(1, 2) + mat(2, 1)) / s;
-            }
-            else
-            {
-                s = 2.0 * (T) sqrt(1.0 + mat(2, 2) - mat(0, 0) - mat(1, 1));
-                q.w = (mat(1, 0) - mat(0, 1)) / s;
-                q.v[0] = (mat(0, 2) + mat(2, 0)) / s;
-                q.v[1] = (mat(1, 2) + mat(2, 1)) / s;
-                q.v[2] = 0.25 * s;
-            }
-        }
-
-        return q;
-    }
-
-    inline Vec4d rotation_axis () {
-        Vec4d rot_axis;
+    inline VectorN<T, 4> rotation_axis () {
+        VectorN<T, 4> rot_axis;
 
         T cos_theta_over_two = w;
-        rot_axis[4] = (T) std::acos( cos_theta_over_two ) * 2.0f;
+        rot_axis[3] = (T) std::acos( cos_theta_over_two ) * 2.0f;
 
         T sin_theta_over_two = (T) sqrt( 1.0 - cos_theta_over_two * cos_theta_over_two );
         if ( fabs( sin_theta_over_two ) < 0.0005 ) sin_theta_over_two = 1;
@@ -1146,8 +1082,8 @@ public:
         theta=asin(2.*(Q(:,1).*Q(:,3)+Q(:,2).*Q(:,4)));
         phi=atan2(2.*(Q(:,3).*Q(:,4)-Q(:,1).*Q(:,2)),(Q(:,4).^2+Q(:,1).^2-Q(:,2).^2-Q(:,3).^2));
     */
-    inline Vec3d euler_angles () {
-        Vec3d euler;
+    inline VectorN<T, 3> euler_angles () {
+        VectorN<T, 3> euler;
 
         // atan2(2*(qx*qw-qy*qz) , qw2-qx2-qy2+qz2)
         euler[0] = atan2(2 * (v[0] * w - v[1] * v[2]),
@@ -1163,8 +1099,8 @@ public:
         return euler;
     }
 
-    inline Mat3d rotation_matrix () {
-        Mat3d mat;
+    inline MatrixN<T, 3> rotation_matrix () {
+        MatrixN<T, 3> mat;
 
         T xx = v[0] * v[0];
         T xy = v[0] * v[1];
@@ -1192,6 +1128,70 @@ public:
     }
 };
 
+template<class T>
+Quaternion<T>
+create_quaternion (VectorN<T, 3> axis, T angle_rad)
+{
+    T theta_over_two = angle_rad / (T) 2.0;
+    T sin_theta_over_two = std::sin(theta_over_two);
+    T cos_theta_over_two = std::cos(theta_over_two);
+    return Quaternion<T>(axis * sin_theta_over_two, cos_theta_over_two);
+}
+
+template<class T>
+Quaternion<T>
+create_quaternion (VectorN<T, 3> euler)
+{
+    return create_quaternion(VectorN<T, 3>(1, 0, 0), euler[0]) *
+           create_quaternion(VectorN<T, 3>(0, 1, 0), euler[1]) *
+           create_quaternion(VectorN<T, 3>(0, 0, 1), euler[2]);
+}
+
+template<class T>
+Quaternion<T>
+create_quaternion (const MatrixN<T, 3>& mat)
+{
+    Quaternion<T> q;
+
+    T trace, s;
+    T diag1 = mat(0, 0);
+    T diag2 = mat(1, 1);
+    T diag3 = mat(2, 2);
+
+    trace = diag1 + diag2 + diag3;
+
+    if (trace >= FLT_EPSILON) {
+        s = 2.0 * (T) sqrt(trace + 1.0);
+        q.w = 0.25 * s;
+        q.v[0] = (mat(2, 1) - mat(1, 2)) / s;
+        q.v[1] = (mat(0, 2) - mat(2, 0)) / s;
+        q.v[2] = (mat(1, 0) - mat(0, 1)) / s;
+    } else {
+        char max_diag = (diag1 > diag2) ? ((diag1 > diag3) ? 1 : 3) : ((diag2 > diag3) ? 2 : 3);
+
+        if (max_diag == 1) {
+            s = 2.0 * (T) sqrt(1.0 + mat(0, 0) - mat(1, 1) - mat(2, 2));
+            q.w = (mat(2, 1) - mat(1, 2)) / s;
+            q.v[0] = 0.25 * s;
+            q.v[1] = (mat(0, 1) + mat(1, 0)) / s;
+            q.v[2] = (mat(0, 2) + mat(2, 0)) / s;
+        } else if (max_diag == 2) {
+            s = 2.0 * (T) sqrt(1.0 + mat(1, 1) - mat(0, 0) - mat(2, 2));
+            q.w = (mat(0, 2) - mat(2, 0)) / s;
+            q.v[0] = (mat(0, 1) + mat(1, 0)) / s;
+            q.v[1] = 0.25 * s;
+            q.v[2] = (mat(1, 2) + mat(2, 1)) / s;
+        } else  {
+            s = 2.0 * (T) sqrt(1.0 + mat(2, 2) - mat(0, 0) - mat(1, 1));
+            q.w = (mat(1, 0) - mat(0, 1)) / s;
+            q.v[0] = (mat(0, 2) + mat(2, 0)) / s;
+            q.v[1] = (mat(1, 2) + mat(2, 1)) / s;
+            q.v[2] = 0.25 * s;
+        }
+    }
+
+    return q;
+}
 
 typedef Quaternion<double> Quaternd;
 
