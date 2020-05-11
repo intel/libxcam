@@ -575,13 +575,13 @@ MatrixN<T, N>::MatrixN (VectorN<T, 2> a, VectorN<T, 2> b) {
 template<class T, uint32_t N>
 MatrixN<T, N>::MatrixN (VectorN<T, 3> a, VectorN<T, 3> b, VectorN<T, 3> c) {
     if (N == 3) {
-        data[0]  = a[0];
+        data[0] = a[0];
         data[1] = a[1];
         data[2] = a[2];
-        data[3]  = b[0];
+        data[3] = b[0];
         data[4] = b[1];
         data[5] = b[2];
-        data[6]  = c[0];
+        data[6] = c[0];
         data[7] = c[1];
         data[8] = c[2];
     } else {
