@@ -35,7 +35,7 @@ CalibrationParser::CalibrationParser()
 }
 
 #define CHECK_NULL(ptr) \
-    if(ptr == NULL) { \
+    if (ptr == NULL) { \
         XCAM_LOG_ERROR("Parse file failed"); \
         return XCAM_RETURN_ERROR_FILE; \
     }
@@ -54,19 +54,19 @@ CalibrationParser::parse_intrinsic_param(char *file_body, IntrinsicParameter &in
         line_str = strtok_r(file_body, line_tokens, &line_endptr);
         CHECK_NULL(line_str);
         tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
-        while(tok_str == NULL || tok_str[0] == '#') {
-            line_str = strtok_r(NULL, line_tokens, &line_endptr);
-            CHECK_NULL(line_str);
-            tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
+        while (tok_str == NULL || tok_str[0] == '#') {
+               line_str = strtok_r(NULL, line_tokens, &line_endptr);
+               CHECK_NULL(line_str);
+               tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
         }
 
         line_str = strtok_r(NULL, line_tokens, &line_endptr);
         CHECK_NULL(line_str);
         tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
-        while(tok_str == NULL || tok_str[0] == '#') {
-            line_str = strtok_r(NULL, line_tokens, &line_endptr);
-            CHECK_NULL(line_str);
-            tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
+        while (tok_str == NULL || tok_str[0] == '#') {
+               line_str = strtok_r(NULL, line_tokens, &line_endptr);
+               CHECK_NULL(line_str);
+               tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
         }
         intrinsic_param.poly_length = strtol(tok_str, NULL, 10);
 
@@ -76,19 +76,19 @@ CalibrationParser::parse_intrinsic_param(char *file_body, IntrinsicParameter &in
             "intrinsic poly length:%d is larger than max_size:%d.",
             intrinsic_param.poly_length, XCAM_INTRINSIC_MAX_POLY_SIZE);
 
-        for(uint32_t i = 0; i < intrinsic_param.poly_length; i++) {
-            tok_str = strtok_r(NULL, str_tokens, &tok_endptr);
-            CHECK_NULL(tok_str);
-            intrinsic_param.poly_coeff[i] = (strtof(tok_str, NULL));
+        for (uint32_t i = 0; i < intrinsic_param.poly_length; i++) {
+             tok_str = strtok_r(NULL, str_tokens, &tok_endptr);
+             CHECK_NULL(tok_str);
+             intrinsic_param.poly_coeff[i] = (strtof(tok_str, NULL));
         }
 
         line_str = strtok_r(NULL, line_tokens, &line_endptr);
         CHECK_NULL(line_str);
         tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
-        while(tok_str == NULL || tok_str[0] == '#') {
-            line_str = strtok_r(NULL, line_tokens, &line_endptr);
-            CHECK_NULL(line_str);
-            tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
+        while (tok_str == NULL || tok_str[0] == '#') {
+               line_str = strtok_r(NULL, line_tokens, &line_endptr);
+               CHECK_NULL(line_str);
+               tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
         }
         intrinsic_param.yc = strtof(tok_str, NULL);
 
@@ -99,10 +99,10 @@ CalibrationParser::parse_intrinsic_param(char *file_body, IntrinsicParameter &in
         line_str = strtok_r(NULL, line_tokens, &line_endptr);
         CHECK_NULL(line_str);
         tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
-        while(tok_str == NULL || tok_str[0] == '#') {
-            line_str = strtok_r(NULL, line_tokens, &line_endptr);
-            CHECK_NULL(line_str);
-            tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
+        while (tok_str == NULL || tok_str[0] == '#') {
+               line_str = strtok_r(NULL, line_tokens, &line_endptr);
+               CHECK_NULL(line_str);
+               tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
         }
         intrinsic_param.c = strtof(tok_str, NULL);
 
@@ -132,60 +132,60 @@ CalibrationParser::parse_extrinsic_param(char *file_body, ExtrinsicParameter &ex
         line_str = strtok_r(file_body, line_tokens, &line_endptr);
         CHECK_NULL(line_str);
         tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
-        while(tok_str == NULL || tok_str[0] == '#') {
-            line_str = strtok_r(NULL, line_tokens, &line_endptr);
-            CHECK_NULL(line_str);
-            tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
+        while (tok_str == NULL || tok_str[0] == '#') {
+               line_str = strtok_r(NULL, line_tokens, &line_endptr);
+               CHECK_NULL(line_str);
+               tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
         }
         extrinsic_param.trans_x = strtof(tok_str, NULL);
 
         line_str = strtok_r(NULL, line_tokens, &line_endptr);
         CHECK_NULL(line_str);
         tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
-        while(tok_str == NULL || tok_str[0] == '#') {
-            line_str = strtok_r(NULL, line_tokens, &line_endptr);
-            CHECK_NULL(line_str);
-            tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
+        while (tok_str == NULL || tok_str[0] == '#') {
+               line_str = strtok_r(NULL, line_tokens, &line_endptr);
+               CHECK_NULL(line_str);
+               tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
         }
         extrinsic_param.trans_y = strtof(tok_str, NULL);
 
         line_str = strtok_r(NULL, line_tokens, &line_endptr);
         CHECK_NULL(line_str);
         tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
-        while(tok_str == NULL || tok_str[0] == '#') {
-            line_str = strtok_r(NULL, line_tokens, &line_endptr);
-            CHECK_NULL(line_str);
-            tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
+        while (tok_str == NULL || tok_str[0] == '#') {
+               line_str = strtok_r(NULL, line_tokens, &line_endptr);
+               CHECK_NULL(line_str);
+               tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
         }
         extrinsic_param.trans_z = strtof(tok_str, NULL);
 
         line_str = strtok_r(NULL, line_tokens, &line_endptr);
         CHECK_NULL(line_str);
         tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
-        while(tok_str == NULL || tok_str[0] == '#') {
-            line_str = strtok_r(NULL, line_tokens, &line_endptr);
-            CHECK_NULL(line_str);
-            tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
+        while (tok_str == NULL || tok_str[0] == '#') {
+               line_str = strtok_r(NULL, line_tokens, &line_endptr);
+               CHECK_NULL(line_str);
+               tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
         }
         extrinsic_param.roll = strtof(tok_str, NULL);
 
         line_str = strtok_r(NULL, line_tokens, &line_endptr);
         CHECK_NULL(line_str);
         tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
-        while(tok_str == NULL || tok_str[0] == '#') {
-            line_str = strtok_r(NULL, line_tokens, &line_endptr);
-            CHECK_NULL(line_str);
-            tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
+        while (tok_str == NULL || tok_str[0] == '#') {
+               line_str = strtok_r(NULL, line_tokens, &line_endptr);
+               CHECK_NULL(line_str);
+               tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
         }
         extrinsic_param.pitch = strtof(tok_str, NULL);
 
         line_str = strtok_r(NULL, line_tokens, &line_endptr);
         CHECK_NULL(line_str);
         tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
-        while(tok_str == NULL || tok_str[0] == '#') {
-            line_str = strtok_r(NULL, line_tokens, &line_endptr);
-            CHECK_NULL(line_str);
-            tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
+        while (tok_str == NULL || tok_str[0] == '#') {
+               line_str = strtok_r(NULL, line_tokens, &line_endptr);
+               CHECK_NULL(line_str);
+               tok_str = strtok_r(line_str, str_tokens, &tok_endptr);
         }
         extrinsic_param.yaw = strtof(tok_str, NULL);
     } while(0);
