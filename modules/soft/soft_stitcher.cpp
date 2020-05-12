@@ -232,7 +232,7 @@ FisheyeMap::set_map_table (
     SoftStitcher *stitcher, const Stitcher::RoundViewSlice &view_slice, uint32_t cam_idx)
 {
     SmartPtr<FisheyeDewarp> dewarper;
-    if(dewarp_mode == DewarpBowl) {
+    if (dewarp_mode == DewarpBowl) {
         BowlDataConfig bowl = stitcher->get_bowl_config ();
         bowl.angle_start = view_slice.hori_angle_start;
         bowl.angle_end = format_angle (view_slice.hori_angle_start + view_slice.hori_angle_range);
@@ -892,7 +892,7 @@ StitcherImpl::start_copy_tasks (
 {
     uint32_t size = _stitcher->get_copy_area ().size ();
     for (uint32_t i = 0; i < size; ++i) {
-        if(_copiers[i].copy_area.in_idx == idx) {
+        if (_copiers[i].copy_area.in_idx == idx) {
             XCamReturn ret = _copiers[i].start_copy_task (param, idx, buf);
             XCAM_FAIL_RETURN (
                 ERROR, xcam_ret_is_ok (ret), ret,
