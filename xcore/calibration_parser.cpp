@@ -255,6 +255,10 @@ CalibrationParser::parse_fisheye_camera_param (const char *file_path, FisheyeInf
         return XCAM_RETURN_ERROR_PARAM;
     }
     std::ifstream calibFile(file_path);
+    if (!calibFile.is_open()) {
+        XCAM_LOG_ERROR ("calibration file Not Found!");
+        return XCAM_RETURN_ERROR_PARAM;
+    }
 
     try {
         json calib_params = json::parse(calibFile);
