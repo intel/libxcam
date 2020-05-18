@@ -62,6 +62,7 @@ void get_gauss_table (
 class VideoBuffer;
 void dump_buf_perfix_path (const SmartPtr<VideoBuffer> buf, const char *prefix_name);
 bool dump_video_buf (const SmartPtr<VideoBuffer> buf, const char *file_name);
+bool dump_data_buf (const void *buf, const size_t &size, const char *file_name);
 
 SmartPtr<VideoBuffer>
 external_buf_to_xcam_video_buf (
