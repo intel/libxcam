@@ -314,4 +314,25 @@ dump_video_buf (const SmartPtr<VideoBuffer> buf, const char *file_name)
     return true;
 }
 
+bool
+dump_data_buf (const void *buf, const size_t &size, const char *file_name)
+{
+    FileHandle file;
+    XCAM_ASSERT (buf);
+    XCAM_ASSERT (file_name);
+    XCAM_ASSERT (size > 0);
+
+    XCamReturn ret = file.open (file_name, "wb");
+    XCAM_FAIL_RETURN (
+        ERROR, xcam_ret_is_ok (ret), false,
+        "dump buffer failed when open file: %s", file_name);
+
+    ret = file.write_file (buf, size);
+    XCAM_FAIL_RETURN (
+        ERROR, xcam_ret_is_ok (ret), false,
+        "dump buffer to file: %s failed", file_name);
+
+    return true;
+}
+
 }
