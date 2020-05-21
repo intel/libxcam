@@ -115,32 +115,65 @@ static void map_image (
     const UcharImage *in, UcharImage *out, Float2 *interp_pos,
     const uint32_t &width, const uint32_t &height,
     const uint32_t &out_x, const uint32_t &out_y,
-    const Uchar *zero_byte)
+    const Uchar *zero_byte, const bool is_chroma = false)
 {
     float  interp_value[XCAM_SOFT_WORKUNIT_PIXELS];
     Uchar  interp_pixel_vaule[XCAM_SOFT_WORKUNIT_PIXELS];
     BoundState bound = BoundInternal;
 
-    check_bound (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, bound);
-    if (bound == BoundExternal)
-        out->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y, zero_byte);
-    else {
+    if (is_chroma) {
+        check_bound (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2 - 1, bound);
+    } else {
+        check_bound (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, bound);
+    }
+
+
+    if (bound == BoundExternal) {
+        if (is_chroma) {
+            out->write_array_no_check < XCAM_SOFT_WORKUNIT_PIXELS / 2 > (out_x, out_y, zero_byte);
+        } else {
+            out->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y, zero_byte);
+        }
+    } else {
 #if ENABLE_AVX512
         BoundState interp_bound = BoundInternal;
-        check_interp_bound (in->get_width (), in->get_height (), interp_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, interp_bound);
+        if (is_chroma) {
+            check_interp_bound (in->get_width (), in->get_height (), interp_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2 - 1, interp_bound);
+        } else {
+            check_interp_bound (in->get_width (), in->get_height (), interp_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, interp_bound);
+        }
         if (interp_bound == BoundInternal) {
             in->read_interpolate_array (interp_pos, interp_pixel_vaule);
+        } else {
+            if (is_chroma) {
+                in->read_interpolate_array < float, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (interp_pos, interp_value);
+                convert_to_uchar_N < float, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (interp_value, interp_pixel_vaule);
+            } else {
+                in->read_interpolate_array<float, XCAM_SOFT_WORKUNIT_PIXELS> (interp_pos, interp_value);
+                convert_to_uchar_N<float, XCAM_SOFT_WORKUNIT_PIXELS> (interp_value, interp_pixel_vaule);
+            }
+        }
+#else
+        if (is_chroma) {
+            in->read_interpolate_array < float, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (interp_pos, interp_value);
+            convert_to_uchar_N < float, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (interp_value, interp_pixel_vaule);
         } else {
             in->read_interpolate_array<float, XCAM_SOFT_WORKUNIT_PIXELS> (interp_pos, interp_value);
             convert_to_uchar_N<float, XCAM_SOFT_WORKUNIT_PIXELS> (interp_value, interp_pixel_vaule);
         }
-#else
-        in->read_interpolate_array<float, XCAM_SOFT_WORKUNIT_PIXELS> (interp_pos, interp_value);
-        convert_to_uchar_N<float, XCAM_SOFT_WORKUNIT_PIXELS> (interp_value, interp_pixel_vaule);
 #endif
-        if (bound == BoundCritical)
-            calc_critical_pixels (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS, zero_byte[0], interp_pixel_vaule);
-        out->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y, interp_pixel_vaule);
+        if (bound == BoundCritical) {
+            if (is_chroma) {
+                calc_critical_pixels (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2, zero_byte[0], interp_pixel_vaule);
+            } else {
+                calc_critical_pixels (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS, zero_byte[0], interp_pixel_vaule);
+            }
+        }
+        if (is_chroma) {
+            out->write_array_no_check < XCAM_SOFT_WORKUNIT_PIXELS / 2 > (out_x, out_y, interp_pixel_vaule);
+        } else {
+            out->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y, interp_pixel_vaule);
+        }
     }
 }
 
@@ -267,10 +300,10 @@ GeoMapTask::work_range (const SmartPtr<Arguments> &base, const WorkRange &range)
                     interp_pos[i] = interp_pos[i] / 2.0f;
                 }
                 map_image (in_u, out_u, interp_pos, chroma_w, chroma_h,
-                           out_x / 2, out_y / 2, zero_chroma_byte);
+                           out_x / 2, out_y / 2, zero_chroma_byte, true);
 
                 map_image (in_v, out_v, interp_pos, chroma_w, chroma_h,
-                           out_x / 2, out_y / 2, zero_chroma_byte);
+                           out_x / 2, out_y / 2, zero_chroma_byte, true);
 
                 first.y = first.y + step.y;
                 interp_sample_pos (lut, interp_pos, first, step);
@@ -372,10 +405,10 @@ GeoMapDualConstTask::work_range (const SmartPtr<Arguments> &base, const WorkRang
                     interp_pos[i] = interp_pos[i] / 2.0f;
                 }
                 map_image (in_u, out_u, interp_pos, chroma_w, chroma_h,
-                           out_x / 2, out_y / 2, zero_chroma_byte);
+                           out_x / 2, out_y / 2, zero_chroma_byte, true);
 
                 map_image (in_v, out_v, interp_pos, chroma_w, chroma_h,
-                           out_x / 2, out_y / 2, zero_chroma_byte);
+                           out_x / 2, out_y / 2, zero_chroma_byte, true);
 
                 first.y = first.y + step.y;
                 interp_sample_pos (lut, interp_pos, first, step);
@@ -585,10 +618,10 @@ GeoMapDualCurveTask::work_range (const SmartPtr<Arguments> &base, const WorkRang
                     interp_pos[i] = interp_pos[i] / 2.0f;
                 }
                 map_image (in_u, out_u, interp_pos, chroma_w, chroma_h,
-                           out_x / 2, out_y / 2, zero_chroma_byte);
+                           out_x / 2, out_y / 2, zero_chroma_byte, true);
 
                 map_image (in_v, out_v, interp_pos, chroma_w, chroma_h,
-                           out_x / 2, out_y / 2, zero_chroma_byte);
+                           out_x / 2, out_y / 2, zero_chroma_byte, true);
 
                 first.y = first.y + step.y;
                 interp_sample_pos (lut, interp_pos, first, step);
