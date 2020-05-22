@@ -595,15 +595,17 @@ CLImage360Stitch::init_fisheye_info (SmartPtr<VideoBuffer> &output)
     } else {
         init_bowl_fisheye_params (output);
 
-        const char *cfg_path = std::getenv (FISHEYE_CONFIG_ENV_VAR);
-        XCAM_FAIL_RETURN (ERROR, cfg_path, XCAM_RETURN_ERROR_PARAM,
-                          "FISHEYE_CONFIG_PATH is NULL, export FISHEYE_CONFIG_PATH first");
-        XCAM_LOG_DEBUG ("fisheye calibration config path: %s", cfg_path);
+        const char *env = std::getenv (FISHEYE_CONFIG_ENV_VAR);
+        std::string path (env, (env ? strlen (env) : 0));
+        XCAM_FAIL_RETURN (
+            ERROR, !path.empty (), XCAM_RETURN_ERROR_PARAM,
+            "FISHEYE_CONFIG_PATH is empty, export FISHEYE_CONFIG_PATH first");
+        XCAM_LOG_INFO ("fisheye calibration config path: %s", path.c_str ());
 
         IntrinsicParameter intr_param;
         ExtrinsicParameter extr_param;
         for (int i = 0; i < _fisheye_num; i++) {
-            if (!parse_calibration_params (cfg_path, i, _intr_names[i], _extr_names[i], intr_param, extr_param)) {
+            if (!parse_calibration_params (path.c_str (), i, _intr_names[i], _extr_names[i], intr_param, extr_param)) {
                 XCAM_LOG_ERROR ("parse calibration data failed in surround view");
                 return XCAM_RETURN_ERROR_PARAM;
             }
@@ -672,7 +674,9 @@ CLImage360Stitch::ensure_fisheye_parameters (
     static bool is_fisheye_inited = false;
 
     if (!is_fisheye_inited) {
-        init_fisheye_info (output);
+        XCamReturn ret = init_fisheye_info (output);
+        STITCH_CHECK (ret, "init fisheye info failed");
+
         is_fisheye_inited = true;
     }
 
