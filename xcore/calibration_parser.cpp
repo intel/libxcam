@@ -21,6 +21,7 @@
 
 #include "calibration_parser.h"
 #include "file_handle.h"
+#include <unistd.h>
 
 #if HAVE_JSON
 #include <fstream>
@@ -196,7 +197,9 @@ CalibrationParser::parse_extrinsic_param(char *file_body, ExtrinsicParameter &ex
 XCamReturn
 CalibrationParser::parse_intrinsic_file(const char *file_path, IntrinsicParameter &intrinsic_param)
 {
-    XCAM_ASSERT (file_path);
+    XCAM_FAIL_RETURN (
+        ERROR, !access (file_path, R_OK), XCAM_RETURN_ERROR_PARAM,
+        "cannot access intrinsic file %s", file_path);
 
     FileHandle file_reader;
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
@@ -222,7 +225,9 @@ CalibrationParser::parse_intrinsic_file(const char *file_path, IntrinsicParamete
 XCamReturn
 CalibrationParser::parse_extrinsic_file(const char *file_path, ExtrinsicParameter &extrinsic_param)
 {
-    XCAM_ASSERT (file_path);
+    XCAM_FAIL_RETURN (
+        ERROR, !access (file_path, R_OK), XCAM_RETURN_ERROR_PARAM,
+        "cannot access extrinsic file %s", file_path);
 
     FileHandle file_reader;
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
