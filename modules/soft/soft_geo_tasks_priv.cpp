@@ -84,8 +84,8 @@ static void interp_sample_pos (const Float2Image *lut, Float2* interp_pos, const
     __m512i idx1 = _mm512_setr_epi32(8, 9, 0xa, 0xb, 0x18, 0x19, 0x1a, 0x1b, 0xc, 0xd, 0xe, 0xf, 0x1c, 0x1d, 0x1e, 0x1f);
     __m512 data0 = _mm512_permutex2var_ps(Lo, idx0, Hi);
     __m512 data1 = _mm512_permutex2var_ps(Lo, idx1, Hi);
-    _mm512_store_ps(lut_pos, data0);
-    _mm512_store_ps(&lut_pos[8], data1);
+    _mm512_storeu_ps(lut_pos, data0);
+    _mm512_storeu_ps(&lut_pos[8], data1);
 #else
     Float2 lut_pos[16] = {
         first, Float2(first.x + step.x, first.y),
@@ -126,7 +126,6 @@ static void map_image (
     } else {
         check_bound (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, bound);
     }
-
 
     if (bound == BoundExternal) {
         if (is_chroma) {
@@ -189,17 +188,18 @@ static void map_image (
     Uchar2 interp_pixel_value[XCAM_SOFT_WORKUNIT_PIXELS / 2];
 
 #if ENABLE_AVX512
-    assert(XCAM_SOFT_WORKUNIT_PIXELS == 16);
-    __m512i index = _mm512_setr_epi32(0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29);
-    __m512 multiplier = _mm512_set1_ps(0.5f);
+    XCAM_ASSERT (XCAM_SOFT_WORKUNIT_PIXELS == 16);
+    __m512i index = _mm512_setr_epi32 (0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29);
+    __m512 multiplier = _mm512_set1_ps (0.5f);
     __m512 value = _mm512_i32gather_ps (index, interp_pos, 4);
-    value = _mm512_mul_ps(value, multiplier);
-    _mm512_store_ps(interp_pos, value);
+    value = _mm512_mul_ps (value, multiplier);
+    _mm512_storeu_ps (interp_pos, value);
 #else
     for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i += 2) {
         interp_pos[i / 2] = interp_pos[i] / 2.0f;
     }
 #endif
+
     check_bound (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2 - 1, bound);
     if (bound == BoundExternal) {
         out->write_array_no_check < XCAM_SOFT_WORKUNIT_PIXELS / 2 > (out_x, out_y, zero_byte);
@@ -296,8 +296,8 @@ GeoMapTask::work_range (const SmartPtr<Arguments> &base, const WorkRange &range)
                 map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
                            out_x, out_y, zero_luma_byte);
 
-                for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i++) {
-                    interp_pos[i] = interp_pos[i] / 2.0f;
+                for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i += 2) {
+                    interp_pos[i / 2] = interp_pos[i] / 2.0f;
                 }
                 map_image (in_u, out_u, interp_pos, chroma_w, chroma_h,
                            out_x / 2, out_y / 2, zero_chroma_byte, true);
@@ -311,6 +311,7 @@ GeoMapTask::work_range (const SmartPtr<Arguments> &base, const WorkRange &range)
                            out_x, out_y + 1, zero_luma_byte);
             } else if (NULL != in_uv) {
                 interp_sample_pos (lut, interp_pos, first, step);
+
                 map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
                            out_x, out_y, zero_luma_byte);
 
@@ -401,8 +402,8 @@ GeoMapDualConstTask::work_range (const SmartPtr<Arguments> &base, const WorkRang
                 map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
                            out_x, out_y, zero_luma_byte);
 
-                for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i++) {
-                    interp_pos[i] = interp_pos[i] / 2.0f;
+                for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i += 2) {
+                    interp_pos[i / 2] = interp_pos[i] / 2.0f;
                 }
                 map_image (in_u, out_u, interp_pos, chroma_w, chroma_h,
                            out_x / 2, out_y / 2, zero_chroma_byte, true);
@@ -614,8 +615,8 @@ GeoMapDualCurveTask::work_range (const SmartPtr<Arguments> &base, const WorkRang
                 map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
                            out_x, out_y, zero_luma_byte);
 
-                for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i++) {
-                    interp_pos[i] = interp_pos[i] / 2.0f;
+                for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i += 2) {
+                    interp_pos[i / 2] = interp_pos[i] / 2.0f;
                 }
                 map_image (in_u, out_u, interp_pos, chroma_w, chroma_h,
                            out_x / 2, out_y / 2, zero_chroma_byte, true);
