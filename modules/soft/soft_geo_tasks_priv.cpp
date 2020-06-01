@@ -55,7 +55,7 @@ inline void check_interp_bound (const uint32_t &img_w, const uint32_t &img_h, Fl
     }
 
     if (in_pos[0].x >= 0.0f && in_pos[max_idx].x >= 0.0f &&
-            in_pos[0].x < img_w - XCAM_SOFT_WORKUNIT_PIXELS && in_pos[max_idx].x < img_w - XCAM_SOFT_WORKUNIT_PIXELS &&
+            in_pos[0].x < img_w - max_idx && in_pos[max_idx].x < img_w - max_idx &&
             in_pos[0].y >= 0.0f && in_pos[max_idx].y >= 0.0f && in_pos[0].y < img_h && in_pos[max_idx].y < img_h)
         bound = BoundInternal;
     else if ((in_pos[0].x < 0.0f && in_pos[max_idx].x < 0.0f) || (in_pos[0].x >= img_w && in_pos[max_idx].x >= img_w) ||

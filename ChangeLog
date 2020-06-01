@@ -1,3 +1,23 @@
+2020/06/01: release libxcam version 1.4.0
+* 360 stitching supports processing YUV420p pixel format
+
+* 360 degree image stitching quality tuning
+  - support json parse to apply OpenCV fisheye camera calibration parameters
+
+* 8K 360 degree image stitching performance improvement
+  - optimized AVX pixel data loading instructions
+
+* Simplify configure.ac
+  - extract macros to m4 file
+
+* Remove Beignet dependence
+
+* Limit OpenCV version to [3.0.0, 4.0.0)
+
+* Extend the functionality of capi module
+  - support soft/GLES/Vulkan image stitching
+  - implement new FFmpeg xcam video filter
+
 2019/09/11: release libxcam version 1.3.0
  * 8K 360 degree image stitching performance improvement
    - enable AVX512 intrinsic instructions to increase performance
