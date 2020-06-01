@@ -19,6 +19,7 @@
  */
 
 #include <base/xcam_buffer.h>
+#include <config.h>
 
 XCamReturn
 xcam_video_buffer_info_reset (
@@ -34,10 +35,17 @@ xcam_video_buffer_info_reset (
     XCAM_ASSERT (!aligned_width  || aligned_width >= width);
     XCAM_ASSERT (!aligned_height  || aligned_height >= height);
 
+#if ENABLE_AVX512
+    if (!aligned_width)
+        aligned_width = XCAM_ALIGN_UP (width, 4);
+    if (!aligned_height)
+        aligned_height = XCAM_ALIGN_UP (height, 16);
+#else
     if (!aligned_width)
         aligned_width = XCAM_ALIGN_UP (width, 4);
     if (!aligned_height)
         aligned_height = XCAM_ALIGN_UP (height, 2);
+#endif
 
     info->format = format;
     info->width = width;

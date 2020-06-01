@@ -20,6 +20,10 @@
 
 #include "interface/stitcher.h"
 
+#if HAVE_JSON
+#include <calibration_parser.h>
+#endif
+
 namespace XCam {
 
 enum CamModel {
@@ -48,6 +52,15 @@ static const char *extrinsic_names[] = {
     "extrinsic_camera_rear.txt",
     "extrinsic_camera_left.txt"
 };
+
+#if HAVE_JSON
+static const char *camera_calibration_json_names[] = {
+    "",
+    "",
+    "",
+    "k_camera_calibration.json"
+};
+#endif
 
 BowlDataConfig
 bowl_config (CamModel model)
@@ -97,9 +110,9 @@ viewpoints_range (CamModel model, float *range)
         break;
     }
     case CamD3C8K: {
-        range[0] = 154.0f;
-        range[1] = 154.0f;
-        range[2] = 154.0f;
+        range[0] = 132.0f;
+        range[1] = 132.0f;
+        range[2] = 132.0f;
         break;
     }
     default:
@@ -204,6 +217,50 @@ soft_fm_config (CamModel model)
     }
 
     return cfg;
+}
+
+XCamReturn
+get_fisheye_info (CamModel model, StitchScopicMode scopic_mode, FisheyeInfo* fisheye_info)
+{
+    XCamReturn ret = XCAM_RETURN_BYPASS;
+
+#if HAVE_JSON
+    CalibrationParser parser;
+    StitchInfo info;
+
+    ret = parser.parse_fisheye_camera_param (camera_calibration_json_names[model], info.fisheye_info, XCAM_STITCH_FISHEYE_MAX_NUM);
+    if (XCAM_RETURN_NO_ERROR != ret) {
+        return ret;
+    }
+
+    switch (scopic_mode) {
+    case ScopicStereoLeft: {
+        for (uint32_t i = 0; i < 3; i++) {
+            fisheye_info[i].intrinsic = info.fisheye_info[2 * i].intrinsic;
+            fisheye_info[i].extrinsic = info.fisheye_info[2 * i].extrinsic;
+            for (uint32_t j = 0; j < sizeof (FisheyeInfo::distort_coeff) / sizeof(float); j++) {
+                fisheye_info[i].distort_coeff[j] = info.fisheye_info[2 * i].distort_coeff[j];
+            }
+        }
+        break;
+    }
+    case ScopicStereoRight: {
+        for (uint32_t i = 0; i < 3; i++) {
+            fisheye_info[i].intrinsic = info.fisheye_info[2 * i + 1].intrinsic;
+            fisheye_info[i].extrinsic = info.fisheye_info[2 * i + 1].extrinsic;
+            for (uint32_t j = 0; j < sizeof (FisheyeInfo::distort_coeff) / sizeof(float); j++) {
+                fisheye_info[i].distort_coeff[j] = info.fisheye_info[2 * i + 1].distort_coeff[j];
+            }
+        }
+        break;
+    }
+    default: {
+        XCAM_LOG_ERROR ("unsupported scopic mode (%d)", scopic_mode);
+        break;
+    }
+    }
+#endif
+    return ret;
 }
 
 StitchInfo
