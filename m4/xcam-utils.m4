@@ -140,7 +140,7 @@ AC_DEFUN([XCAM_CHECK_JSON],
 [
     AS_IF([test "x$1" = "xyes"],
         [
-            #wget -c https://github.com/nlohmann/json/releases/download/v3.6.1/json.hpp
+            #wget -c https://github.com/nlohmann/json/releases/download/v3.7.3/json.hpp
 
             AC_LANG(C++)
             AC_CHECK_HEADER([json.hpp], [$2], [$3])

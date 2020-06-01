@@ -67,6 +67,7 @@ OpenCL is used to improve performance in different platforms.
   * If --enable-gles, need to install [Mesa3D](https://www.mesa3d.org) library
   * If --enable-vulkan, need to install [Mesa3D](https://www.mesa3d.org) library
   * If --enable-dnn, need to compile [OpenVino](https://github.com/opencv/dldt) [inference-engine](https://github.com/opencv/dldt/blob/2018/inference-engine)
+  * If --enable-json, need to install [json.hpp](https://github.com/nlohmann/json/releases/download/v3.7.3/json.hpp)
 
 #### Building and installing:
   * Environment variable settings<BR>
