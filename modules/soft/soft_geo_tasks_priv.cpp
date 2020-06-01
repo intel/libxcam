@@ -47,6 +47,13 @@ inline void check_bound (const uint32_t &img_w, const uint32_t &img_h, Float2 *i
 inline void check_interp_bound (const uint32_t &img_w, const uint32_t &img_h, Float2 *in_pos,
                                 const uint32_t &max_idx, BoundState &bound)
 {
+    for (uint32_t i = 0; i <= max_idx; i++) {
+        if (in_pos[i].x < 0.0f) in_pos[i].x = 0.0f;
+        if (in_pos[i].x >= img_w - max_idx) in_pos[i].x = img_w - max_idx - 1;
+        if (in_pos[i].y < 0.0f) in_pos[i].y = 0.0f;
+        if (in_pos[i].y >= img_h) in_pos[i].y = img_h - 1;
+    }
+
     if (in_pos[0].x >= 0.0f && in_pos[max_idx].x >= 0.0f &&
             in_pos[0].x < img_w - XCAM_SOFT_WORKUNIT_PIXELS && in_pos[max_idx].x < img_w - XCAM_SOFT_WORKUNIT_PIXELS &&
             in_pos[0].y >= 0.0f && in_pos[max_idx].y >= 0.0f && in_pos[0].y < img_h && in_pos[max_idx].y < img_h)
@@ -142,7 +149,7 @@ static void map_image (
             check_interp_bound (in->get_width (), in->get_height (), interp_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, interp_bound);
         }
         if (interp_bound == BoundInternal) {
-            in->read_interpolate_array (interp_pos, interp_pixel_vaule);
+            in->read_interpolate_array (interp_pos, interp_pixel_vaule, is_chroma);
         } else {
             if (is_chroma) {
                 in->read_interpolate_array < float, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (interp_pos, interp_value);
