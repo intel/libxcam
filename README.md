@@ -1,6 +1,6 @@
 ## libXCam
 
-Copyright (C) 2014-2019 Intel Corporation
+Copyright (C) 2014-2020 Intel Corporation
 
 libxcam core source code under the terms of Apache License, Version 2.0
 
@@ -14,16 +14,18 @@ OpenCL is used to improve performance in different platforms.
 #### Features:
   * Image processing features
     - Advanced features
-      - Automotive surround view(360) stitching (OpenCL/CPU/GLES)
-         - Support bowl view 3D model stitching by 4 video input.
+      - 360-degree video stitching
+        - support ultra-high resolution (8K) video stitching.
+        - support 2/3/4 fish-eye cameras (FoV >180 degree) video stitching.
+        - stitching image adopts equirectangular projection (ERP).
+        - algorithms are optimized by AVX512 instruction, GLES and Vulkan.
+        - stitching quality tuning supports OpenCV fisheye camera calibration parameters.
+      - Automotive surround view (360-degree) stitching (OpenCL/CPU/GLES)
+         - Support bowl view 3D model stitching by 4 input videos.
          - Enable geometry remap for WFoV camera calibration(intrinsic and extrinsic data).
          - Quality and performance improved (OpenCL/CPU/GLES).
          - CPU version upstreamed into AOSP for automotive surround view.
          - Enable Vulkan to improve performance.
-      - 360 video stitching (Equirectangular mode via OpenCL/CPU)
-        - Support 8K 3-cameras video stream stitching.
-        - Support 2-fisheye (>180 degree) video stream stitching.
-        - Performance and quality improved.
       - DNN inference framework
         - Support pedestrian and vehicle detection.
       - Digital Video Stabilization
@@ -66,7 +68,9 @@ OpenCL is used to improve performance in different platforms.
   * If --enable-render, need compile [OpenSceneGraph](https://github.com/openscenegraph/OpenSceneGraph) library with configure option "-DOSG_WINDOWING_SYSTEM=X11"
   * If --enable-gles, need to install [Mesa3D](https://www.mesa3d.org) library
   * If --enable-vulkan, need to install [Mesa3D](https://www.mesa3d.org) library
+  * If --enable-avx512, need to install [GCC version > 4.9](https://gcc.gnu.org/gcc-4.9/changes.html) ([ CPUs With AVX-512 required](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#CPUs_with_AVX-512))
   * If --enable-dnn, need to compile [OpenVino](https://github.com/opencv/dldt) [inference-engine](https://github.com/opencv/dldt/blob/2018/inference-engine)
+  * If --enable-json, need to install [json.hpp](https://github.com/nlohmann/json/releases/download/v3.7.3/json.hpp)
 
 #### Building and installing:
   * Environment variable settings<BR>
@@ -97,8 +101,10 @@ OpenCL is used to improve performance in different platforms.
         --enable-smartlib       enable smart analysis lib build, [default=no]
         --enable-gles           enable gles, [default=no]
         --enable-vulkan         enable vulkan, [default=no]
+        --enable-avx512         enable AVX-512 instruction, [default=no]
         --enable-render         enable 3D texture render, [default=no]
         --enable-dnn            enable dnn inference, [default=no]
+        --enable-json           enable json parser, [default=no]
 
     For example:
 

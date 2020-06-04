@@ -295,7 +295,7 @@ set_map_table (SmartPtr<GeoMapper> mapper, uint32_t stitch_width, uint32_t stitc
     view_slice.height = stitch_height;
     view_slice.hori_angle_range = view_slice.width * 360.0f / (float)stitch_width;
 
-    float max_dst_latitude = (info.fisheye_info[0].wide_angle > 180.0f) ? 180.0f : info.fisheye_info[0].wide_angle;
+    float max_dst_latitude = (info.fisheye_info[0].intrinsic.fov > 180.0f) ? 180.0f : info.fisheye_info[0].intrinsic.fov;
     float max_dst_longitude = max_dst_latitude * view_slice.width / view_slice.height;
 
     dewarper->set_dst_range (max_dst_longitude, max_dst_latitude);

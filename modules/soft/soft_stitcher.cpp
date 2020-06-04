@@ -57,9 +57,24 @@ stitcher_dump_buf (const SmartPtr<VideoBuffer> buf, uint32_t idx, const char *pr
     snprintf (name, 256, "%s-%d", prefix, idx);
     dump_buf_perfix_path (buf, name);
 }
+
+static void
+stitcher_dump_fisheye_lut (FisheyeDewarp::MapTable &lut, uint32_t idx, const char *prefix)
+{
+    XCAM_ASSERT (prefix);
+    char table_name[XCAM_MAX_STR_SIZE] = {'\0'};
+    snprintf (table_name, XCAM_MAX_STR_SIZE, "%s-%d.data", prefix, idx);
+    size_t size = lut.size () * sizeof (PointFloat2);
+    dump_data_buf (lut.data (), size, table_name);
+}
 #else
 static void stitcher_dump_buf (const SmartPtr<VideoBuffer> buf, ...) {
     XCAM_UNUSED (buf);
+}
+
+static void
+stitcher_dump_fisheye_lut (FisheyeDewarp::MapTable &lut, ...) {
+    XCAM_UNUSED (lut);
 }
 #endif
 
@@ -253,13 +268,13 @@ FisheyeMap::set_map_table (
         fd->set_bowl_config (bowl);
         dewarper = fd;
     } else {
-        float max_dst_latitude = (fisheye_info.wide_angle > 180.0f) ? 180.0f : fisheye_info.wide_angle;
+        float max_dst_latitude = (fisheye_info.intrinsic.fov > 180.0f) ? 180.0f : fisheye_info.intrinsic.fov;
         float max_dst_longitude;
-        if (0 != fisheye_info.width && 0 != fisheye_info.height) {
-            if (abs (abs (fisheye_info.rotate_angle) - 90) < 10) {
-                max_dst_longitude = fisheye_info.wide_angle * fisheye_info.height / fisheye_info.width;
+        if (0 != fisheye_info.intrinsic.width && 0 != fisheye_info.intrinsic.height) {
+            if (abs (abs (fisheye_info.extrinsic.roll) - 90) < 10) {
+                max_dst_longitude = fisheye_info.intrinsic.fov * fisheye_info.intrinsic.height / fisheye_info.intrinsic.width;
             } else {
-                max_dst_longitude = fisheye_info.wide_angle * fisheye_info.width / fisheye_info.height;
+                max_dst_longitude = fisheye_info.intrinsic.fov * fisheye_info.intrinsic.width / fisheye_info.intrinsic.height;
             }
         } else {
             max_dst_longitude = max_dst_latitude * view_slice.width / view_slice.height;
@@ -285,13 +300,9 @@ FisheyeMap::set_map_table (
     FisheyeDewarp::MapTable map_table (table_width * table_height);
     dewarper->gen_table (map_table);
 
-#if DUMP_STITCHER
-    char table_name[XCAM_MAX_STR_SIZE] = {'\0'};
-    snprintf (table_name, XCAM_MAX_STR_SIZE, "map_table_cam%d_width_%d_%dx%d.data", cam_idx, view_slice.width, table_width, table_height);
-    FILE* f_map = fopen (table_name, "wb");
-    fwrite (map_table.data (), table_width * table_height, 2 * sizeof (float), f_map);
-    fclose (f_map);
-#endif
+    char prefix[XCAM_MAX_STR_SIZE] = {0};
+    snprintf (prefix, XCAM_MAX_STR_SIZE, "fisheye-lut-%dx%d", table_width, table_height);
+    stitcher_dump_fisheye_lut (map_table, cam_idx, prefix);
 
     XCAM_FAIL_RETURN (
         ERROR, mapper->set_lookup_table (map_table.data (), table_width, table_height), XCAM_RETURN_ERROR_UNKNOWN,

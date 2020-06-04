@@ -270,28 +270,29 @@ Stitcher::init_camera_info ()
             info.round_angle_start = (i * 360.0f / _camera_num) - info.angle_range / 2.0f;
         }
     } else {
-        const char* cfg_path = std::getenv (FISHEYE_CONFIG_ENV_VAR);
+        const char *env = std::getenv (FISHEYE_CONFIG_ENV_VAR);
+        std::string path (env, (env ? strlen (env) : 0));
         XCAM_FAIL_RETURN (
-            ERROR, cfg_path, XCAM_RETURN_ERROR_PARAM,
+            ERROR, !path.empty (), XCAM_RETURN_ERROR_PARAM,
             "FISHEYE_CONFIG_PATH is empty, export FISHEYE_CONFIG_PATH first");
-        XCAM_LOG_INFO ("stitcher calibration config path: %s", cfg_path);
+        XCAM_LOG_INFO ("stitcher calibration config path: %s", path.c_str ());
 
         CalibrationParser parser;
-        char path[XCAM_STITCH_NAME_LEN] = {'\0'};
+        char pathname[XCAM_STITCH_NAME_LEN] = {'\0'};
         for (uint32_t i = 0; i < _camera_num; ++i) {
             CameraInfo &info = _camera_info[i];
 
-            snprintf (path, XCAM_STITCH_NAME_LEN, "%s/%s", cfg_path, _intr_names[i]);
-            XCamReturn ret = parser.parse_intrinsic_file (path, info.calibration.intrinsic);
+            snprintf (pathname, XCAM_STITCH_NAME_LEN, "%s/%s", path.c_str (), _intr_names[i]);
+            XCamReturn ret = parser.parse_intrinsic_file (pathname, info.calibration.intrinsic);
             XCAM_FAIL_RETURN (
                 ERROR, ret == XCAM_RETURN_NO_ERROR, XCAM_RETURN_ERROR_PARAM,
-                "stitcher parse intrinsic params(%s) failed", path);
+                "stitcher parse intrinsic params(%s) failed", pathname);
 
-            snprintf (path, XCAM_STITCH_NAME_LEN, "%s/%s", cfg_path, _extr_names[i]);
-            ret = parser.parse_extrinsic_file (path, info.calibration.extrinsic);
+            snprintf (pathname, XCAM_STITCH_NAME_LEN, "%s/%s", path.c_str (), _extr_names[i]);
+            ret = parser.parse_extrinsic_file (pathname, info.calibration.extrinsic);
             XCAM_FAIL_RETURN (
                 ERROR, ret == XCAM_RETURN_NO_ERROR, XCAM_RETURN_ERROR_PARAM,
-                "stitcher parse extrinsic params(%s) failed", path);
+                "stitcher parse extrinsic params(%s) failed", pathname);
 
             info.calibration.extrinsic.trans_x += XCAM_CAMERA_POSITION_OFFSET_X;
 

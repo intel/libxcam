@@ -214,7 +214,7 @@ write_in_image (const SmartPtr<Stitcher> &stitcher, const SVStreams &ins, uint32
 
             for (uint32_t i = 0; i < stitcher->get_camera_num (); i++) {
                 const FisheyeInfo &info = stitch_info.fisheye_info[i];
-                cv::circle (mat, cv::Point (info.center_x, info.center_y), info.radius, cv::Scalar(0, 0, 255), 2);
+                cv::circle (mat, cv::Point (info.intrinsic.cx, info.intrinsic.cy), info.radius, cv::Scalar(0, 0, 255), 2);
             }
             cv::putText (mat, frame_str, cv::Point(20, 50), cv::FONT_HERSHEY_COMPLEX, 2.0,
                          cv::Scalar(0, 0, 255), 2, 8, false);
@@ -227,7 +227,7 @@ write_in_image (const SmartPtr<Stitcher> &stitcher, const SVStreams &ins, uint32
                 convert_to_mat (ins[i]->get_buf (), mat);
 
                 const FisheyeInfo &info = stitch_info.fisheye_info[i];
-                cv::circle (mat, cv::Point (info.center_x, info.center_y), info.radius, cv::Scalar(0, 0, 255), 2);
+                cv::circle (mat, cv::Point (info.intrinsic.cx, info.intrinsic.cy), info.radius, cv::Scalar(0, 0, 255), 2);
                 cv::putText (mat, frame_str, cv::Point(20, 50), cv::FONT_HERSHEY_COMPLEX, 2.0,
                              cv::Scalar(0, 0, 255), 2, 8, false);
 
@@ -888,17 +888,19 @@ int main (int argc, char *argv[])
         get_fisheye_info (cam_model, scopic_mode, info.fisheye_info);
 
         for (uint32_t cam_id = 0; cam_id < XCAM_STITCH_FISHEYE_MAX_NUM; cam_id++) {
-            XCAM_LOG_DEBUG ("cam[%d]: flip=%d ", cam_id, info.fisheye_info[cam_id].flip);
-            XCAM_LOG_DEBUG ("fx=%f ", info.fisheye_info[cam_id].focal_x);
-            XCAM_LOG_DEBUG ("fy=%f ", info.fisheye_info[cam_id].focal_y);
-            XCAM_LOG_DEBUG ("cx=%f ", info.fisheye_info[cam_id].center_x);
-            XCAM_LOG_DEBUG ("cy=%f ", info.fisheye_info[cam_id].center_y);
-            XCAM_LOG_DEBUG ("w=%d ", info.fisheye_info[cam_id].width);
-            XCAM_LOG_DEBUG ("h=%d ", info.fisheye_info[cam_id].height);
-            XCAM_LOG_DEBUG ("fov=%f ", info.fisheye_info[cam_id].wide_angle);
-            XCAM_LOG_DEBUG ("skew=%f ", info.fisheye_info[cam_id].skew);
-            XCAM_LOG_DEBUG ("rotate angle=%f ", info.fisheye_info[cam_id].rotate_angle);
+            XCAM_LOG_DEBUG ("cam[%d]: flip=%d ", cam_id, info.fisheye_info[cam_id].intrinsic.flip);
+            XCAM_LOG_DEBUG ("fx=%f ", info.fisheye_info[cam_id].intrinsic.fx);
+            XCAM_LOG_DEBUG ("fy=%f ", info.fisheye_info[cam_id].intrinsic.fy);
+            XCAM_LOG_DEBUG ("cx=%f ", info.fisheye_info[cam_id].intrinsic.cx);
+            XCAM_LOG_DEBUG ("cy=%f ", info.fisheye_info[cam_id].intrinsic.cy);
+            XCAM_LOG_DEBUG ("w=%d ", info.fisheye_info[cam_id].intrinsic.width);
+            XCAM_LOG_DEBUG ("h=%d ", info.fisheye_info[cam_id].intrinsic.height);
+            XCAM_LOG_DEBUG ("fov=%f ", info.fisheye_info[cam_id].intrinsic.fov);
+            XCAM_LOG_DEBUG ("skew=%f ", info.fisheye_info[cam_id].intrinsic.skew);
             XCAM_LOG_DEBUG ("radius=%f ", info.fisheye_info[cam_id].radius);
+            XCAM_LOG_DEBUG ("distroy coeff=%f %f %f %f ", info.fisheye_info[cam_id].distort_coeff[0], info.fisheye_info[cam_id].distort_coeff[1], info.fisheye_info[cam_id].distort_coeff[2], info.fisheye_info[cam_id].distort_coeff[3]);
+            XCAM_LOG_DEBUG ("fisheye eluer angles: yaw:%f, pitch:%f, roll:%f", info.fisheye_info[cam_id].extrinsic.yaw, info.fisheye_info[cam_id].extrinsic.pitch, info.fisheye_info[cam_id].extrinsic.roll);
+            XCAM_LOG_DEBUG ("fisheye translation: x:%f, y:%f, z:%f", info.fisheye_info[cam_id].extrinsic.trans_x, info.fisheye_info[cam_id].extrinsic.trans_y, info.fisheye_info[cam_id].extrinsic.trans_z);
         }
 
         stitcher->set_stitch_info (info);

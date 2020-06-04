@@ -100,21 +100,21 @@ SphereFisheyeDewarp::gen_table (FisheyeDewarp::MapTable &map_table)
     get_table_size (tbl_w, tbl_h);
 
     XCAM_LOG_DEBUG ("fisheye-dewarp:\n table_size(%dx%d) "
-                    "fisyeye_info(center_x:%.2f, center_y:%.2f, wide_angle:%.2f, radius:%.2f, rotate_angle:%.2f)",
+                    "fisyeye_info(center_x:%.2f, center_y:%.2f, fov:%.2f, radius:%.2f, extrinsic.roll:%.2f)",
                     tbl_w, tbl_h,
-                    _info.center_x, _info.center_y, _info.wide_angle, _info.radius, _info.rotate_angle);
+                    _info.intrinsic.cx, _info.intrinsic.cy, _info.intrinsic.fov, _info.radius, _info.extrinsic.roll);
 
     FisheyeInfo info = _info;
-    info.wide_angle = degree2radian (_info.wide_angle);
-    info.rotate_angle = degree2radian (_info.rotate_angle);
+    info.intrinsic.fov = degree2radian (_info.intrinsic.fov);
+    info.extrinsic.roll = degree2radian (_info.extrinsic.roll);
 
     PointFloat2 radian_per_pixel;
     radian_per_pixel.x = degree2radian (_dst_longitude / tbl_w);
     radian_per_pixel.y = degree2radian (_dst_latitude / tbl_h);
 
     PointFloat2 tbl_center (tbl_w / 2.0f, tbl_h / 2.0f);
-    PointFloat2 min_pos (info.center_x - info.radius, info.center_y - info.radius);
-    PointFloat2 max_pos (info.center_x + info.radius, info.center_y + info.radius);
+    PointFloat2 min_pos (info.intrinsic.cx - info.radius, info.intrinsic.cy - info.radius);
+    PointFloat2 max_pos (info.intrinsic.cx + info.radius, info.intrinsic.cy + info.radius);
 
     float half_pi = XCAM_PI / 2.0f;
     float double_radius = info.radius * 2.0f;
@@ -132,16 +132,16 @@ SphereFisheyeDewarp::gen_table (FisheyeDewarp::MapTable &map_table)
             float x = sin (gps_pos.y) * cos (gps_pos.x);
             float y = sin (gps_pos.y) * sin (gps_pos.x);
             float r_angle = acos (y);
-            float r = r_angle * double_radius / info.wide_angle;
+            float r = r_angle * double_radius / info.intrinsic.fov;
             float xz_size = sqrt (x * x + z * z);
 
             dst.x = -r * x / xz_size;
             dst.y = -r * z / xz_size;
 
-            pos->x = cos (info.rotate_angle) * dst.x - sin (info.rotate_angle) * dst.y;
-            pos->y = sin (info.rotate_angle) * dst.x + cos (info.rotate_angle) * dst.y;
-            pos->x += info.center_x;
-            pos->y += info.center_y;
+            pos->x = cos (info.extrinsic.roll) * dst.x - sin (info.extrinsic.roll) * dst.y;
+            pos->y = sin (info.extrinsic.roll) * dst.x + cos (info.extrinsic.roll) * dst.y;
+            pos->x += info.intrinsic.cx;
+            pos->y += info.intrinsic.cy;
             pos->x = XCAM_CLAMP (pos->x, min_pos.x, max_pos.x);
             pos->y = XCAM_CLAMP (pos->y, min_pos.y, max_pos.y);
         }
@@ -284,11 +284,11 @@ PolyBowlFisheyeDewarp::cal_img_coord (const PointFloat3 &cam_coord, PointFloat2 
         float img_x = cam_coord.x * poly_sum / dist2center;
         float img_y = cam_coord.y * poly_sum / dist2center;
 
-        img_coord.x = img_x * intr.c + img_y * intr.d + intr.xc;
-        img_coord.y = img_x * intr.e + img_y + intr.yc;
+        img_coord.x = img_x * intr.c + img_y * intr.d + intr.cx;
+        img_coord.y = img_x * intr.e + img_y + intr.cy;
     } else {
-        img_coord.x = intr.xc;
-        img_coord.y = intr.yc;
+        img_coord.x = intr.cy;
+        img_coord.y = intr.cy;
     }
 } // Adopt Scaramuzza's approach to calculate image coordinates from camera coordinates
 

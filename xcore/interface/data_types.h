@@ -69,44 +69,20 @@ struct ImageCropInfo {
     ImageCropInfo () : left (0), right (0), top (0), bottom (0) {}
 };
 
-struct FisheyeInfo {
-    float    focal_x;
-    float    focal_y;
-    float    center_x;
-    float    center_y;
-    uint32_t width;
-    uint32_t height;
-    float    wide_angle;
-    float    skew;
-    float    radius;
-    float    rotate_angle; // clockwise
-    bool     flip;
-
-    Mat3f camera_mat;
-    Mat3f rotation_mat;
-    Vec3f trans_vect;
-    Vec4f distort_coeff;
-    Vec4f c_coeff;
-
-    FisheyeInfo ()
-        : focal_x (0.0f), focal_y (0.0f)
-        , center_x (0.0f), center_y (0.0f)
-        , width (0), height (0)
-        , wide_angle (0.0f), skew (0.0f)
-        , radius (0.0f), rotate_angle (0.0f)
-        , flip (false)
-    {}
-    bool is_valid () const {
-        return wide_angle >= 1.0f && radius >= 1.0f;
-    }
-};
-
 #define XCAM_INTRINSIC_MAX_POLY_SIZE 16
 
 // current intrinsic parameters definition from Scaramuzza's approach
 struct IntrinsicParameter {
-    float xc;
-    float yc;
+    uint32_t width;
+    uint32_t height;
+    float cx;
+    float cy;
+    float fx;
+    float fy;
+
+    float fov;
+    float skew;
+
     float c;
     float d;
     float e;
@@ -114,8 +90,12 @@ struct IntrinsicParameter {
 
     float poly_coeff[XCAM_INTRINSIC_MAX_POLY_SIZE];
 
+    bool  flip;
+
     IntrinsicParameter ()
-        : xc (0.0f), yc (0.0f), c(0.0f), d (0.0f), e (0.0f), poly_length (0)
+        : width (0), height (0), cx (0.0f), cy (0.0f), fx (0.0), fy (0.0),
+          fov (0.0), skew (0.0),
+          c (0.0f), d (0.0f), e (0.0f), poly_length (0), flip (false)
     {
         xcam_mem_clear (poly_coeff);
     }
@@ -135,6 +115,25 @@ struct ExtrinsicParameter {
         : trans_x (0.0f), trans_y (0.0f), trans_z (0.0f)
         , roll (0.0f), pitch (0.0f), yaw (0.0f)
     {}
+};
+
+struct FisheyeInfo {
+    IntrinsicParameter intrinsic;
+    ExtrinsicParameter extrinsic;
+
+    float radius;
+    float distort_coeff[4];
+    float c_coeff[4];
+
+    FisheyeInfo ()
+        : radius (0.0f)
+    {
+        xcam_mem_clear (distort_coeff);
+        xcam_mem_clear (c_coeff);
+    }
+    bool is_valid () const {
+        return intrinsic.fov >= 1.0f && radius >= 1.0f;
+    }
 };
 
 template <typename T>

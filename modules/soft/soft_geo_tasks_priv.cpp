@@ -47,8 +47,15 @@ inline void check_bound (const uint32_t &img_w, const uint32_t &img_h, Float2 *i
 inline void check_interp_bound (const uint32_t &img_w, const uint32_t &img_h, Float2 *in_pos,
                                 const uint32_t &max_idx, BoundState &bound)
 {
+    for (uint32_t i = 0; i <= max_idx; i++) {
+        if (in_pos[i].x < 0.0f) in_pos[i].x = 0.0f;
+        if (in_pos[i].x >= img_w - max_idx) in_pos[i].x = img_w - max_idx - 1;
+        if (in_pos[i].y < 0.0f) in_pos[i].y = 0.0f;
+        if (in_pos[i].y >= img_h) in_pos[i].y = img_h - 1;
+    }
+
     if (in_pos[0].x >= 0.0f && in_pos[max_idx].x >= 0.0f &&
-            in_pos[0].x < img_w - XCAM_SOFT_WORKUNIT_PIXELS && in_pos[max_idx].x < img_w - XCAM_SOFT_WORKUNIT_PIXELS &&
+            in_pos[0].x < img_w - max_idx && in_pos[max_idx].x < img_w - max_idx &&
             in_pos[0].y >= 0.0f && in_pos[max_idx].y >= 0.0f && in_pos[0].y < img_h && in_pos[max_idx].y < img_h)
         bound = BoundInternal;
     else if ((in_pos[0].x < 0.0f && in_pos[max_idx].x < 0.0f) || (in_pos[0].x >= img_w && in_pos[max_idx].x >= img_w) ||
@@ -84,8 +91,8 @@ static void interp_sample_pos (const Float2Image *lut, Float2* interp_pos, const
     __m512i idx1 = _mm512_setr_epi32(8, 9, 0xa, 0xb, 0x18, 0x19, 0x1a, 0x1b, 0xc, 0xd, 0xe, 0xf, 0x1c, 0x1d, 0x1e, 0x1f);
     __m512 data0 = _mm512_permutex2var_ps(Lo, idx0, Hi);
     __m512 data1 = _mm512_permutex2var_ps(Lo, idx1, Hi);
-    _mm512_store_ps(lut_pos, data0);
-    _mm512_store_ps(&lut_pos[8], data1);
+    _mm512_storeu_ps(lut_pos, data0);
+    _mm512_storeu_ps(&lut_pos[8], data1);
 #else
     Float2 lut_pos[16] = {
         first, Float2(first.x + step.x, first.y),
@@ -115,32 +122,64 @@ static void map_image (
     const UcharImage *in, UcharImage *out, Float2 *interp_pos,
     const uint32_t &width, const uint32_t &height,
     const uint32_t &out_x, const uint32_t &out_y,
-    const Uchar *zero_byte)
+    const Uchar *zero_byte, const bool is_chroma = false)
 {
     float  interp_value[XCAM_SOFT_WORKUNIT_PIXELS];
     Uchar  interp_pixel_vaule[XCAM_SOFT_WORKUNIT_PIXELS];
     BoundState bound = BoundInternal;
 
-    check_bound (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, bound);
-    if (bound == BoundExternal)
-        out->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y, zero_byte);
-    else {
+    if (is_chroma) {
+        check_bound (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2 - 1, bound);
+    } else {
+        check_bound (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, bound);
+    }
+
+    if (bound == BoundExternal) {
+        if (is_chroma) {
+            out->write_array_no_check < XCAM_SOFT_WORKUNIT_PIXELS / 2 > (out_x, out_y, zero_byte);
+        } else {
+            out->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y, zero_byte);
+        }
+    } else {
 #if ENABLE_AVX512
         BoundState interp_bound = BoundInternal;
-        check_interp_bound (in->get_width (), in->get_height (), interp_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, interp_bound);
+        if (is_chroma) {
+            check_interp_bound (in->get_width (), in->get_height (), interp_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2 - 1, interp_bound);
+        } else {
+            check_interp_bound (in->get_width (), in->get_height (), interp_pos, XCAM_SOFT_WORKUNIT_PIXELS - 1, interp_bound);
+        }
         if (interp_bound == BoundInternal) {
-            in->read_interpolate_array (interp_pos, interp_pixel_vaule);
+            in->read_interpolate_array (interp_pos, interp_pixel_vaule, is_chroma);
+        } else {
+            if (is_chroma) {
+                in->read_interpolate_array < float, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (interp_pos, interp_value);
+                convert_to_uchar_N < float, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (interp_value, interp_pixel_vaule);
+            } else {
+                in->read_interpolate_array<float, XCAM_SOFT_WORKUNIT_PIXELS> (interp_pos, interp_value);
+                convert_to_uchar_N<float, XCAM_SOFT_WORKUNIT_PIXELS> (interp_value, interp_pixel_vaule);
+            }
+        }
+#else
+        if (is_chroma) {
+            in->read_interpolate_array < float, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (interp_pos, interp_value);
+            convert_to_uchar_N < float, XCAM_SOFT_WORKUNIT_PIXELS / 2 > (interp_value, interp_pixel_vaule);
         } else {
             in->read_interpolate_array<float, XCAM_SOFT_WORKUNIT_PIXELS> (interp_pos, interp_value);
             convert_to_uchar_N<float, XCAM_SOFT_WORKUNIT_PIXELS> (interp_value, interp_pixel_vaule);
         }
-#else
-        in->read_interpolate_array<float, XCAM_SOFT_WORKUNIT_PIXELS> (interp_pos, interp_value);
-        convert_to_uchar_N<float, XCAM_SOFT_WORKUNIT_PIXELS> (interp_value, interp_pixel_vaule);
 #endif
-        if (bound == BoundCritical)
-            calc_critical_pixels (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS, zero_byte[0], interp_pixel_vaule);
-        out->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y, interp_pixel_vaule);
+        if (bound == BoundCritical) {
+            if (is_chroma) {
+                calc_critical_pixels (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2, zero_byte[0], interp_pixel_vaule);
+            } else {
+                calc_critical_pixels (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS, zero_byte[0], interp_pixel_vaule);
+            }
+        }
+        if (is_chroma) {
+            out->write_array_no_check < XCAM_SOFT_WORKUNIT_PIXELS / 2 > (out_x, out_y, interp_pixel_vaule);
+        } else {
+            out->write_array_no_check<XCAM_SOFT_WORKUNIT_PIXELS> (out_x, out_y, interp_pixel_vaule);
+        }
     }
 }
 
@@ -156,17 +195,18 @@ static void map_image (
     Uchar2 interp_pixel_value[XCAM_SOFT_WORKUNIT_PIXELS / 2];
 
 #if ENABLE_AVX512
-    assert(XCAM_SOFT_WORKUNIT_PIXELS == 16);
-    __m512i index = _mm512_setr_epi32(0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29);
-    __m512 multiplier = _mm512_set1_ps(0.5f);
+    XCAM_ASSERT (XCAM_SOFT_WORKUNIT_PIXELS == 16);
+    __m512i index = _mm512_setr_epi32 (0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29);
+    __m512 multiplier = _mm512_set1_ps (0.5f);
     __m512 value = _mm512_i32gather_ps (index, interp_pos, 4);
-    value = _mm512_mul_ps(value, multiplier);
-    _mm512_store_ps(interp_pos, value);
+    value = _mm512_mul_ps (value, multiplier);
+    _mm512_storeu_ps (interp_pos, value);
 #else
     for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i += 2) {
         interp_pos[i / 2] = interp_pos[i] / 2.0f;
     }
 #endif
+
     check_bound (width, height, interp_pos, XCAM_SOFT_WORKUNIT_PIXELS / 2 - 1, bound);
     if (bound == BoundExternal) {
         out->write_array_no_check < XCAM_SOFT_WORKUNIT_PIXELS / 2 > (out_x, out_y, zero_byte);
@@ -263,14 +303,14 @@ GeoMapTask::work_range (const SmartPtr<Arguments> &base, const WorkRange &range)
                 map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
                            out_x, out_y, zero_luma_byte);
 
-                for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i++) {
-                    interp_pos[i] = interp_pos[i] / 2.0f;
+                for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i += 2) {
+                    interp_pos[i / 2] = interp_pos[i] / 2.0f;
                 }
                 map_image (in_u, out_u, interp_pos, chroma_w, chroma_h,
-                           out_x / 2, out_y / 2, zero_chroma_byte);
+                           out_x / 2, out_y / 2, zero_chroma_byte, true);
 
                 map_image (in_v, out_v, interp_pos, chroma_w, chroma_h,
-                           out_x / 2, out_y / 2, zero_chroma_byte);
+                           out_x / 2, out_y / 2, zero_chroma_byte, true);
 
                 first.y = first.y + step.y;
                 interp_sample_pos (lut, interp_pos, first, step);
@@ -278,6 +318,7 @@ GeoMapTask::work_range (const SmartPtr<Arguments> &base, const WorkRange &range)
                            out_x, out_y + 1, zero_luma_byte);
             } else if (NULL != in_uv) {
                 interp_sample_pos (lut, interp_pos, first, step);
+
                 map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
                            out_x, out_y, zero_luma_byte);
 
@@ -368,14 +409,14 @@ GeoMapDualConstTask::work_range (const SmartPtr<Arguments> &base, const WorkRang
                 map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
                            out_x, out_y, zero_luma_byte);
 
-                for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i++) {
-                    interp_pos[i] = interp_pos[i] / 2.0f;
+                for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i += 2) {
+                    interp_pos[i / 2] = interp_pos[i] / 2.0f;
                 }
                 map_image (in_u, out_u, interp_pos, chroma_w, chroma_h,
-                           out_x / 2, out_y / 2, zero_chroma_byte);
+                           out_x / 2, out_y / 2, zero_chroma_byte, true);
 
                 map_image (in_v, out_v, interp_pos, chroma_w, chroma_h,
-                           out_x / 2, out_y / 2, zero_chroma_byte);
+                           out_x / 2, out_y / 2, zero_chroma_byte, true);
 
                 first.y = first.y + step.y;
                 interp_sample_pos (lut, interp_pos, first, step);
@@ -581,14 +622,14 @@ GeoMapDualCurveTask::work_range (const SmartPtr<Arguments> &base, const WorkRang
                 map_image (in_luma, out_luma, interp_pos, luma_w, luma_h,
                            out_x, out_y, zero_luma_byte);
 
-                for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i++) {
-                    interp_pos[i] = interp_pos[i] / 2.0f;
+                for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS; i += 2) {
+                    interp_pos[i / 2] = interp_pos[i] / 2.0f;
                 }
                 map_image (in_u, out_u, interp_pos, chroma_w, chroma_h,
-                           out_x / 2, out_y / 2, zero_chroma_byte);
+                           out_x / 2, out_y / 2, zero_chroma_byte, true);
 
                 map_image (in_v, out_v, interp_pos, chroma_w, chroma_h,
-                           out_x / 2, out_y / 2, zero_chroma_byte);
+                           out_x / 2, out_y / 2, zero_chroma_byte, true);
 
                 first.y = first.y + step.y;
                 interp_sample_pos (lut, interp_pos, first, step);

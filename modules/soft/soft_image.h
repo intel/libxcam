@@ -125,7 +125,7 @@ public:
 
 #if ENABLE_AVX512
     inline void read_interpolate_array (Float2 *pos, Float2 *array) const;
-    inline void read_interpolate_array (Float2 *pos, Uchar *array) const;
+    inline void read_interpolate_array (Float2 *pos, Uchar *array, bool is_chroma = false) const;
     inline void read_interpolate_array (Float2 *pos, Uchar2 *array) const;
 #endif
 
@@ -463,14 +463,18 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Float2 *array) const
 
 template <typename T>
 void
-SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar *array) const
+SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar *array, bool is_chroma) const
 {
     float* dest = (float*)array;
     __m256 const_one_float = _mm256_set1_ps (1.0f);
     __m256i const_pitch = _mm256_set1_epi32 (_pitch);
     __m256i const_one_int = _mm256_set1_epi32 (1);
+    uint32_t loop_count = XCAM_SOFT_WORKUNIT_PIXELS / 8;
+    if (is_chroma) {
+        loop_count = loop_count / 2;
+    }
 
-    for (uint32_t i = 0; i < XCAM_SOFT_WORKUNIT_PIXELS / 8; i++) {
+    for (uint32_t i = 0; i < loop_count; i++) {
         // load 8 interpolate pos ((8 x float2) x 32bit)
         __m512 interp_pos = _mm512_loadu_ps (&pos[8 * i]);
         __m512 interp_pos_xy = _mm512_floor_ps (interp_pos);
@@ -485,9 +489,6 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar *array) const
 
         __m256 weight_x_1 = _mm256_sub_ps (const_one_float, weight_x);
         __m256 weight_y_1 = _mm256_sub_ps (const_one_float, weight_y);
-
-        int32_t pos_x0 = (int32_t)(pos[8 * i].x);
-        border_check_x (pos_x0);
 
         float* pos_xy = (float*)&interp_pos_xy;
         __m512 pos_00 = _mm512_setr_ps (0, pos_xy[1], 0, pos_xy[1],
@@ -592,9 +593,6 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar2 *array) const
     __m512 weight_x_1 = _mm512_sub_ps(const_one_float, weight_x);
     __m512 weight_y_1 = _mm512_sub_ps(const_one_float, weight_y);
 
-    int32_t pos_x0 = (int32_t)(pos[0].x);
-    border_check_x (pos_x0);
-
     float* pos_xy = (float*)&interp_pos_xy;
     __m512 pos_00 = _mm512_setr_ps (0, pos_xy[1], 0, pos_xy[1],
                                     0, pos_xy[1], 0, pos_xy[1],
@@ -613,7 +611,6 @@ SoftImage<T>::read_interpolate_array (Float2 *pos, Uchar2 *array) const
 
     const T* base = ((const T*)(_buf_ptr + pos_y0 * _pitch));
     __m256i offset_top0 = _mm256_add_epi32 (pos_idx_x, _mm256_mullo_epi32 (pos_idx_y, const_pitch));
-
 
     __m256i offset_top1 = _mm256_add_epi32 (offset_top0, const_one_int);
 

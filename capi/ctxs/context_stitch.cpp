@@ -147,14 +147,14 @@ StitchContext::set_parameters (ContextParams &param_list)
     CamModel cam_model = (CamModel)_cam_model;
     viewpoints_range (cam_model, _viewpoints_range);
     _fm_cfg = (_module == StitchVulkan) ? vk_fm_config (cam_model) :
-        ((_module == StitchGLES) ? gl_fm_config (cam_model) : soft_fm_config (cam_model));
+              ((_module == StitchGLES) ? gl_fm_config (cam_model) : soft_fm_config (cam_model));
 
     if (_dewarp_mode == DewarpSphere) {
         _fm_region_ratio = fm_region_ratio (cam_model);
 
         StitchScopicMode scopic_mode = (StitchScopicMode)_scopic_mode;
         _stich_info = (_module == StitchSoft) ?
-           soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
+                      soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
     } else {
         _bowl_cfg = bowl_config (cam_model);
     }
@@ -287,6 +287,24 @@ StitchContext::init_config ()
 #if HAVE_OPENCV
         _stitcher->set_fm_region_ratio (_fm_region_ratio);
 #endif
+        get_fisheye_info ((CamModel)_cam_model, (StitchScopicMode)_scopic_mode, _stich_info.fisheye_info);
+
+        for (uint32_t cam_id = 0; cam_id < XCAM_STITCH_FISHEYE_MAX_NUM; cam_id++) {
+            XCAM_LOG_DEBUG ("cam[%d]: flip=%d ", cam_id, _stich_info.fisheye_info[cam_id].intrinsic.flip);
+            XCAM_LOG_DEBUG ("fx=%f ", _stich_info.fisheye_info[cam_id].intrinsic.fx);
+            XCAM_LOG_DEBUG ("fy=%f ", _stich_info.fisheye_info[cam_id].intrinsic.fy);
+            XCAM_LOG_DEBUG ("cx=%f ", _stich_info.fisheye_info[cam_id].intrinsic.cx);
+            XCAM_LOG_DEBUG ("cy=%f ", _stich_info.fisheye_info[cam_id].intrinsic.cy);
+            XCAM_LOG_DEBUG ("w=%d ", _stich_info.fisheye_info[cam_id].intrinsic.width);
+            XCAM_LOG_DEBUG ("h=%d ", _stich_info.fisheye_info[cam_id].intrinsic.height);
+            XCAM_LOG_DEBUG ("fov=%f ", _stich_info.fisheye_info[cam_id].intrinsic.fov);
+            XCAM_LOG_DEBUG ("skew=%f ", _stich_info.fisheye_info[cam_id].intrinsic.skew);
+            XCAM_LOG_DEBUG ("radius=%f ", _stich_info.fisheye_info[cam_id].radius);
+            XCAM_LOG_DEBUG ("distroy coeff=%f %f %f %f ", _stich_info.fisheye_info[cam_id].distort_coeff[0], _stich_info.fisheye_info[cam_id].distort_coeff[1], _stich_info.fisheye_info[cam_id].distort_coeff[2], _stich_info.fisheye_info[cam_id].distort_coeff[3]);
+            XCAM_LOG_DEBUG ("fisheye eluer angles: yaw:%f, pitch:%f, roll:%f", _stich_info.fisheye_info[cam_id].extrinsic.yaw, _stich_info.fisheye_info[cam_id].extrinsic.pitch, _stich_info.fisheye_info[cam_id].extrinsic.roll);
+            XCAM_LOG_DEBUG ("fisheye translation: x:%f, y:%f, z:%f", _stich_info.fisheye_info[cam_id].extrinsic.trans_x, _stich_info.fisheye_info[cam_id].extrinsic.trans_y, _stich_info.fisheye_info[cam_id].extrinsic.trans_z);
+        }
+
         _stitcher->set_stitch_info (_stich_info);
     } else {
         _stitcher->set_intrinsic_names (intrinsic_names);
