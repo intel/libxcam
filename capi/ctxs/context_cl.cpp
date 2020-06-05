@@ -278,7 +278,7 @@ StitchCLContext::show_help ()
         "  seam        : Enable seam finder in blending area\n"
         "                Range   : [0, 1]\n"
         "                Default : 0\n"
-        "  help        : Printf usage\n"
+        "  help        : Print usage\n"
         "                Range   : [0, 1]\n"
         "                Default : 0\n",
         XCAM_MAX_INPUTS_NUM);

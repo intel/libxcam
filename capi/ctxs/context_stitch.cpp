@@ -359,7 +359,7 @@ StitchContext::show_help ()
         "                Range   : [none]\n"
         "                Default : none\n"
 #endif
-        "  help        : Printf usage\n"
+        "  help        : Print usage\n"
         "                Range   : [0, 1]\n"
         "                Default : 0\n",
         XCAM_MAX_INPUTS_NUM);
