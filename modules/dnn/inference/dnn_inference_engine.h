@@ -109,18 +109,6 @@ enum DnnInferDataType {
     DnnInferDataTypeImage
 };
 
-enum DnnInferLogLevel {
-    DnnInferLogLevelNone = 0,
-    DnnInferLogLevelEngine,
-    DnnInferLogLevelLayer
-};
-
-enum DnnInferInfoType {
-    DnnInferInfoEngine = 0,
-    DnnInferInfoPlugin,
-    DnnInferInfoNetwork
-};
-
 struct DnnInferImageSize {
     uint32_t image_width;
     uint32_t image_height;
@@ -132,18 +120,14 @@ struct DnnInferImageSize {
 };
 
 struct DnnInferenceEngineInfo {
-    DnnInferInfoType type;
     int32_t major;
     int32_t minor;
-    const char* desc;
-    const char* name;
+    std::string desc;
+    std::string name;
 
     DnnInferenceEngineInfo () {
-        type = DnnInferInfoEngine;
         major = 0;
         minor = 0;
-        desc = NULL;
-        name = NULL;
     };
 };
 
@@ -186,20 +170,15 @@ struct DnnInferConfig {
     DnnInferInputOutputInfo input_infos;
     DnnInferInputOutputInfo output_infos;
 
-    const char * plugin_path;
-    const char * cpu_ext_path;
-    const char * cldnn_ext_path;
-    const char * model_filename;
-    const char * output_layer_name;
-    uint32_t perf_counter;
-    uint32_t infer_req_num;
+    const std::map<std::string, std::string> config_file;
+    std::string device_name;
+    std::string mkldnn_ext;
+    std::string cldnn_ext;
+    std::string model_filename;
 
     DnnInferConfig () {
-        plugin_path = NULL;
-        cpu_ext_path = NULL;
-        cldnn_ext_path = NULL;
-        model_filename = NULL;
-        output_layer_name = NULL;
+        target_id = DnnInferDeviceCPU;
+        device_name = "CPU";
     };
 };
 
@@ -213,13 +192,16 @@ public:
     XCamReturn create_model (DnnInferConfig& config);
     XCamReturn load_model (DnnInferConfig& config);
 
-    XCamReturn get_info (DnnInferenceEngineInfo& info, DnnInferInfoType type);
+    std::vector<std::string> get_available_devices ();
+
+    XCamReturn get_info (DnnInferenceEngineInfo& info);
 
     XCamReturn set_batch_size (const size_t size);
     size_t get_batch_size ();
 
-    bool ready_to_start ()  const {
-        return _model_created && _model_loaded;
+    bool ready_to_start ()  const
+    {
+        return _model_loaded;
     };
 
     XCamReturn start (bool sync = true);
@@ -257,12 +239,8 @@ public:
     std::shared_ptr<uint8_t> read_input_image (std::string& image);
     XCamReturn save_output_image (const std::string& image_name, uint32_t index);
 
-    void print_log (uint32_t flag);
-
 protected:
     virtual XCamReturn set_output_layer_type (const char* type) = 0;
-    InferenceEngine::TargetDevice get_device_from_string (const std::string& device_name);
-    InferenceEngine::TargetDevice get_device_from_id (DnnInferTargetDeviceType device);
 
     InferenceEngine::Layout estimate_layout_type (const int ch_num);
     InferenceEngine::Layout convert_layout_type (DnnInferLayoutType layout);
@@ -283,7 +261,6 @@ private:
 
 protected:
 
-    bool _model_created;
     bool _model_loaded;
 
     DnnInferModelType _model_type;
@@ -291,8 +268,7 @@ protected:
     std::vector<uint32_t> _input_image_width;
     std::vector<uint32_t> _input_image_height;
 
-    InferenceEngine::InferencePlugin _plugin;
-    InferenceEngine::CNNNetReader _network_reader;
+    SmartPtr<InferenceEngine::Core> _ie;
     InferenceEngine::CNNNetwork _network;
     InferenceEngine::InferRequest _infer_request;
     std::vector<InferenceEngine::CNNLayerPtr> _layers;

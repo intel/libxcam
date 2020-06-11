@@ -49,28 +49,39 @@ DnnObjectDetection::set_output_layer_type (const char* type)
 XCamReturn
 DnnObjectDetection::get_model_input_info (DnnInferInputOutputInfo& info)
 {
-    if (!_model_created) {
-        XCAM_LOG_ERROR ("Please create the model firstly!");
+    if (NULL == _ie.ptr ()) {
+        XCAM_LOG_ERROR ("Please create inference engine");
         return XCAM_RETURN_ERROR_ORDER;
     }
 
-    int id = 0;
     InputsDataMap inputs_info (_network.getInputsInfo ());
+    InputInfo::Ptr input_info = nullptr;
 
-    for (auto & in : inputs_info) {
-        auto& input = in.second;
-        const InferenceEngine::SizeVector input_dims = input->getDims ();
+    int id = 0;
+    InferenceEngine::Precision precision;
+    for (auto & item : inputs_info) {
+        if (item.second->getInputData()->getTensorDesc().getDims().size() == 4) {
+            input_info = item.second;
+            XCAM_LOG_DEBUG ("Batch size is: %d", _network.getBatchSize());
+            precision = Precision::U8;
+            item.second->setPrecision(Precision::U8);
+        } else if (item.second->getInputData()->getTensorDesc().getDims().size() == 2) {
+            precision = Precision::FP32;
+            item.second->setPrecision(Precision::FP32);
+            if ((item.second->getTensorDesc().getDims()[1] != 3 && item.second->getTensorDesc().getDims()[1] != 6)) {
+                XCAM_LOG_ERROR ("Invalid input info. Should be 3 or 6 values length");
+                return XCAM_RETURN_ERROR_PARAM;
+            }
+        }
 
-        info.width[id] = input_dims[0];
-        info.height[id] = input_dims[1];
-        info.channels[id] = input_dims[2];
-        info.object_size[id] = input_dims[3];
-        info.precision[id] = convert_precision_type (input->getPrecision());
-        info.layout[id] = convert_layout_type (input->getLayout());
-
-        in.second->setPrecision(Precision::U8);
+        info.width[id] = inputs_info[item.first]->getTensorDesc().getDims()[3];
+        info.height[id] = inputs_info[item.first]->getTensorDesc().getDims()[2];
+        info.channels[id] = inputs_info[item.first]->getTensorDesc().getDims()[1];
+        info.object_size[id] = inputs_info[item.first]->getTensorDesc().getDims()[0];
+        info.precision[id] = convert_precision_type (precision);
         id++;
     }
+
     info.batch_size = get_batch_size ();
     info.numbers = inputs_info.size ();
 
@@ -82,8 +93,8 @@ DnnObjectDetection::set_model_input_info (DnnInferInputOutputInfo& info)
 {
     XCAM_LOG_DEBUG ("DnnObjectDetection::set_model_input_info");
 
-    if (!_model_created) {
-        XCAM_LOG_ERROR ("Please create the model firstly!");
+    if (NULL == _ie.ptr ()) {
+        XCAM_LOG_ERROR ("Please create inference engine");
         return XCAM_RETURN_ERROR_ORDER;
     }
 
@@ -108,8 +119,8 @@ DnnObjectDetection::set_model_input_info (DnnInferInputOutputInfo& info)
 XCamReturn
 DnnObjectDetection::get_model_output_info (DnnInferInputOutputInfo& info)
 {
-    if (!_model_created) {
-        XCAM_LOG_ERROR ("Please create the model firstly!");
+    if (NULL == _ie.ptr ()) {
+        XCAM_LOG_ERROR ("Please create inference engine");
         return XCAM_RETURN_ERROR_ORDER;
     }
 
@@ -148,8 +159,8 @@ DnnObjectDetection::get_model_output_info (DnnInferInputOutputInfo& info)
 XCamReturn
 DnnObjectDetection::set_model_output_info (DnnInferInputOutputInfo& info)
 {
-    if (!_model_created) {
-        XCAM_LOG_ERROR ("Please create the model firstly!");
+    if (NULL == _ie.ptr ()) {
+        XCAM_LOG_ERROR ("Please create inference engine");
         return XCAM_RETURN_ERROR_ORDER;
     }
 
@@ -177,8 +188,8 @@ DnnObjectDetection::get_bounding_boxes (const float* result_ptr,
                                         std::vector<Vec4i> &boxes,
                                         std::vector<int32_t> &classes)
 {
-    if (!_model_created) {
-        XCAM_LOG_ERROR ("Please create the model firstly!");
+    if (NULL == _ie.ptr ()) {
+        XCAM_LOG_ERROR ("Please create inference engine");
         return XCAM_RETURN_ERROR_ORDER;
     }
 

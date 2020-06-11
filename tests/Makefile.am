@@ -197,7 +197,8 @@ if ENABLE_RENDER
 TEST_RENDER_LA = $(top_builddir)/modules/render/libxcam_render.la \
                  $(NULL)
 if ENABLE_DNN
-TEST_RENDER_LA += $(top_builddir)/modules/dnn/inference/libxcam_dnn.la
+TEST_RENDER_LA += $(top_builddir)/modules/dnn/inference/libxcam_dnn.la \
+                  $(NULL)
 endif
 
 test_render_surround_view_SOURCES = test-render-surround-view.cpp
@@ -205,7 +206,6 @@ test_render_surround_view_CXXFLAGS = $(TEST_BASE_CXXFLAGS) \
                                      $(NULL)
 if ENABLE_DNN
 test_render_surround_view_CXXFLAGS += -I$(OPENVINO_IE_INC_PATH)/include       \
-                                      -I$(OPENVINO_IE_INC_PATH)/src/extension \
                                       $(NULL)
 endif
 
@@ -226,7 +226,6 @@ test_dnn_inference_SOURCES = test-dnn-inference.cpp
 test_dnn_inference_CXXFLAGS = \
     $(TEST_BASE_CXXFLAGS)                   \
     -I$(OPENVINO_IE_INC_PATH)/include       \
-    -I$(OPENVINO_IE_INC_PATH)/src/extension \
     $(NULL)
 
 test_dnn_inference_LDADD = \

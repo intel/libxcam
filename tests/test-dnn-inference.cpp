@@ -110,7 +110,6 @@ static void usage (const char* arg0)
 int main (int argc, char *argv[])
 {
     const struct option long_opts[] = {
-        {"plugin", required_argument, NULL, 'p'},
         {"target-dev", required_argument, NULL, 'd'},
         {"ext-path", required_argument, NULL, 'x'},
         {"model", required_argument, NULL, 'm'},
@@ -145,10 +144,6 @@ int main (int argc, char *argv[])
     int32_t opt = -1;
     while ((opt = getopt_long (argc, argv, "", long_opts, NULL)) != -1) {
         switch (opt) {
-        case 'p':
-            XCAM_ASSERT (optarg);
-            infer_config.plugin_path = optarg;
-            break;
         case 'd':
             XCAM_ASSERT (optarg);
             if (!strcasecmp (optarg, "CPU")) {
@@ -217,13 +212,18 @@ int main (int argc, char *argv[])
         }
     }
 
-    XCAM_LOG_DEBUG ("targetDevice: %d", infer_config.target_id );
     if (DnnInferDeviceCPU == infer_config.target_id) {
-        infer_config.cpu_ext_path = ext_path;
-        XCAM_LOG_DEBUG ("CPU Extension loaded: %s", infer_config.cpu_ext_path);
+        infer_config.device_name = "CPU";
+        if (NULL != ext_path ) {
+            infer_config.mkldnn_ext = ext_path;
+        }
+        XCAM_LOG_DEBUG ("Device(%s) load extension: %s", infer_config.device_name.c_str (), infer_config.mkldnn_ext.c_str ());
     } else if (DnnInferDeviceGPU == infer_config.target_id) {
-        infer_config.cldnn_ext_path = ext_path;
-        XCAM_LOG_DEBUG ("GPU Extension loaded: %s", infer_config.cldnn_ext_path);
+        infer_config.device_name = "GPU";
+        if (NULL != ext_path ) {
+            infer_config.cldnn_ext = ext_path;
+        }
+        XCAM_LOG_DEBUG ("Device(%s) load extension: %s", infer_config.device_name.c_str (), infer_config.cldnn_ext.c_str ());
     }
 
     if (optind < argc || argc < 2) {
@@ -232,12 +232,11 @@ int main (int argc, char *argv[])
         return -1;
     }
 
-    printf ("plugin path:\t\t%s\n", (infer_config.plugin_path != NULL) ? infer_config.plugin_path : "NULL");
     printf ("target device id:\t\t%d\n", infer_config.target_id);
     printf ("extention path:\t\t%s\n", (ext_path != NULL) ? ext_path : "NULL");
     printf ("input image:\t\t%s\n", (input_image != NULL) ? input_image : "NULL");
     printf ("model type:\t\t%d\n", infer_config.model_type);
-    printf ("model file name:\t\t%s\n", (infer_config.model_filename != NULL) ? infer_config.model_filename : "NULL");
+    printf ("model file name:\t\t%s\n", (infer_config.model_filename.c_str () != NULL) ? infer_config.model_filename.c_str () : "NULL");
 
     // --------------------------- 1. Set input image file names -----------------------------------------------------------
     if (ins.size () == 1 && ins[0].ptr ()) {
@@ -266,8 +265,6 @@ int main (int argc, char *argv[])
 
     // --------------------------- 2. create inference engine --------------------------------------------------
     XCAM_LOG_DEBUG ("2. Create inference engine");
-    infer_config.perf_counter = 0;
-
     SmartPtr<DnnInferenceEngine> infer_engine;
 
     if (DnnInferObjectDetection == infer_config.model_type) {
@@ -281,24 +278,18 @@ int main (int argc, char *argv[])
         return -1;
     }
 
+    std::vector<std::string> devices = infer_engine->get_available_devices ();
+    XCAM_LOG_DEBUG ("Available target devices count: %d", devices.size ());
+    for (const auto& it : devices) {
+        XCAM_LOG_DEBUG ("  %s", it.c_str ());
+    }
+
     DnnInferenceEngineInfo infer_info;
     CHECK (
-        infer_engine->get_info (infer_info, DnnInferInfoEngine),
+        infer_engine->get_info (infer_info),
         "get inference engine info failed!");
+    XCAM_LOG_DEBUG ("Inference Engine discription: %s",  infer_info.desc.c_str ());
     XCAM_LOG_DEBUG ("Inference Engine version: %d.%d",  infer_info.major, infer_info.minor);
-
-    CHECK (
-        infer_engine->get_info (infer_info, DnnInferInfoPlugin),
-        "get inference engine info failed!");
-    XCAM_LOG_DEBUG ("Inference Engine plugin discription: %s",  infer_info.desc);
-    XCAM_LOG_DEBUG ("Inference Engine plugin version: %d.%d",  infer_info.major, infer_info.minor);
-
-    CHECK (
-        infer_engine->get_info (infer_info, DnnInferInfoNetwork),
-        "get inference engine info failed!");
-    XCAM_LOG_DEBUG ("Inference Engine network name: %s",  infer_info.name);
-    XCAM_LOG_DEBUG ("Inference Engine network discription: %s",  infer_info.desc);
-    XCAM_LOG_DEBUG ("Inference Engine network version: %d.%d",  infer_info.major, infer_info.minor);
 
     // --------------------------- 3. Get model input infos --------------------------------------------------
     XCAM_LOG_DEBUG ("3. Get/Set model input infos");
