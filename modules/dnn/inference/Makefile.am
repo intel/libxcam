@@ -5,7 +5,6 @@ XCAM_DNN_CXXFLAGS = \
     -I$(top_srcdir)/xcore   \
     -I$(top_srcdir)/modules \
     -I$(OPENVINO_IE_INC_PATH)/include \
-    -I$(OPENVINO_IE_INC_PATH)/src/extension \
     -I$(OPENVINO_IE_INC_PATH)/samples/common/format_reader \
     $(NULL)
 
@@ -13,10 +12,10 @@ XCAM_DNN_LIBS = \
     $(top_builddir)/xcore/libxcam_core.la \
     -L$(OPENVINO_IE_LIBS_PATH) \
     -linference_engine \
-    -lclDNN64 \
     -lclDNNPlugin \
-    -lcpu_extension \
     -lMKLDNNPlugin \
+    -lGNAPlugin \
+    -lmyriadPlugin \
     -lformat_reader \
     $(NULL)
 
