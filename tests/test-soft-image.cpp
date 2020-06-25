@@ -28,7 +28,7 @@
 #include <interface/blender.h>
 #include <interface/geo_mapper.h>
 #include <interface/stitcher.h>
-#include <xcore/fisheye_dewarp.h>
+#include <fisheye_dewarp.h>
 
 #define MAP_WIDTH 3
 #define MAP_HEIGHT 4
