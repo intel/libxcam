@@ -405,7 +405,7 @@ DrmDisplay::render_setup_frame_buffer (SmartPtr<VideoBuffer> &buf)
     }
 
     ret = (XCamReturn) drmModeAddFB2(_fd, video_info.width, video_info.height, fourcc, bo_handles,
-                                     video_info.strides, video_info.offsets, &fb_handle, 0);
+                                     video_info.strides, (uint32_t *)video_info.offsets, &fb_handle, 0);
 
     fb.fb_handle = fb_handle;
     fb.index = global_signal_index++;
