@@ -85,7 +85,7 @@ struct _XCamVideoBufferInfo {
     uint32_t size;
     uint32_t components;
     uint32_t strides [XCAM_VIDEO_MAX_COMPONENTS];
-    uint32_t offsets [XCAM_VIDEO_MAX_COMPONENTS];
+    ptrdiff_t offsets [XCAM_VIDEO_MAX_COMPONENTS];
 };
 
 typedef enum {

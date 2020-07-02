@@ -72,7 +72,7 @@ public:
         uint32_t aligned_width = 0);
     explicit SoftImage (
         const SmartPtr<VideoBuffer> &buf,
-        const uint32_t width, const uint32_t height, const uint32_t pictch, const uint32_t offset = 0);
+        const uint32_t width, const uint32_t height, const uint32_t pictch, const ptrdiff_t offset = 0);
 
     ~SoftImage () {
         if (!_bind.ptr ()) {
@@ -267,7 +267,7 @@ SoftImage<T>::SoftImage (
 template <typename T>
 SoftImage<T>::SoftImage (
     const SmartPtr<VideoBuffer> &buf,
-    const uint32_t width, const uint32_t height, const uint32_t pictch, const uint32_t offset)
+    const uint32_t width, const uint32_t height, const uint32_t pictch, const ptrdiff_t offset)
     : _buf_ptr (NULL)
     , _width (width), _height (height)
     , _pitch (pictch)
