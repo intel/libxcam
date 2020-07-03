@@ -4,8 +4,9 @@ XCAM_DNN_CXXFLAGS = \
     $(XCAM_CXXFLAGS)        \
     -I$(top_srcdir)/xcore   \
     -I$(top_srcdir)/modules \
-    -I$(OPENVINO_IE_INC_PATH)/include \
-    -I$(OPENVINO_IE_INC_PATH)/samples/common/format_reader \
+    -I$(OPENVINO_IE_INC_PATH)/ngraph/src \
+    -I$(OPENVINO_IE_INC_PATH)/inference-engine/include \
+    -I$(OPENVINO_IE_INC_PATH)/inference-engine/samples/common/format_reader \
     $(NULL)
 
 XCAM_DNN_LIBS = \
