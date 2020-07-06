@@ -153,35 +153,18 @@ xcam_handle_set_parameters (
 #endif
 
 SmartPtr<VideoBuffer>
-external_buf_to_drm_buf (XCamVideoBuffer *buf)
+append_extbuf_to_xcambuf (XCamVideoBuffer *extbuf)
 {
-#if 0
-    // need HAVE_LIBDRM
-    SmartPtr<DrmDisplay> display = DrmDisplay::instance ();
-    SmartPtr<DmaVideoBuffer> dma_buf;
-    SmartPtr<VideoBuffer> drm_buf;
-    SmartPtr<VideoBuffer> video_buf;
-
-    dma_buf = external_buf_to_dma_buf (buf);
-
+    SmartPtr<DmaVideoBuffer> xcambuf = append_to_dmabuf (extbuf);
     XCAM_FAIL_RETURN (
-        ERROR, dma_buf.ptr (), NULL,
-        "external_buf_to_drm_buf failed");
+        ERROR, xcambuf.ptr (), NULL,
+        "append external buffer to xcam buffer failed");
 
-    video_buf = dma_buf;
-    XCAM_ASSERT (display.ptr ());
-    drm_buf = display->convert_to_drm_bo_buf (display, video_buf);
-    return drm_buf;
-#endif
-
-    XCAM_LOG_ERROR ("VideoBuffer doesn't support drm buf");
-    XCAM_UNUSED (buf);
-
-    return NULL;
+    return xcambuf;
 }
 
 SmartPtr<VideoBuffer>
-copy_external_buf_to_drm_buf (XCamHandle *handle, XCamVideoBuffer *buf)
+copy_extbuf_to_xcambuf (XCamHandle *handle, XCamVideoBuffer *buf)
 {
     XCAM_FAIL_RETURN (ERROR, handle && buf, NULL, "xcam handle or buf can NOT be NULL");
 
@@ -192,7 +175,7 @@ copy_external_buf_to_drm_buf (XCamHandle *handle, XCamVideoBuffer *buf)
     uint8_t *src = buf->map (buf);
     XCAM_FAIL_RETURN (ERROR, src, NULL, "xcam map buffer failed");
 
-    SmartPtr<BufferPool> buf_pool = context->get_input_buffer_pool();
+    SmartPtr<BufferPool> buf_pool = context->get_input_buffer_pool ();
     XCAM_ASSERT (buf_pool.ptr ());
     SmartPtr<VideoBuffer> inbuf = buf_pool->get_buffer (buf_pool);
     XCAM_ASSERT (inbuf.ptr ());
@@ -217,13 +200,41 @@ copy_external_buf_to_drm_buf (XCamHandle *handle, XCamVideoBuffer *buf)
     return inbuf;
 }
 
+bool
+copy_xcambuf_to_extbuf (XCamVideoBuffer *extbuf, const SmartPtr<VideoBuffer> &xcambuf)
+{
+    XCAM_FAIL_RETURN (ERROR, extbuf && xcambuf.ptr (), false, "external buffer or xcam buffer can NOT be NULL");
+
+    const VideoBufferInfo src_info = xcambuf->get_video_info ();
+    uint8_t *src = xcambuf->map ();
+
+    const XCamVideoBufferInfo dest_info = extbuf->info;
+    uint8_t *dest = extbuf->map (extbuf);
+    XCAM_FAIL_RETURN (ERROR, dest, false, "xcam map buffer failed");
+
+    VideoBufferPlanarInfo planar;
+    for (uint32_t idx = 0; idx < src_info.components; idx++) {
+        uint8_t *p_src = src + src_info.offsets[idx];
+        uint8_t *p_dest = dest + dest_info.offsets[idx];
+        src_info.get_planar_info (planar, idx);
+
+        for (uint32_t h = 0; h < planar.height; h++) {
+            memcpy (p_dest, p_src, dest_info.strides[idx]);
+            p_src += src_info.strides[idx];
+            p_dest += dest_info.strides[idx];
+        }
+    }
+    extbuf->unmap (extbuf);
+    xcambuf->unmap ();
+
+    return true;
+}
+
 XCamReturn
 xcam_handle_execute (
     XCamHandle *handle, XCamVideoBuffer **buf_in, XCamVideoBuffer **buf_out)
 {
     ContextBase *context = CONTEXT_BASE_CAST (handle);
-    SmartPtr<VideoBuffer> input, output;
-
     XCAM_FAIL_RETURN (
         ERROR, context && buf_in && buf_out, XCAM_RETURN_ERROR_PARAM,
         "xcam_handle_execute failed, either of handle/buf_in/buf_out can NOT be NULL");
@@ -232,17 +243,20 @@ xcam_handle_execute (
         ERROR, context->is_handler_valid (), XCAM_RETURN_ERROR_PARAM,
         "context (%s) failed, handler was not initialized", context->get_type_name ());
 
-    SmartPtr<VideoBuffer> pre, cur;
+    uint32_t mem_type = context->get_mem_type ();
+    if (mem_type == XCAM_MEM_TYPE_CPU) {
+        XCAM_FAIL_RETURN (
+            ERROR, *buf_out, XCAM_RETURN_ERROR_PARAM,
+            "xcam_handle_execute failed, buf_out[0] can NOT be NULL");
+    }
+
+    SmartPtr<VideoBuffer> input, output, pre, cur;
     for (int i = 0; buf_in[i] != NULL; i++) {
-        if (buf_in[i]->mem_type == XCAM_MEM_TYPE_GPU) {
-            cur = external_buf_to_drm_buf (buf_in[i]);
-        } else {
-            cur = copy_external_buf_to_drm_buf (handle, buf_in[i]);
-        }
+        cur = (mem_type == XCAM_MEM_TYPE_CPU) ?
+            append_extbuf_to_xcambuf (buf_in[i]) : copy_extbuf_to_xcambuf (handle, buf_in[i]);
         XCAM_FAIL_RETURN (
             ERROR, cur.ptr (), XCAM_RETURN_ERROR_MEM,
-            "xcam_handle(%s) execute failed, buf_in convert to DRM buffer failed.",
-            context->get_type_name ());
+            "xcam_handle(%s) execute failed, convert input buffer failed", context->get_type_name ());
 
         if (i == 0) {
             input = cur;
@@ -252,27 +266,22 @@ xcam_handle_execute (
         pre = cur;
     }
 
-    if (*buf_out) {
-        output = external_buf_to_drm_buf (*buf_out);
+    if (mem_type == XCAM_MEM_TYPE_CPU) {
+        output = append_extbuf_to_xcambuf (buf_out[0]);
         XCAM_FAIL_RETURN (
             ERROR, output.ptr (), XCAM_RETURN_ERROR_MEM,
-            "xcam_handle(%s) execute failed, buf_out set but convert to DRM buffer failed.",
-            context->get_type_name ());
+            "xcam_handle(%s) execute failed, convert output buffer failed", context->get_type_name ());
     }
 
     XCamReturn ret = context->execute (input, output);
     XCAM_FAIL_RETURN (
-        ERROR, ret == XCAM_RETURN_NO_ERROR || ret == XCAM_RETURN_BYPASS,
-        ret,
+        ERROR, ret == XCAM_RETURN_NO_ERROR || ret == XCAM_RETURN_BYPASS, ret,
         "context (%s) failed, handler execute failed", context->get_type_name ());
 
-    if (*buf_out == NULL && output.ptr ()) {
-        XCamVideoBuffer *new_buf = convert_to_external_buffer (output);
+    if (mem_type != XCAM_MEM_TYPE_CPU) {
         XCAM_FAIL_RETURN (
-            ERROR, new_buf, XCAM_RETURN_ERROR_MEM,
-            "xcam_handle(%s) execute failed, out buffer can't convert to external buffer.",
-            context->get_type_name ());
-        *buf_out = new_buf;
+            ERROR, copy_xcambuf_to_extbuf (buf_out[0], output), XCAM_RETURN_ERROR_MEM,
+            "xcam_handle(%s) execute failed, convert output buffer failed", context->get_type_name ());
     }
 
     return ret;
