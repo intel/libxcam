@@ -46,10 +46,10 @@ struct VideoBufferInfo
         uint32_t width, uint32_t height,
         uint32_t aligned_width = 0, uint32_t aligned_height = 0, uint32_t size = 0);
 
+    bool fill (const XCamVideoBufferInfo &info);
+    bool is_valid () const;
     bool get_planar_info (
         VideoBufferPlanarInfo &planar, const uint32_t index = 0) const;
-
-    bool is_valid () const;
 };
 
 class VideoBuffer {
