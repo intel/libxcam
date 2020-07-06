@@ -59,6 +59,25 @@ VideoBufferInfo::init (
 }
 
 bool
+VideoBufferInfo::fill (const XCamVideoBufferInfo &info)
+{
+    format = info.format;
+    color_bits = info.color_bits;
+    width = info.width;
+    height = info.height;
+    aligned_width = info.aligned_width;
+    aligned_height = info.aligned_height;
+    size = info.size;
+    components = info.components;
+    for (int i = 0; i < XCAM_VIDEO_MAX_COMPONENTS; i++) {
+        strides[i] = info.strides[i];
+        offsets[i] = info.offsets[i];
+    }
+
+    return true;
+}
+
+bool
 VideoBufferInfo::is_valid () const
 {
     return format && aligned_width && aligned_height && size;
