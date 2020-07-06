@@ -159,6 +159,9 @@ StitchContext::set_parameters (ContextParams &param_list)
         _bowl_cfg = bowl_config (cam_model);
     }
 
+    if (_module != StitchSoft)
+        set_mem_type (XCAM_MEM_TYPE_GPU);
+
     return XCAM_RETURN_NO_ERROR;
 }
 

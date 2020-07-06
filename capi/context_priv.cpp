@@ -53,6 +53,7 @@ ContextBase::ContextBase (HandleType type)
     , _output_width (0)
     , _output_height (0)
     , _format (V4L2_PIX_FMT_NV12)
+    , _mem_type (XCAM_MEM_TYPE_CPU)
     , _alloc_out_buf (0)
 {
 }
@@ -117,6 +118,18 @@ void
 ContextBase::set_buf_pool (const SmartPtr<BufferPool> &pool)
 {
     _inbuf_pool = pool;
+}
+
+void
+ContextBase::set_mem_type (uint32_t type)
+{
+    _mem_type = type;
+}
+
+uint32_t
+ContextBase::get_mem_type () const
+{
+    return _mem_type;
 }
 
 bool

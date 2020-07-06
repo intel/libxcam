@@ -86,6 +86,8 @@ static void parse_enum (const ContextParams &params, const Pair *pairs, const ch
 CLContextBase::CLContextBase (HandleType type)
     : ContextBase (type)
 {
+    set_mem_type (XCAM_MEM_TYPE_GPU);
+
     if (!get_input_buffer_pool ().ptr()) {
         SmartPtr<BufferPool> pool = new CLVideoBufferPool ();
         XCAM_ASSERT (pool.ptr ());

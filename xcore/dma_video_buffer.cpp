@@ -25,13 +25,16 @@ namespace XCam {
 class DmaVideoBufferPriv
     : public DmaVideoBuffer
 {
-    friend SmartPtr<DmaVideoBuffer> external_buf_to_dma_buf (XCamVideoBuffer *buf);
+    friend SmartPtr<DmaVideoBuffer> append_to_dmabuf (XCamVideoBuffer *buf);
 protected:
     DmaVideoBufferPriv (const VideoBufferInfo &info, XCamVideoBuffer *buf);
     ~DmaVideoBufferPriv ();
 
+    virtual uint8_t *map ();
+    virtual bool unmap ();
+
 private:
-    XCamVideoBuffer *_external_buf;
+    XCamVideoBuffer *_ext_buf;
 };
 
 DmaVideoBuffer::DmaVideoBuffer (const VideoBufferInfo &info, int dma_fd, bool need_close_fd)
@@ -51,9 +54,10 @@ DmaVideoBuffer::~DmaVideoBuffer ()
 uint8_t *
 DmaVideoBuffer::map ()
 {
-    XCAM_ASSERT (false && "DmaVideoBuffer::map not supported");
+    XCAM_ASSERT (false && "DmaVideoBuffer::map failed");
     return NULL;
 }
+
 bool
 DmaVideoBuffer::unmap ()
 {
@@ -68,8 +72,8 @@ DmaVideoBuffer::get_fd ()
 }
 
 DmaVideoBufferPriv::DmaVideoBufferPriv (const VideoBufferInfo &info, XCamVideoBuffer *buf)
-    : DmaVideoBuffer (info, xcam_video_buffer_get_fd (buf), false)
-    , _external_buf (buf)
+    : DmaVideoBuffer (info, buf->get_fd ? xcam_video_buffer_get_fd (buf) : 0, false)
+    , _ext_buf (buf)
 {
     if (buf->ref)
         xcam_video_buffer_ref (buf);
@@ -77,33 +81,44 @@ DmaVideoBufferPriv::DmaVideoBufferPriv (const VideoBufferInfo &info, XCamVideoBu
 
 DmaVideoBufferPriv::~DmaVideoBufferPriv ()
 {
-    if (_external_buf && _external_buf->unref && _external_buf->ref)
-        xcam_video_buffer_unref (_external_buf);
+    if (_ext_buf && _ext_buf->unref && _ext_buf->ref)
+        xcam_video_buffer_unref (_ext_buf);
+}
+
+uint8_t *
+DmaVideoBufferPriv::map ()
+{
+    uint8_t *mem = _ext_buf->map (_ext_buf);
+    XCAM_FAIL_RETURN (ERROR, mem, NULL, "DmaVideoBufferPriv::map failed");
+
+    return mem;
+}
+
+bool
+DmaVideoBufferPriv::unmap ()
+{
+    _ext_buf->unmap (_ext_buf);
+    return true;
 }
 
 SmartPtr<DmaVideoBuffer>
-external_buf_to_dma_buf (XCamVideoBuffer *buf)
+append_to_dmabuf (XCamVideoBuffer *buf)
 {
-    VideoBufferInfo buf_info;
-    SmartPtr<DmaVideoBuffer> video_buffer;
+    XCAM_FAIL_RETURN (ERROR, buf, NULL, "append_to_dmabuf failed since buf is NULL");
 
-    XCAM_FAIL_RETURN (
-        ERROR, buf, NULL,
-        "external_buf_to_dma_buf failed since buf is NULL");
+    if (buf->get_fd) {
+        XCAM_FAIL_RETURN (
+            ERROR, xcam_video_buffer_get_fd (buf) > 0, NULL,
+            "append_to_dmabuf failed, can't get buf file-handle");
+    }
 
-    int buffer_fd = 0;
-    if (buf->get_fd)
-        buffer_fd = xcam_video_buffer_get_fd(buf);
+    VideoBufferInfo info;
+    info.fill (buf->info);
 
-    XCAM_FAIL_RETURN (
-        ERROR, buffer_fd > 0, NULL,
-        "external_buf_to_dma_buf failed, can't get buf file-handle");
+    SmartPtr<DmaVideoBuffer> dmabuf = new DmaVideoBufferPriv (info, buf);
+    XCAM_ASSERT (dmabuf.ptr ());
 
-    buf_info.init (buf->info.format, buf->info.width, buf->info.height,
-                   buf->info.aligned_width, buf->info.aligned_height, buf->info.size);
-    video_buffer = new DmaVideoBufferPriv (buf_info, buf);
-    XCAM_ASSERT (video_buffer.ptr ());
-    return video_buffer;
+    return dmabuf;
 }
 
 }
