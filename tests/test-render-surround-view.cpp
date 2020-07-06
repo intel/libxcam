@@ -508,7 +508,7 @@ static void usage(const char* arg0)
     printf ("Usage:\n"
             "%s --module MODULE --input0 input.nv12 --input1 input1.nv12 --input2 input2.nv12 ...\n"
             "\t--module            processing module, selected from: soft, gles, vulkan\n"
-            "\t--                  read calibration files from exported path $FISHEYE_CONFIG_PATH\n"
+            "                      read calibration files from exported path $FISHEYE_CONFIG_PATH\n"
             "\t--input             input image(NV12)\n"
             "\t--in-w              optional, input width, default: 1280\n"
             "\t--in-h              optional, input height, default: 800\n"
@@ -523,9 +523,7 @@ static void usage(const char* arg0)
             "\t                    select from [none], default: none\n"
 #endif
             "\t--car               optional, car model name\n"
-#if ENABLE_DNN
             "\t--detect            optional, pedestrian & vehicle detection, default: disable\n"
-#endif
             "\t--loop              optional, how many loops need to run, default: 1\n"
             "\t--help              usage\n",
             arg0);
@@ -548,9 +546,7 @@ int main (int argc, char *argv[])
     GeoMapScaleMode scale_mode = ScaleSingleConst;
     FeatureMatchMode fm_mode = FMNone;
 
-#if ENABLE_DNN
     bool enable_detect = false;
-#endif
     int loop = 1;
 
     const struct option long_opts[] = {
@@ -563,9 +559,7 @@ int main (int argc, char *argv[])
         {"scale-mode", required_argument, NULL, 'S'},
         {"fm-mode", required_argument, NULL, 'F'},
         {"car", required_argument, NULL, 'c'},
-#if ENABLE_DNN
         {"detect", required_argument, NULL, 'd'},
-#endif
         {"loop", required_argument, NULL, 'L'},
         {"help", no_argument, NULL, 'e'},
         {NULL, 0, NULL, 0},
@@ -640,12 +634,10 @@ int main (int argc, char *argv[])
             XCAM_ASSERT (optarg);
             car_name = optarg;
             break;
-#if ENABLE_DNN
         case 'd':
             XCAM_ASSERT (optarg);
             enable_detect = (strcasecmp (optarg, "true") == 0 ? true : false);
             break;
-#endif
         case 'L':
             loop = atoi(optarg);
             break;
@@ -769,6 +761,8 @@ int main (int argc, char *argv[])
     if (enable_detect) {
         infer_engine = create_dnn_inference_engine ();
     }
+#else
+    XCAM_UNUSED (enable_detect);
 #endif
 
     while (loop--) {
