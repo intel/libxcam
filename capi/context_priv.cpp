@@ -83,7 +83,6 @@ XCamReturn
 ContextBase::set_parameters (ContextParams &param_list)
 {
     parse_value (param_list, "fmt", _format);
-    parse_value (param_list, "allocoutbuf", _alloc_out_buf);
 
     parse_value (param_list, "inw", _input_width);
     parse_value (param_list, "inh", _input_height);
@@ -126,10 +125,10 @@ ContextBase::set_mem_type (uint32_t type)
     _mem_type = type;
 }
 
-uint32_t
-ContextBase::get_mem_type () const
+void
+ContextBase::set_alloc_out_buf (bool flag)
 {
-    return _mem_type;
+    _alloc_out_buf = flag;
 }
 
 bool

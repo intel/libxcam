@@ -86,6 +86,7 @@ static void parse_enum (const ContextParams &params, const Pair *pairs, const ch
 CLContextBase::CLContextBase (HandleType type)
     : ContextBase (type)
 {
+    set_alloc_out_buf (true);
     set_mem_type (XCAM_MEM_TYPE_GPU);
 
     if (!get_input_buffer_pool ().ptr()) {
@@ -140,15 +141,9 @@ CLContextBase::is_handler_valid () const
 XCamReturn
 CLContextBase::execute (SmartPtr<VideoBuffer> &buf_in, SmartPtr<VideoBuffer> &buf_out)
 {
-    if (!need_alloc_out_buf ()) {
-        XCAM_FAIL_RETURN (
-            ERROR, buf_out.ptr (), XCAM_RETURN_ERROR_MEM,
-            "context (%s) execute failed, buf_out need set.", get_type_name ());
-    } else {
-        XCAM_FAIL_RETURN (
-            ERROR, !buf_out.ptr (), XCAM_RETURN_ERROR_MEM,
-            "context (%s) execute failed, buf_out need NULL.", get_type_name ());
-    }
+    XCAM_FAIL_RETURN (
+        ERROR, buf_in.ptr () && (need_alloc_out_buf () || buf_out.ptr ()), XCAM_RETURN_ERROR_MEM,
+        "context (%s) execute failed, input or output buffer is NULL", get_type_name ());
 
     return _handler->execute (buf_in, buf_out);
 }
@@ -295,7 +290,6 @@ StitchCLContext::show_options ()
     printf ("  Output width\t\t: %d\n", get_out_width ());
     printf ("  Output height\t\t: %d\n", get_out_height ());
     printf ("  Pixel format\t\t: %s\n", get_format () == V4L2_PIX_FMT_YUV420 ? "yuv420" : "nv12");
-    printf ("  Alloc output buffer\t: %d\n", need_alloc_out_buf ());
     printf ("  Resolution mode\t: %s\n", res_pairs[_res_mode].name);
     printf ("  Dewarp mode\t\t: %s\n", dewarp_pairs[_dewarp_mode].name);
     printf ("  Scaling mode\t\t: %s\n", scale_pairs[_scale_mode].name);

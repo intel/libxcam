@@ -139,6 +139,11 @@ StitchContext::set_parameters (ContextParams &param_list)
     parse_value (param_list, "fisheyenum", _fisheye_num);
     parse_value (param_list, "levels", _blend_pyr_levels);
 
+    if (_module != StitchSoft) {
+        set_alloc_out_buf (true);
+        set_mem_type (XCAM_MEM_TYPE_GPU);
+    }
+
     create_buf_pool (_module);
 
     ContextBase::set_parameters (param_list);
@@ -158,9 +163,6 @@ StitchContext::set_parameters (ContextParams &param_list)
     } else {
         _bowl_cfg = bowl_config (cam_model);
     }
-
-    if (_module != StitchSoft)
-        set_mem_type (XCAM_MEM_TYPE_GPU);
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -195,11 +197,9 @@ StitchContext::is_handler_valid () const
 XCamReturn
 StitchContext::execute (SmartPtr<VideoBuffer> &buf_in, SmartPtr<VideoBuffer> &buf_out)
 {
-    if (!need_alloc_out_buf ()) {
-        XCAM_FAIL_RETURN (ERROR, buf_out.ptr (), XCAM_RETURN_ERROR_MEM, "output buffer is NULL");
-    } else {
-        XCAM_FAIL_RETURN (ERROR, !buf_out.ptr (), XCAM_RETURN_ERROR_MEM, "output buffer need NULL");
-    }
+    XCAM_FAIL_RETURN (
+        ERROR, buf_in.ptr () && (need_alloc_out_buf () || buf_out.ptr ()),
+        XCAM_RETURN_ERROR_MEM, "input or output buffer is NULL");
 
     VideoBufferList in_buffers;
     in_buffers.push_back (buf_in);
@@ -381,7 +381,6 @@ StitchContext::show_options ()
     printf ("  Pixel format\t\t: %s\n", get_format () == V4L2_PIX_FMT_YUV420 ? "yuv420" : "nv12");
     printf ("  Fisheye number\t: %d\n", _fisheye_num);
     printf ("  Blend pyr levels\t: %d\n", _blend_pyr_levels);
-    printf ("  Alloc output buffer\t: %d\n", need_alloc_out_buf ());
     printf ("  Dewarp mode\t\t: %s\n", dewarp_pairs[_dewarp_mode].name);
     printf ("  Scopic mode\t\t: %s\n", scopic_pairs[_scopic_mode].name);
     printf ("  Scaling mode\t\t: %s\n", scale_pairs[_scale_mode].name);
