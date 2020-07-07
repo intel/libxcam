@@ -243,16 +243,11 @@ xcam_handle_execute (
         ERROR, context->is_handler_valid (), XCAM_RETURN_ERROR_PARAM,
         "context (%s) failed, handler was not initialized", context->get_type_name ());
 
-    uint32_t mem_type = context->get_mem_type ();
-    if (mem_type == XCAM_MEM_TYPE_CPU) {
-        XCAM_FAIL_RETURN (
-            ERROR, *buf_out, XCAM_RETURN_ERROR_PARAM,
-            "xcam_handle_execute failed, buf_out[0] can NOT be NULL");
-    }
+    bool append_buf = !context->need_alloc_out_buf ();
 
     SmartPtr<VideoBuffer> input, output, pre, cur;
     for (int i = 0; buf_in[i] != NULL; i++) {
-        cur = (mem_type == XCAM_MEM_TYPE_CPU) ?
+        cur = append_buf ?
             append_extbuf_to_xcambuf (buf_in[i]) : copy_extbuf_to_xcambuf (handle, buf_in[i]);
         XCAM_FAIL_RETURN (
             ERROR, cur.ptr (), XCAM_RETURN_ERROR_MEM,
@@ -266,7 +261,7 @@ xcam_handle_execute (
         pre = cur;
     }
 
-    if (mem_type == XCAM_MEM_TYPE_CPU) {
+    if (append_buf) {
         output = append_extbuf_to_xcambuf (buf_out[0]);
         XCAM_FAIL_RETURN (
             ERROR, output.ptr (), XCAM_RETURN_ERROR_MEM,
@@ -278,7 +273,7 @@ xcam_handle_execute (
         ERROR, ret == XCAM_RETURN_NO_ERROR || ret == XCAM_RETURN_BYPASS, ret,
         "context (%s) failed, handler execute failed", context->get_type_name ());
 
-    if (mem_type != XCAM_MEM_TYPE_CPU) {
+    if (!append_buf) {
         XCAM_FAIL_RETURN (
             ERROR, copy_xcambuf_to_extbuf (buf_out[0], output), XCAM_RETURN_ERROR_MEM,
             "xcam_handle(%s) execute failed, convert output buffer failed", context->get_type_name ());

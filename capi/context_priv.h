@@ -66,15 +66,15 @@ public:
         return  _inbuf_pool;
     }
     const char* get_type_name () const;
-    uint32_t get_mem_type () const;
+    bool need_alloc_out_buf () const;
 
 protected:
     ContextBase (HandleType type);
 
     void set_buf_pool (const SmartPtr<BufferPool> &pool);
     void set_mem_type (uint32_t type);
+    void set_alloc_out_buf (bool flag);
 
-    bool need_alloc_out_buf () const;
     uint32_t get_in_width () const;
     uint32_t get_in_height () const;
     uint32_t get_out_width () const;
@@ -98,7 +98,7 @@ protected:
     uint32_t                         _output_height;
     uint32_t                         _format;
     uint32_t                         _mem_type;
-    uint32_t                         _alloc_out_buf;
+    bool                             _alloc_out_buf;
 };
 
 ContextBase *create_context (const char *name);
