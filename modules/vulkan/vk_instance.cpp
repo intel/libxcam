@@ -131,14 +131,14 @@ VKInstance::query_physical_info ()
     dev_num = XCAM_MIN (dev_num, MAX_DEV_NUM);
     vkEnumeratePhysicalDevices (_instance_id, &dev_num, devs);
 
-    VkPhysicalDevice gpu_dev[VK_PHYSICAL_DEVICE_TYPE_RANGE_SIZE] = {};
+    VkPhysicalDevice gpu_dev[VK_PHYSICAL_DEVICE_TYPE_CPU + 1] = {};
 
     VkPhysicalDeviceProperties dev_prop;
     for (uint32_t i = 0; i < dev_num; ++i) {
         vkGetPhysicalDeviceProperties (devs[i], &dev_prop);
 
-        if (dev_prop.deviceType < VK_PHYSICAL_DEVICE_TYPE_BEGIN_RANGE ||
-                dev_prop.deviceType > VK_PHYSICAL_DEVICE_TYPE_END_RANGE) {
+        if (dev_prop.deviceType < VK_PHYSICAL_DEVICE_TYPE_OTHER ||
+                dev_prop.deviceType > VK_PHYSICAL_DEVICE_TYPE_CPU) {
             continue;
         }
         if (gpu_dev[dev_prop.deviceType]) {
