@@ -255,6 +255,7 @@ XCamReturn
 CalibrationParser::parse_fisheye_camera_param (const char *file_path, FisheyeInfo *fisheye_info, uint32_t camera_count)
 {
     XCAM_LOG_DEBUG ("Parse camera calibration file: %s", file_path);
+
     if (NULL == file_path) {
         XCAM_LOG_ERROR ("invalide input file path !");
         return XCAM_RETURN_ERROR_PARAM;
@@ -268,20 +269,15 @@ CalibrationParser::parse_fisheye_camera_param (const char *file_path, FisheyeInf
     try {
         json calib_params = json::parse(calibFile);
 
-        auto const rig = calib_params.find("rig");
-        if (rig == calib_params.end()) {
-            XCAM_LOG_ERROR ("rig Not Found");
-        }
-
-        auto const model = rig->find("model");
-        if (model != rig->end()) {
+        auto const model = calib_params.find("model");
+        if (model != calib_params.end()) {
             XCAM_LOG_DEBUG ("camera model=%d ", rig->find("model")->get<int>());
         } else {
             XCAM_LOG_WARNING ("model Not Found");
         }
 
-        auto const cameras = rig->find("cameras");
-        if (cameras == rig->end()) {
+        auto const cameras = calib_params.find("cameras");
+        if (cameras == calib_params.end()) {
             XCAM_LOG_ERROR ("cameras Not Found");
             return XCAM_RETURN_ERROR_PARAM;
         }
@@ -294,15 +290,56 @@ CalibrationParser::parse_fisheye_camera_param (const char *file_path, FisheyeInf
 
         uint32_t cam_id = 0;
         for (json::iterator cam = camera->begin(); cam != camera->end(), cam_id < camera_count; cam++) {
-            fisheye_info[cam_id].intrinsic.fx = cam->find("fx")->get<float>();
-            fisheye_info[cam_id].intrinsic.fy = cam->find("fy")->get<float>();
-            fisheye_info[cam_id].intrinsic.cx = cam->find("cx")->get<float>();
-            fisheye_info[cam_id].intrinsic.cy = cam->find("cy")->get<float>();
-            fisheye_info[cam_id].intrinsic.width = cam->find("w")->get<int>();
-            fisheye_info[cam_id].intrinsic.height = cam->find("h")->get<int>();
-            fisheye_info[cam_id].intrinsic.skew = cam->find("skew")->get<float>();
-            fisheye_info[cam_id].intrinsic.fov = cam->find("fov")->get<float>();
-            fisheye_info[cam_id].intrinsic.flip = (strcasecmp(cam->find("flip")->get<std::string>().c_str(), "true") == 0 ? true : false);
+
+            auto const cam_radius = cam->find("radius");
+            if (cam_radius != cam->end ()) {
+                fisheye_info[cam_id].radius = cam_radius->get<float>();
+            }
+
+            auto const cam_cx = cam->find("cx");
+            if (cam_cx != cam->end ()) {
+                fisheye_info[cam_id].intrinsic.cx = cam_cx->get<float>();
+            }
+
+            auto const cam_cy = cam->find("cy");
+            if (cam_cy != cam->end ()) {
+                fisheye_info[cam_id].intrinsic.cy = cam_cy->get<float>();
+            }
+
+            auto const cam_w = cam->find("w");
+            if (cam_w != cam->end ()) {
+                fisheye_info[cam_id].intrinsic.width = cam_w->get<int>();
+            }
+
+            auto const cam_h = cam->find("h");
+            if (cam_h != cam->end ()) {
+                fisheye_info[cam_id].intrinsic.height = cam_h->get<int>();
+            }
+
+            auto const cam_skew = cam->find("skew");
+            if (cam_skew != cam->end ()) {
+                fisheye_info[cam_id].intrinsic.skew = cam_skew->get<float>();
+            }
+
+            auto const cam_fx = cam->find("fx");
+            if (cam_fx != cam->end ()) {
+                fisheye_info[cam_id].intrinsic.fx = cam_fx->get<float>();
+            }
+
+            auto const cam_fy = cam->find("fy");
+            if (cam_fy != cam->end ()) {
+                fisheye_info[cam_id].intrinsic.fy = cam_fy->get<float>();
+            }
+
+            auto const cam_fov = cam->find("fov");
+            if (cam_fov != cam->end ()) {
+                fisheye_info[cam_id].intrinsic.fov = cam_fov->get<float>();
+            }
+
+            auto const cam_flip = cam->find("flip");
+            if (cam_flip != cam->end ()) {
+                fisheye_info[cam_id].intrinsic.flip = (strcasecmp(cam_flip->get<std::string>().c_str(), "true") == 0 ? true : false);
+            }
             XCAM_LOG_DEBUG ("cam[%d]: flip=%d ", cam_id, fisheye_info[cam_id].intrinsic.flip);
             XCAM_LOG_DEBUG ("fx=%f ", fisheye_info[cam_id].intrinsic.fx);
             XCAM_LOG_DEBUG ("fy=%f ", fisheye_info[cam_id].intrinsic.fy);
@@ -313,47 +350,72 @@ CalibrationParser::parse_fisheye_camera_param (const char *file_path, FisheyeInf
             XCAM_LOG_DEBUG ("fov=%f ", fisheye_info[cam_id].intrinsic.fov);
             XCAM_LOG_DEBUG ("skew=%f ", fisheye_info[cam_id].intrinsic.skew);
 
-            auto const k = cam->find("K");
-            uint32_t i = 0;
-            for (json::iterator k_mat = k->begin(); k_mat != k->end(); k_mat++, i++) {
-                XCAM_LOG_DEBUG ("k[%d]: %f ", i, k_mat->get<float>());
+            auto const cam_yaw = cam->find("yaw");
+            if (cam_yaw != cam->end ()) {
+                fisheye_info[cam_id].extrinsic.yaw = cam_yaw->get<float>();
             }
 
-            auto const d = cam->find("D");
-            i = 0;
-            for (json::iterator d_vec = d->begin(); d_vec != d->end(), i < 4; d_vec++, i++) {
-                fisheye_info[cam_id].distort_coeff[i] = d_vec->get<float>();
-                XCAM_LOG_DEBUG ("d[%d]: %f ", i, d_vec->get<float>());
+            auto const cam_pitch = cam->find("pitch");
+            if (cam_pitch != cam->end ()) {
+                fisheye_info[cam_id].extrinsic.pitch = cam_pitch->get<float>();
             }
 
-            auto const r = cam->find("R");
-            Mat3f rotation;
-            i = 0;
-            for (json::iterator r_mat = r->begin(); r_mat != r->end(), i < 9; r_mat++, i++) {
-                rotation(i / 3, i % 3) = r_mat->get<float>();
+            auto const cam_roll = cam->find("roll");
+            if (cam_roll != cam->end ()) {
+                fisheye_info[cam_id].extrinsic.roll = cam_roll->get<float>();
             }
-            Quaternion<float> quat = create_quaternion (rotation);
-            Vec3f euler_angles = quat.euler_angles ();
-            fisheye_info[cam_id].extrinsic.yaw = RADIANS_2_DEGREE (euler_angles[0]);
-            fisheye_info[cam_id].extrinsic.pitch = RADIANS_2_DEGREE (euler_angles[1]);
-            fisheye_info[cam_id].extrinsic.roll = RADIANS_2_DEGREE (euler_angles[2]);
 
-            auto const t = cam->find("t");
-            i = 0;
-            Vec3f translation;
-            for (json::iterator t_vec = t->begin(); t_vec != t->end(), i < 3; t_vec++, i++) {
-                translation[i] = t_vec->get<float>();
-                XCAM_LOG_DEBUG ("t[%d]: %f ", i, t_vec->get<float>());
+            auto const cam_k = cam->find("K");
+            if (cam_k != cam->end ()) {
+                uint32_t i = 0;
+                for (json::iterator k_mat = cam_k->begin(); k_mat != cam_k->end(); k_mat++, i++) {
+                    XCAM_LOG_DEBUG ("k[%d]: %f ", i, k_mat->get<float>());
+                }
             }
-            fisheye_info[cam_id].extrinsic.trans_x = translation[0];
-            fisheye_info[cam_id].extrinsic.trans_y = translation[1];
-            fisheye_info[cam_id].extrinsic.trans_z = translation[2];
 
-            auto const c = cam->find("c");
-            i = 0;
-            for (json::iterator c_vec = c->begin(); c_vec != c->end(), i < 3; c_vec++, i++) {
-                fisheye_info[cam_id].c_coeff[i] = c_vec->get<float>();
-                XCAM_LOG_DEBUG ("c[%d]: %f ", i, c_vec->get<float>());
+            auto const cam_d = cam->find("D");
+            if (cam_d != cam->end ()) {
+                uint32_t i = 0;
+                for (json::iterator d_vec = cam_d->begin(); d_vec != cam_d->end(), i < 4; d_vec++, i++) {
+                    fisheye_info[cam_id].distort_coeff[i] = d_vec->get<float>();
+                    XCAM_LOG_DEBUG ("d[%d]: %f ", i, d_vec->get<float>());
+                }
+            }
+
+            auto const cam_r = cam->find("R");
+            if (cam_r != cam->end ()) {
+                Mat3f rotation;
+                uint32_t i = 0;
+                for (json::iterator r_mat = cam_r->begin(); r_mat != cam_r->end(), i < 9; r_mat++, i++) {
+                    rotation(i / 3, i % 3) = r_mat->get<float>();
+                }
+                Quaternion<float> quat = create_quaternion (rotation);
+                Vec3f euler_angles = quat.euler_angles ();
+                fisheye_info[cam_id].extrinsic.yaw = RADIANS_2_DEGREE (euler_angles[0]);
+                fisheye_info[cam_id].extrinsic.pitch = RADIANS_2_DEGREE (euler_angles[1]);
+                fisheye_info[cam_id].extrinsic.roll = RADIANS_2_DEGREE (euler_angles[2]);
+            }
+
+            auto const cam_t = cam->find("t");
+            if (cam_t != cam->end ()) {
+                uint32_t i = 0;
+                Vec3f translation;
+                for (json::iterator t_vec = cam_t->begin(); t_vec != cam_t->end(), i < 3; t_vec++, i++) {
+                    translation[i] = t_vec->get<float>();
+                    XCAM_LOG_DEBUG ("t[%d]: %f ", i, t_vec->get<float>());
+                }
+                fisheye_info[cam_id].extrinsic.trans_x = translation[0];
+                fisheye_info[cam_id].extrinsic.trans_y = translation[1];
+                fisheye_info[cam_id].extrinsic.trans_z = translation[2];
+            }
+
+            auto const cam_c = cam->find("c");
+            if (cam_c != cam->end ()) {
+                uint32_t i = 0;
+                for (json::iterator c_vec = cam_c->begin(); c_vec != cam_c->end(), i < 3; c_vec++, i++) {
+                    fisheye_info[cam_id].c_coeff[i] = c_vec->get<float>();
+                    XCAM_LOG_DEBUG ("c[%d]: %f ", i, c_vec->get<float>());
+                }
             }
 
             cam_id++;
