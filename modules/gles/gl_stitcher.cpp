@@ -921,7 +921,7 @@ GLStitcher::start_work (const SmartPtr<Parameters> &base)
 
     const SmartPtr<GLComputeProgram> prog = _impl->get_sync_prog ();
     XCAM_ASSERT (prog.ptr ());
-    ret = prog->finish ();
+    ret = prog->flush ();
 
     return ret;
 }

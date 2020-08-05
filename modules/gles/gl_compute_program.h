@@ -44,6 +44,7 @@ public:
     }
 
     virtual XCamReturn work ();
+    virtual XCamReturn flush ();
     virtual XCamReturn finish ();
 
 private:
