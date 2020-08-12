@@ -271,7 +271,7 @@ CalibrationParser::parse_fisheye_camera_param (const char *file_path, FisheyeInf
 
         auto const model = calib_params.find("model");
         if (model != calib_params.end()) {
-            XCAM_LOG_DEBUG ("camera model=%d ", rig->find("model")->get<int>());
+            XCAM_LOG_DEBUG ("camera model=%d ", calib_params.find("model")->get<int>());
         } else {
             XCAM_LOG_WARNING ("model Not Found");
         }
