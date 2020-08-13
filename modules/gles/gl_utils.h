@@ -26,6 +26,7 @@
 namespace XCam {
 
 SmartPtr<GLBuffer> get_glbuffer (const SmartPtr<VideoBuffer> &buf);
+void dump_buf (const SmartPtr<GLBuffer> &buf, const char *name);
 
 }
 

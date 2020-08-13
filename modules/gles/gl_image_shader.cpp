@@ -61,15 +61,15 @@ GLImageShader::get_compute_program (SmartPtr<GLComputeProgram> &prog)
 XCamReturn
 GLImageShader::work (const SmartPtr<Worker::Arguments> &args)
 {
-    XCamReturn ret = _program->use ();
-    XCAM_FAIL_RETURN (
-        WARNING, ret == XCAM_RETURN_NO_ERROR, ret,
-        "GLImageShader(%s) use program failed", XCAM_STR (get_name ()));
-
-    ret = pre_work (args);
+    XCamReturn ret = pre_work (args);
     XCAM_FAIL_RETURN (
         WARNING, ret == XCAM_RETURN_NO_ERROR, ret,
         "GLImageShader(%s) pre-work failed", XCAM_STR (get_name ()));
+
+    ret = _program->use ();
+    XCAM_FAIL_RETURN (
+        WARNING, ret == XCAM_RETURN_NO_ERROR, ret,
+        "GLImageShader(%s) use program failed", XCAM_STR (get_name ()));
 
 #if ENABLE_DEBUG_SHADER
     XCAM_OBJ_PROFILING_START;
@@ -118,20 +118,25 @@ GLImageShader::pre_work (const SmartPtr<Worker::Arguments> &args)
 
     return ret;
 }
+
 XCamReturn
 GLImageShader::prepare_arguments (const SmartPtr<Worker::Arguments> &args, GLCmdList &cmds)
 {
     XCAM_UNUSED (args);
     XCAM_UNUSED (cmds);
 
-    XCAM_LOG_ERROR ("GLImageShader(%s) prepare arguments error", XCAM_STR (get_name ()));
-    return XCAM_RETURN_ERROR_GLES;
+    return XCAM_RETURN_NO_ERROR;
 }
 
 XCamReturn
 GLImageShader::set_commands (const GLCmdList &cmds)
 {
-    GLuint prog_id = _program->get_program_id();
+    XCamReturn ret = _program->use ();
+    XCAM_FAIL_RETURN (
+        WARNING, ret == XCAM_RETURN_NO_ERROR, ret,
+        "GLImageShader(%s) use program failed", XCAM_STR (get_name ()));
+
+    GLuint prog_id = _program->get_program_id ();
     XCAM_FAIL_RETURN (
         WARNING, prog_id, XCAM_RETURN_ERROR_PARAM,
         "GLImageShader(%s) invalid program id:%d", XCAM_STR (get_name ()), prog_id);
@@ -149,7 +154,25 @@ GLImageShader::set_commands (const GLCmdList &cmds)
             "GLImageShader(%s) command(idx:%d) run failed", XCAM_STR (get_name ()));
     }
 
+    ret = _program->disuse ();
+    XCAM_FAIL_RETURN (
+        WARNING, ret == XCAM_RETURN_NO_ERROR, ret,
+        "GLImageShader(%s) disuse program failed", XCAM_STR (get_name ()));
+
     return XCAM_RETURN_NO_ERROR;
+}
+
+bool
+GLImageShader::set_groups_size (const GLGroupsSize &size)
+{
+    SmartPtr<GLComputeProgram> prog = _program.dynamic_cast_ptr<GLComputeProgram> ();
+    XCAM_FAIL_RETURN (
+        ERROR, prog.ptr (), false,
+        "GLImageShader(%s) convert to GLComputeProgram failed", XCAM_STR (get_name ()));
+
+    prog->set_groups_size (size);
+
+    return true;
 }
 
 XCamReturn

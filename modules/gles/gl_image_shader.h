@@ -54,6 +54,7 @@ public:
     virtual ~GLImageShader ();
 
     XCamReturn set_commands (const GLCmdList &cmds);
+    bool set_groups_size (const GLGroupsSize &size);
     bool get_compute_program (SmartPtr<GLComputeProgram> &prog);
 
     // derived from Worker

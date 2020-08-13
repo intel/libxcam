@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Author: Wind Yuan <feng.yuan@intel.com>
  * Author: Yinhang Liu <yinhangx.liu@intel.com>
  */
 
@@ -30,13 +29,13 @@
 namespace XCam {
 
 namespace GLBlenderPriv {
-class BlenderPrivConfig;
+class BlenderImpl;
 };
 
 class GLBlender
     : public GLImageHandler, public Blender
 {
-    friend class GLBlenderPriv::BlenderPrivConfig;
+    friend class GLBlenderPriv::BlenderImpl;
     friend SmartPtr<GLImageHandler> create_gl_blender ();
 
 public:
@@ -52,45 +51,25 @@ public:
         {}
     };
 
-    enum BufIdx {
-        Idx0 = 0,
-        Idx1,
-        BufIdxCount
-    };
-
 public:
     ~GLBlender ();
 
     bool set_pyr_levels (uint32_t levels);
 
-    //derived from GLHandler
     virtual XCamReturn finish ();
     virtual XCamReturn terminate ();
-
-    void gauss_scale_done (
-        const SmartPtr<Worker> &worker, const SmartPtr<Worker::Arguments> &base, const XCamReturn error);
-    void lap_trans_done (
-        const SmartPtr<Worker> &worker, const SmartPtr<Worker::Arguments> &base, const XCamReturn error);
-    void blend_done (
-        const SmartPtr<Worker> &worker, const SmartPtr<Worker::Arguments> &base, const XCamReturn error);
-    void reconstruct_done (
-        const SmartPtr<Worker> &worker, const SmartPtr<Worker::Arguments> &base, const XCamReturn error);
 
 protected:
     explicit GLBlender (const char *name = "GLBlender");
 
-    //derived from Blender interface
     XCamReturn blend (
-        const SmartPtr<VideoBuffer> &in0,
-        const SmartPtr<VideoBuffer> &in1,
-        SmartPtr<VideoBuffer> &out_buf);
+        const SmartPtr<VideoBuffer> &in0, const SmartPtr<VideoBuffer> &in1, SmartPtr<VideoBuffer> &out);
 
-    //derived from SoftHandler
-    XCamReturn configure_resource (const SmartPtr<Parameters> &param);
-    XCamReturn start_work (const SmartPtr<Parameters> &param);
+    virtual XCamReturn configure_resource (const SmartPtr<Parameters> &param);
+    virtual XCamReturn start_work (const SmartPtr<Parameters> &param);
 
 private:
-    SmartPtr<GLBlenderPriv::BlenderPrivConfig>    _priv_config;
+    SmartPtr<GLBlenderPriv::BlenderImpl>    _impl;
 };
 
 extern SmartPtr<GLImageHandler> create_gl_blender ();

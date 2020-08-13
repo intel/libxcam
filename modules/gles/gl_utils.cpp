@@ -19,6 +19,7 @@
  */
 
 #include "gl_utils.h"
+#include "xcam_utils.h"
 
 namespace XCam {
 
@@ -36,6 +37,22 @@ SmartPtr<GLBuffer> get_glbuffer (const SmartPtr<VideoBuffer> &buf)
         "get GLBuffer from GLVideoBuffer failed");
 
     return gl_buf;
+}
+
+void dump_buf (const SmartPtr<GLBuffer> &buf, const char *name)
+{
+    char file_name[256];
+    XCAM_ASSERT (name);
+    XCAM_ASSERT (buf.ptr ());
+
+    const GLBufferDesc &desc = buf->get_buffer_desc ();
+    snprintf (
+        file_name, 256, "%s-%dx%d.%s",
+        name, desc.width, desc.height, xcam_fourcc_to_string (desc.format));
+
+    uint8_t *mem = (uint8_t *)buf->map_range ();
+    dump_data_buf (mem, desc.size, file_name);
+    buf->unmap ();
 }
 
 }
