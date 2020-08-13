@@ -18,23 +18,22 @@ XCAM_GLES_LIBS += $(top_builddir)/modules/ocv/libxcam_ocv.la
 endif
 
 xcam_gles_sources = \
-    gles_std.cpp                \
-    gl_buffer.cpp               \
-    gl_program.cpp              \
-    gl_shader.cpp               \
-    gl_video_buffer.cpp         \
-    gl_compute_program.cpp      \
-    gl_command.cpp              \
-    gl_utils.cpp                \
-    gl_image_shader.cpp         \
-    gl_image_handler.cpp        \
-    gl_copy_handler.cpp         \
-    gl_geomap_handler.cpp       \
-    gl_blender_shaders_priv.cpp \
-    gl_blender.cpp              \
-    gl_stitcher.cpp             \
-    egl/egl_utils.cpp           \
-    egl/egl_base.cpp            \
+    gles_std.cpp           \
+    gl_buffer.cpp          \
+    gl_program.cpp         \
+    gl_shader.cpp          \
+    gl_video_buffer.cpp    \
+    gl_compute_program.cpp \
+    gl_command.cpp         \
+    gl_utils.cpp           \
+    gl_image_shader.cpp    \
+    gl_image_handler.cpp   \
+    gl_copy_handler.cpp    \
+    gl_geomap_handler.cpp  \
+    gl_blender.cpp         \
+    gl_stitcher.cpp        \
+    egl/egl_utils.cpp      \
+    egl/egl_base.cpp       \
     $(NULL)
 
 libxcam_gles_la_SOURCES = \
@@ -72,10 +71,6 @@ nobase_libxcam_glesinclude_HEADERS = \
     gl_stitcher.h        \
     egl/egl_utils.h      \
     egl/egl_base.h       \
-    $(NULL)
-
-noinst_HEADERS = \
-    gl_blender_shaders_priv.h \
     $(NULL)
 
 libxcam_gles_la_LIBTOOLFLAGS = --tag=disable-static
