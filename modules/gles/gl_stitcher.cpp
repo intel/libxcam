@@ -298,37 +298,19 @@ StitcherImpl::init_geomap_factors (uint32_t idx)
         XCAM_STR (_stitcher->get_name ()));
 
     Factor last_left_factor, last_right_factor, cur_left, cur_right;
-    if (_stitcher->get_scale_mode () == ScaleSingleConst) {
-        Factor unify_factor;
-        _fisheye[idx].mapper->get_factors (unify_factor.x, unify_factor.y);
-        if (XCAM_DOUBLE_EQUAL_AROUND (unify_factor.x, 0.0f) ||
-                XCAM_DOUBLE_EQUAL_AROUND (unify_factor.y, 0.0f)) { // not started.
-            return true;
-        }
-        last_left_factor = last_right_factor = unify_factor;
+    SmartPtr<GLGeoMapHandler> &mapper = _fisheye[idx].mapper;
+    mapper->get_left_factors (last_left_factor.x, last_left_factor.y);
+    mapper->get_right_factors (last_right_factor.x, last_right_factor.y);
 
-        calc_geomap_factors (idx, last_left_factor, last_right_factor, cur_left, cur_right);
-        unify_factor.x = (cur_left.x + cur_right.x) / 2.0f;
-        unify_factor.y = (cur_left.y + cur_right.y) / 2.0f;
-
-        _fisheye[idx].mapper->set_factors (unify_factor.x, unify_factor.y);
-    } else {
-        SmartPtr<GLDualConstGeoMapHandler> mapper = _fisheye[idx].mapper.dynamic_cast_ptr<GLDualConstGeoMapHandler> ();
-        XCAM_ASSERT (mapper.ptr ());
-
-        mapper->get_left_factors (last_left_factor.x, last_left_factor.y);
-        mapper->get_right_factors (last_right_factor.x, last_right_factor.y);
-        if (XCAM_DOUBLE_EQUAL_AROUND (last_left_factor.x, 0.0f) ||
-                XCAM_DOUBLE_EQUAL_AROUND (last_left_factor.y, 0.0f) ||
-                XCAM_DOUBLE_EQUAL_AROUND (last_right_factor.y, 0.0f) ||
-                XCAM_DOUBLE_EQUAL_AROUND (last_right_factor.y, 0.0f)) { // not started.
-            return true;
-        }
-
-        calc_geomap_factors (idx, last_left_factor, last_right_factor, cur_left, cur_right);
-        mapper->set_left_factors (cur_left.x, cur_left.y);
-        mapper->set_right_factors (cur_right.x, cur_right.y);
+    if (XCAM_DOUBLE_EQUAL_AROUND (last_left_factor.x, 0.0f) ||
+            XCAM_DOUBLE_EQUAL_AROUND (last_left_factor.y, 0.0f) ||
+            XCAM_DOUBLE_EQUAL_AROUND (last_right_factor.x, 0.0f) ||
+            XCAM_DOUBLE_EQUAL_AROUND (last_right_factor.y, 0.0f)) { // not started
+        return true;
     }
+
+    calc_geomap_factors (idx, last_left_factor, last_right_factor, cur_left, cur_right);
+    mapper->update_factors (cur_left.x, cur_left.y, cur_right.x, cur_right.y);
 
     return true;
 }
