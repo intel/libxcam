@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Author: Wind Yuan <feng.yuan@intel.com>
  * Author: Yinhang Liu <yinhangx.liu@intel.com>
  */
 
@@ -30,9 +29,6 @@ namespace XCam {
 
 namespace GLStitcherPriv {
 class StitcherImpl;
-class CbGeoMap;
-class CbBlender;
-class CbCopier;
 };
 
 class GLStitcher
@@ -40,9 +36,6 @@ class GLStitcher
     , public Stitcher
 {
     friend class GLStitcherPriv::StitcherImpl;
-    friend class GLStitcherPriv::CbGeoMap;
-    friend class GLStitcherPriv::CbBlender;
-    friend class GLStitcherPriv::CbCopier;
 
 public:
     struct StitcherParam
@@ -63,31 +56,18 @@ public:
     explicit GLStitcher (const char *name = "GLStitcher");
     ~GLStitcher ();
 
-    // derived from GLImageHandler
     virtual XCamReturn terminate ();
 
 protected:
-    // interface derive from Stitcher
-    XCamReturn stitch_buffers (const VideoBufferList &in_bufs, SmartPtr<VideoBuffer> &out_buf);
+    virtual XCamReturn stitch_buffers (const VideoBufferList &in_bufs, SmartPtr<VideoBuffer> &out_buf);
 
-    // derived from GLImageHandler
-    XCamReturn configure_resource (const SmartPtr<Parameters> &param);
-    XCamReturn start_work (const SmartPtr<Parameters> &param);
-
-private:
-    void geomap_done (
-        const SmartPtr<ImageHandler> &handler,
-        const SmartPtr<ImageHandler::Parameters> &param, const XCamReturn error);
-    void blender_done (
-        const SmartPtr<ImageHandler> &handler,
-        const SmartPtr<ImageHandler::Parameters> &param, const XCamReturn error);
-    void copier_done (
-        const SmartPtr<ImageHandler> &handler,
-        const SmartPtr<ImageHandler::Parameters> &param, const XCamReturn error);
+    virtual XCamReturn configure_resource (const SmartPtr<Parameters> &param);
+    virtual XCamReturn start_work (const SmartPtr<Parameters> &param);
 
 private:
     SmartPtr<GLStitcherPriv::StitcherImpl>    _impl;
 };
 
 }
+
 #endif // XCAM_GL_STITCHER_H
