@@ -112,8 +112,10 @@ Stitcher::Stitcher (uint32_t align_x, uint32_t align_y)
 
 Stitcher::~Stitcher ()
 {
-    xcam_free (_intr_names);
-    xcam_free (_extr_names);
+    for (int idx = 0; idx < XCAM_STITCH_MAX_CAMERAS; ++idx) {
+        xcam_free (_intr_names[idx]);
+        xcam_free (_extr_names[idx]);
+    }
 }
 
 bool
