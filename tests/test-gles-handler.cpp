@@ -225,6 +225,7 @@ int main (int argc, char **argv)
 
     outs[0]->set_buf_size (output_width, output_height);
     if (save_output) {
+        CHECK (outs[0]->create_buf_pool (XCAM_GL_RESERVED_BUF_COUNT), "create buffer pool failed");
         CHECK (outs[0]->estimate_file_format (), "%s: estimate file format failed", outs[0]->get_file_name ());
         CHECK (outs[0]->open_writer ("wb"), "open output file(%s) failed", outs[0]->get_file_name ());
     }
