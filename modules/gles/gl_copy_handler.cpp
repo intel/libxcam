@@ -83,7 +83,11 @@ XCamReturn
 GLCopyHandler::fix_parameters (const SmartPtr<Parameters> &param)
 {
     const VideoBufferInfo &in_info = param->in_buf->get_video_info ();
-    const VideoBufferInfo &out_info = param->out_buf->get_video_info ();
+    const VideoBufferInfo &out_info =
+        param->out_buf.ptr () ? param->out_buf->get_video_info () : get_out_video_info ();
+    XCAM_FAIL_RETURN (
+        ERROR, out_info.width > 0, XCAM_RETURN_ERROR_PARAM,
+        "gl-copy invalid output width: %d", out_info.width);
 
     const size_t unit_bytes = sizeof (uint32_t) * 4;
     uint32_t in_img_width = in_info.aligned_width / unit_bytes;
@@ -113,7 +117,7 @@ GLCopyHandler::fix_parameters (const SmartPtr<Parameters> &param)
 XCamReturn
 GLCopyHandler::configure_resource (const SmartPtr<Parameters> &param)
 {
-    XCAM_ASSERT (param.ptr () && param->in_buf.ptr () && param->out_buf.ptr ());
+    XCAM_ASSERT (param.ptr () && param->in_buf.ptr ());
     XCAM_FAIL_RETURN (
         ERROR,
         _index != INVALID_INDEX &&
