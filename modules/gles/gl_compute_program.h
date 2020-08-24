@@ -44,8 +44,6 @@ public:
     }
 
     virtual XCamReturn work ();
-    virtual XCamReturn flush ();
-    virtual XCamReturn finish ();
 
 private:
     explicit GLComputeProgram (GLuint id, const char *name);

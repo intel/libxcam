@@ -23,6 +23,7 @@
 #include "gl_copy_handler.h"
 #include "gl_geomap_handler.h"
 #include "gl_stitcher.h"
+#include "gl_sync.h"
 #include "gl_video_buffer.h"
 #include "interface/feature_match.h"
 
@@ -73,7 +74,6 @@ public:
     XCamReturn start_copiers (const SmartPtr<GLStitcher::StitcherParam> &param);
     XCamReturn start_feature_matches ();
 
-    const SmartPtr<GLComputeProgram> &get_sync_prog ();
     XCamReturn stop ();
 
 private:
@@ -116,7 +116,6 @@ private:
     Factor                        _right_fm_factor[XCAM_STITCH_MAX_CAMERAS];
 
     GLStitcher                   *_stitcher;
-    SmartPtr<GLComputeProgram>    _sync_prog;
 };
 
 StitcherImpl::StitcherImpl (GLStitcher *handler)
@@ -278,20 +277,6 @@ StitcherImpl::start_feature_matches ()
     return XCAM_RETURN_NO_ERROR;
 }
 #endif
-
-const SmartPtr<GLComputeProgram> &
-StitcherImpl::get_sync_prog ()
-{
-    if (_sync_prog.ptr ())
-        return _sync_prog;
-
-    _sync_prog = GLComputeProgram::create_compute_program ("sync_program");
-    XCAM_FAIL_RETURN (
-        ERROR, _sync_prog.ptr (), _sync_prog,
-        "gl-stitcher create sync program failed");
-
-    return _sync_prog;
-}
 
 XCamReturn
 StitcherImpl::stop ()
@@ -803,9 +788,7 @@ GLStitcher::start_work (const SmartPtr<Parameters> &base)
             "gl_stitcher execute copiers failed");
     }
 
-    const SmartPtr<GLComputeProgram> &prog = _impl->get_sync_prog ();
-    XCAM_ASSERT (prog.ptr ());
-    ret = prog->flush ();
+    GLSync::flush ();
 
 #if HAVE_OPENCV
     if (need_feature_match (this, param->frame_count)) {
@@ -817,6 +800,7 @@ GLStitcher::start_work (const SmartPtr<Parameters> &base)
 #endif
 
 #if DUMP_BUFFER
+    GLSync::finish ();
     for (uint32_t idx = 0; idx < get_camera_num (); ++idx) {
         dump_buf (_impl->_geomap_buf[idx], idx, "geomap");
     }

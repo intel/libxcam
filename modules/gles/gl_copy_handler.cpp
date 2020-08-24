@@ -20,6 +20,7 @@
 
 #include "gl_copy_handler.h"
 #include "gl_utils.h"
+#include "gl_sync.h"
 
 #define INVALID_INDEX (uint32_t)(-1)
 
@@ -47,7 +48,7 @@ GLCopyHandler::copy (const SmartPtr<VideoBuffer> &in_buf, SmartPtr<VideoBuffer> 
     XCamReturn ret = execute_buffer (param, false);
     XCAM_FAIL_RETURN (ERROR, xcam_ret_is_ok (ret), ret, "gl-copy execute copy failed");
 
-    _copy_shader->finish ();
+    GLSync::flush ();
     if (!out_buf.ptr ()) {
         out_buf = param->out_buf;
     }

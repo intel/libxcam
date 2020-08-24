@@ -20,6 +20,7 @@
 
 #include "gl_geomap_handler.h"
 #include "gl_utils.h"
+#include "gl_sync.h"
 
 #define XCAM_GL_GEOMAP_ALIGN_X 4
 #define XCAM_GL_GEOMAP_ALIGN_Y 2
@@ -253,7 +254,7 @@ GLGeoMapHandler::remap (const SmartPtr<VideoBuffer> &in_buf, SmartPtr<VideoBuffe
     XCAM_FAIL_RETURN (
         ERROR, xcam_ret_is_ok (ret), ret, "gl-geomap remap failed");
 
-    _geomap_shader->finish ();
+    GLSync::flush ();
     if (!out_buf.ptr ()) {
         out_buf = param->out_buf;
     }

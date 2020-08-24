@@ -56,7 +56,6 @@ public:
 
     bool set_pyr_levels (uint32_t levels);
 
-    virtual XCamReturn finish ();
     virtual XCamReturn terminate ();
 
 protected:

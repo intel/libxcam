@@ -238,16 +238,4 @@ GLProgram::work ()
     return XCAM_RETURN_NO_ERROR;
 }
 
-XCamReturn
-GLProgram::flush ()
-{
-    return XCAM_RETURN_NO_ERROR;
-}
-
-XCamReturn
-GLProgram::finish ()
-{
-    return XCAM_RETURN_NO_ERROR;
-}
-
 }
