@@ -143,34 +143,6 @@ GLComputeProgram::barrier (GLbitfield barrier_bit)
 }
 
 XCamReturn
-GLComputeProgram::flush ()
-{
-    glFlush ();
-
-    GLenum error = gl_error ();
-    XCAM_FAIL_RETURN (
-        ERROR, error == GL_NO_ERROR, XCAM_RETURN_ERROR_GLES,
-        "GLComputeProgram(%s) flush failed, error flag: %s",
-        XCAM_STR (get_name ()), gl_error_string (error));
-
-    return XCAM_RETURN_NO_ERROR;
-}
-
-XCamReturn
-GLComputeProgram::finish ()
-{
-    glFinish ();
-
-    GLenum error = gl_error ();
-    XCAM_FAIL_RETURN (
-        ERROR, error == GL_NO_ERROR, XCAM_RETURN_ERROR_GLES,
-        "GLComputeProgram(%s) finish failed, error flag: %s",
-        XCAM_STR (get_name ()), gl_error_string (error));
-
-    return XCAM_RETURN_NO_ERROR;
-}
-
-XCamReturn
 GLComputeProgram::dispatch ()
 {
     XCAM_FAIL_RETURN (

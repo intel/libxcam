@@ -22,6 +22,7 @@
 #include "gl_image_shader.h"
 #include "gl_utils.h"
 #include "gl_blender.h"
+#include "gl_sync.h"
 
 #define DUMP_BUFFER 0
 
@@ -135,7 +136,6 @@ private:
     uint32_t                      _out_height;
 
     GLBlender                    *_blender;
-    SmartPtr<GLComputeProgram>    _sync_prog;
 
 public:
     BlenderImpl (GLBlender *blender, uint32_t level)
@@ -158,7 +158,6 @@ public:
     XCamReturn start_reconstruct (uint32_t level);
 
     XCamReturn stop ();
-    const SmartPtr<GLComputeProgram> &get_sync_prog ();
 
 private:
     XCamReturn fix_gs_params (uint32_t level, BufIdx idx);
@@ -476,20 +475,6 @@ BlenderImpl::stop ()
     return XCAM_RETURN_NO_ERROR;
 }
 
-const SmartPtr<GLComputeProgram> &
-BlenderImpl::get_sync_prog ()
-{
-    if (_sync_prog.ptr ())
-        return _sync_prog;
-
-    _sync_prog = GLComputeProgram::create_compute_program ("sync_program");
-    XCAM_FAIL_RETURN (
-        ERROR, _sync_prog.ptr (), _sync_prog,
-        "gl-blender create sync program failed");
-
-    return _sync_prog;
-}
-
 XCamReturn
 BlenderImpl::fix_gs_params (uint32_t level, BufIdx idx)
 {
@@ -767,16 +752,6 @@ GLBlender::set_pyr_levels (uint32_t levels)
 }
 
 XCamReturn
-GLBlender::finish ()
-{
-    const SmartPtr<GLComputeProgram> prog = _impl->get_sync_prog ();
-    XCAM_ASSERT (prog.ptr ());
-    prog->finish ();
-
-    return GLImageHandler::finish ();
-}
-
-XCamReturn
 GLBlender::terminate ()
 {
     _impl->stop ();
@@ -794,7 +769,7 @@ GLBlender::blend (
 
     XCamReturn ret = execute_buffer (param, true);
 
-    finish ();
+    GLSync::flush ();
     if (xcam_ret_is_ok (ret) && !out.ptr ()) {
         out = param->out_buf;
     }
@@ -834,7 +809,7 @@ GLBlender::start_work (const SmartPtr<ImageHandler::Parameters> &base)
     }
 
 #if DUMP_BUFFER
-    finish ();
+    GLSync::finish ();
 
     dump_buf (_impl->_pyr_layer[0].gs_buf[BufIdx0], "input0");
     dump_buf (_impl->_pyr_layer[0].gs_buf[BufIdx1], "input1");

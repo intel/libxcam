@@ -19,6 +19,7 @@
  */
 
 #include "gl_image_shader.h"
+#include "gl_sync.h"
 
 #define ENABLE_DEBUG_SHADER 0
 
@@ -32,13 +33,6 @@ GLImageShader::GLImageShader (const char *name, const SmartPtr<Callback> &cb)
 
 GLImageShader::~GLImageShader ()
 {
-}
-
-XCamReturn
-GLImageShader::finish ()
-{
-    _program->finish ();
-    return XCAM_RETURN_NO_ERROR;
 }
 
 XCamReturn
@@ -81,7 +75,7 @@ GLImageShader::work (const SmartPtr<Worker::Arguments> &args)
         "GLImageShader(%s) work failed", XCAM_STR (get_name ()));
 
 #if ENABLE_DEBUG_SHADER
-    ret = _program->finish ();
+    ret =  GLSync::finish ();
     XCAM_FAIL_RETURN (
         WARNING, ret == XCAM_RETURN_NO_ERROR, ret,
         "GLImageShader(%s) finish failed", XCAM_STR (get_name ()));
