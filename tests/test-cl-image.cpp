@@ -117,7 +117,7 @@ static XCamReturn
 kernel_loop(SmartPtr<CLImageHandler> &image_handler, SmartPtr<VideoBuffer> &input_buf, SmartPtr<VideoBuffer> &output_buf, uint32_t kernel_loop_count)
 {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
-    for (uint32_t i = 0; i < kernel_loop_count; i++) {
+    while (kernel_loop_count--) {
         PROFILING_START(cl_kernel);
         ret = image_handler->execute (input_buf, output_buf);
         PROFILING_END(cl_kernel, kernel_loop_count)

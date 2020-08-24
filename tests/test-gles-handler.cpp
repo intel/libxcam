@@ -243,7 +243,7 @@ int main (int argc, char **argv)
         copyer->set_out_video_info (out_info);
 
         CHECK (ins[0]->read_buf(), "read buffer from file(%s) failed.", ins[0]->get_file_name ());
-        for (int i = 0; i < loop; ++i) {
+        while (loop--) {
             CHECK (copyer->copy (ins[0]->get_buf (), outs[0]->get_buf ()), "copy buffer failed");
             if (save_output)
                 outs[0]->write_buf ();
@@ -264,7 +264,7 @@ int main (int argc, char **argv)
         delete [] map_table;
 
         CHECK (ins[0]->read_buf(), "read buffer from file(%s) failed.", ins[0]->get_file_name ());
-        for (int i = 0; i < loop; ++i) {
+        while (loop--) {
             CHECK (mapper->remap (ins[0]->get_buf (), outs[0]->get_buf ()), "remap buffer failed");
             if (save_output)
                 outs[0]->write_buf ();
@@ -297,7 +297,7 @@ int main (int argc, char **argv)
 
         CHECK (ins[0]->read_buf(), "read buffer from file(%s) failed.", ins[0]->get_file_name ());
         CHECK (ins[1]->read_buf(), "read buffer from file(%s) failed.", ins[1]->get_file_name ());
-        for (int i = 0; i < loop; ++i) {
+        while (loop--) {
             CHECK (blender->blend (ins[0]->get_buf (), ins[1]->get_buf (), outs[0]->get_buf ()), "blend buffer failed");
             if (save_output)
                 outs[0]->write_buf ();
