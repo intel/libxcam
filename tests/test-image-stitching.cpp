@@ -146,7 +146,7 @@ write_in_image (
         convert_to_mat (ins[0]->get_buf (), mat);
 
         for (int i = 0; i < stitcher->get_fisheye_num (); i++) {
-            cv::circle (mat, cv::Point (info.fisheye_info[i].center_x, info.fisheye_info[i].center_y),
+            cv::circle (mat, cv::Point (info.fisheye_info[i].intrinsic.cx, info.fisheye_info[i].intrinsic.cy),
                         info.fisheye_info[i].radius, cv::Scalar(0, 0, 255), 2);
         }
         cv::putText (mat, frame_str, cv::Point(20, 50), cv::FONT_HERSHEY_COMPLEX, 2.0,
@@ -159,7 +159,7 @@ write_in_image (
         for (uint32_t i = 0; i < ins.size (); i++) {
             convert_to_mat (ins[i]->get_buf (), mat);
 
-            cv::circle (mat, cv::Point (info.fisheye_info[i].center_x, info.fisheye_info[i].center_y),
+            cv::circle (mat, cv::Point (info.fisheye_info[i].intrinsic.cx, info.fisheye_info[i].intrinsic.cy),
                         info.fisheye_info[i].radius, cv::Scalar(0, 0, 255), 2);
             cv::putText (mat, frame_str, cv::Point(20, 50), cv::FONT_HERSHEY_COMPLEX, 2.0,
                          cv::Scalar(0, 0, 255), 2, 8, false);
