@@ -78,13 +78,6 @@ stitcher_dump_fisheye_lut (FisheyeDewarp::MapTable &lut, ...) {
 }
 #endif
 
-static inline bool complete_stitch (Stitcher *stitcher, uint32_t frame_count)
-{
-    return (stitcher->get_fm_mode () == FMNone ||
-            stitcher->get_fm_status () != FMStatusFMFirst ||
-            frame_count >= stitcher->get_fm_frames ());
-}
-
 namespace SoftStitcherPriv {
 
 DECLARE_HANDLER_CALLBACK (CbGeoMap, SoftStitcher, geomap_done);
@@ -769,20 +762,18 @@ StitcherImpl::start_feature_match (
 XCamReturn
 StitcherImpl::start_overlap_task (uint32_t idx, const SmartPtr<BlenderParam> &param)
 {
-    if (complete_stitch (_stitcher, param->stitch_param->frame_count)) {
-        XCamReturn ret = _overlaps[idx].blender->execute_buffer (param, false);
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    if (_stitcher->complete_stitch ()) {
+        ret = _overlaps[idx].blender->execute_buffer (param, false);
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,
             "soft-stitcher:%s blender idx:%d failed", XCAM_STR (_stitcher->get_name ()), idx);
     }
 
 #if ENABLE_FEATURE_MATCH
-    if (_stitcher->get_fm_mode () != FMNone) {
-        if (_stitcher->get_fm_status () != FMStatusWholeWay &&
-                param->stitch_param->frame_count >= _stitcher->get_fm_frames ())
-            return XCAM_RETURN_NO_ERROR;
-
-        XCamReturn ret = start_feature_match (param->in_buf, param->in1_buf, idx);
+    if (_stitcher->need_feature_match ()) {
+        ret = start_feature_match (param->in_buf, param->in1_buf, idx);
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,
             "soft-stitcher:%s feature match idx:%d failed", XCAM_STR (_stitcher->get_name ()), idx);
@@ -976,13 +967,10 @@ SoftStitcher::stitch_buffers (const VideoBufferList &in_bufs, SmartPtr<VideoBuff
         ERROR, !in_bufs.empty (), XCAM_RETURN_ERROR_PARAM,
         "soft-stitcher:%s stitch buffer failed, in_bufs is empty", XCAM_STR (get_name ()));
 
-    uint32_t frame_count = (get_fm_frame_count () == UINT32_MAX) ? 0 : (get_fm_frame_count () + 1);
-    set_fm_frame_count (frame_count);
+    ensure_stitch_path ();
 
     SmartPtr<StitcherParam> param = new StitcherParam;
     param->out_buf = out_buf;
-    param->in_buf_num = in_bufs.size ();
-    param->frame_count = frame_count;
 
     uint32_t count = 0;
     for (VideoBufferList::const_iterator i = in_bufs.begin (); i != in_bufs.end (); ++i) {
@@ -1034,7 +1022,7 @@ SoftStitcher::start_task_count (const SmartPtr<SoftStitcher::StitcherParam> &par
     }
 
     int32_t count = get_camera_num ();
-    if (complete_stitch (this, param->frame_count)) {
+    if (complete_stitch ()) {
         count += get_copy_area ().size ();
     }
 
@@ -1068,7 +1056,7 @@ SoftStitcher::geomap_done (
         work_broken (param, ret);
     }
 
-    if (complete_stitch (this, param->frame_count)) {
+    if (complete_stitch ()) {
         ret = _impl->start_copy_tasks (param, geomap_param->idx, geomap_param->out_buf);
         if (!xcam_ret_is_ok (ret)) {
             work_broken (param, ret);
@@ -1203,8 +1191,8 @@ SoftStitcher::start_work (const SmartPtr<Parameters> &base)
     SmartPtr<StitcherParam> param = base.dynamic_cast_ptr<StitcherParam> ();
 
     XCAM_FAIL_RETURN (
-        ERROR, param.ptr () && param->in_buf_num > 0 && param->in_bufs[0].ptr (), XCAM_RETURN_ERROR_PARAM,
-        "soft_stitcher:%s start_work failed, params(in_buf_num) in_bufs are set",
+        ERROR, param.ptr () && param->in_bufs[0].ptr (), XCAM_RETURN_ERROR_PARAM,
+        "soft_stitcher:%s start_work failed, params or in_bufs are empty",
         XCAM_STR (get_name ()));
 
     XCamReturn ret = start_task_count (param);
@@ -1216,10 +1204,6 @@ SoftStitcher::start_work (const SmartPtr<Parameters> &base)
     XCAM_FAIL_RETURN (
         ERROR, xcam_ret_is_ok (ret), XCAM_RETURN_ERROR_PARAM,
         "soft_stitcher:%s start geomap works failed", XCAM_STR (get_name ()));
-
-    //for (uint32_t i = 0; i < param->in_buf_num; ++i) {
-    //    param->in_bufs[i].release ();
-    //}
 
     return ret;
 }

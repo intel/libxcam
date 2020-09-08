@@ -209,9 +209,6 @@ public:
         return _fm_frames;
     }
 
-    void set_fm_frame_count (uint32_t frame_count) {
-        _fm_frame_count = frame_count;
-    }
     uint32_t get_fm_frame_count () {
         return _fm_frame_count;
     }
@@ -226,6 +223,14 @@ public:
     void set_fm_region_ratio (const FMRegionRatio &ratio);
     const FMRegionRatio &get_fm_region_ratio () {
         return _fm_region_ratio;
+    }
+
+    bool ensure_stitch_path ();
+    bool complete_stitch () const {
+        return _complete_stitch;
+    }
+    bool need_feature_match () const {
+        return _need_fm;
     }
 
     void set_stitch_info (const StitchInfo &info) {
@@ -313,6 +318,9 @@ private:
     uint32_t                    _fm_frame_count;
     FMConfig                    _fm_cfg;
     FMRegionRatio               _fm_region_ratio;
+
+    bool                        _complete_stitch;
+    bool                        _need_fm;
 
     uint32_t                    _blend_pyr_levels;
 
