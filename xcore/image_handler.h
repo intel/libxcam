@@ -89,6 +89,7 @@ public:
     }
     bool set_out_video_info (const VideoBufferInfo &info);
     bool enable_allocator (bool enable, uint32_t buf_count = XCAM_DEFAULT_HANDLER_BUF_CAP);
+    bool need_allocator ();
 
     // virtual functions
     // execute_buffer params should  NOT be const

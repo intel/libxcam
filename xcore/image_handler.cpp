@@ -63,6 +63,12 @@ ImageHandler::enable_allocator (bool enable, uint32_t buf_count)
 }
 
 bool
+ImageHandler::need_allocator ()
+{
+    return _enable_allocator;
+}
+
+bool
 ImageHandler::set_allocator (const SmartPtr<BufferPool> &allocator)
 {
     XCAM_FAIL_RETURN (

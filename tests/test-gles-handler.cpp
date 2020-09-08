@@ -254,14 +254,21 @@ int main (int argc, char **argv)
     case GLTypeRemap: {
         SmartPtr<GLGeoMapHandler> mapper = new GLGeoMapHandler ();
         XCAM_ASSERT (mapper.ptr ());
-        mapper->set_output_size (output_width, output_height);
 
         uint32_t lut_width = XCAM_ALIGN_UP (output_width, 8) / 8;
         uint32_t lut_height = XCAM_ALIGN_UP (output_height, 8) / 8;
+
         PointFloat2 *map_table = new PointFloat2[lut_width * lut_height];
         calc_hor_flip_table (lut_width, lut_height, map_table);
         mapper->set_lookup_table (map_table, lut_width, lut_height);
         delete [] map_table;
+
+        Rect std_area = Rect (0, 0, output_width, output_height);
+        mapper->set_std_area (std_area);
+        mapper->set_extended_offset (0);
+        mapper->set_output_size (output_width, output_height);
+        mapper->set_std_output_size (output_width, output_height);
+        mapper->init_factors ();
 
         CHECK (ins[0]->read_buf(), "read buffer from file(%s) failed.", ins[0]->get_file_name ());
         while (loop--) {

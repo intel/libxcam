@@ -42,29 +42,24 @@ public:
     //2D table
     virtual bool set_lookup_table (const PointFloat2 *data, uint32_t width, uint32_t height) = 0;
     bool set_factors (float x, float y);
-    void get_factors (float &x, float &y) const {
-        x = _factor_x;
-        y = _factor_y;
-    }
+    void get_factors (float &x, float &y) const;
     bool set_output_size (uint32_t width, uint32_t height);
-    void get_output_size (uint32_t &width, uint32_t &height) const {
-        width = _out_width;
-        height = _out_height;
-    }
+    void get_output_size (uint32_t &width, uint32_t &height) const;
+    bool set_std_output_size (uint32_t width, uint32_t height);
+    void get_std_output_size (uint32_t &width, uint32_t &height) const;
     bool set_thread_count (uint32_t x, uint32_t y);
-    void get_thread_count (uint32_t &x, uint32_t &y) const {
-        x = _thread_x;
-        y = _thread_y;
-    }
+    void get_thread_count (uint32_t &x, uint32_t &y) const;
+
     virtual XCamReturn remap (
-        const SmartPtr<VideoBuffer> &in,
-        SmartPtr<VideoBuffer> &out_buf) = 0;
+        const SmartPtr<VideoBuffer> &in, SmartPtr<VideoBuffer> &out) = 0;
 
 protected:
     virtual bool auto_calculate_factors (uint32_t lut_w, uint32_t lut_h);
 
 private:
     uint32_t     _out_width, _out_height;
+    uint32_t     _std_out_width, _std_out_height;
+    uint32_t     _lut_width, _lut_height;
     float        _factor_x, _factor_y;
     uint32_t     _thread_x, _thread_y;
 };
