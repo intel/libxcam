@@ -38,6 +38,16 @@ public:
     void get_left_factors (float &x, float &y);
     void get_right_factors (float &x, float &y);
 
+    bool set_std_area (const Rect &area);
+    const Rect &get_std_area () const;
+
+    bool set_extended_offset (uint32_t offset);
+    uint32_t get_extended_offset () const;
+
+    bool set_lut_buf (const SmartPtr<GLBuffer> &buf);
+    const SmartPtr<GLBuffer> &get_lut_buf () const;
+
+    bool init_factors ();
     virtual bool update_factors (
         float left_factor_x, float left_factor_y, float right_factor_x, float right_factor_y);
 
@@ -49,9 +59,8 @@ protected:
     virtual XCamReturn start_work (const SmartPtr<Parameters> &param);
 
 private:
-    bool init_factors ();
-    XCamReturn fix_parameters (
-        const VideoBufferInfo &in_info, const VideoBufferInfo &out_info);
+    XCamReturn init_shader (const SmartPtr<Parameters> &param);
+    XCamReturn fix_parameters (const SmartPtr<Parameters> &param);
 
     XCAM_DEAD_COPY (GLGeoMapHandler);
 
@@ -61,6 +70,9 @@ protected:
     float                      _left_factor_y;
     float                      _right_factor_x;
     float                      _right_factor_y;
+
+    Rect                       _std_area;
+    uint32_t                   _extended_offset;
 
     SmartPtr<GLBuffer>         _lut_buf;
     SmartPtr<GLImageShader>    _geomap_shader;

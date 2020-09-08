@@ -26,7 +26,11 @@ uniform uint in_img_width;
 uniform uint in_img_height;
 
 uniform uint out_img_width;
-uniform uint out_img_height;
+uniform uint extended_offset;
+
+uniform uint std_width;
+uniform uint std_height;
+uniform uint std_offset;
 
 uniform uint lut_width;
 uniform uint lut_height;
@@ -56,10 +60,13 @@ void main ()
     uint g_x = gl_GlobalInvocationID.x;
     uint g_y = gl_GlobalInvocationID.y * 2u;
 
-    vec2 cent = (vec2 (out_img_width, out_img_height) - 1.0f) / 2.0f;
-    vec2 step = g_x < uint (cent.x) ? lut_step.xy : lut_step.zw;
+    uint std_x = g_x + std_offset;
+    uint out_x = g_x + extended_offset;
 
-    vec2 start = (vec2 (g_x, g_y) - cent) * step + cent * lut_std_step;
+    vec2 cent = (vec2 (std_width, std_height) - 1.0f) / 2.0f;
+    vec2 step = std_x < uint (cent.x) ? lut_step.xy : lut_step.zw;
+
+    vec2 start = (vec2 (std_x, g_y) - cent) * step + cent * lut_std_step;
     vec4 lut_x = start.x * float (UNIT_SIZE) + vec4 (0.0f, step.x, step.x * 2.0f, step.x * 3.0f);
     vec4 lut_y = start.yyyy;
     lut_x = clamp (lut_x, 0.0f, float (lut_width) - 1.0f);
@@ -69,7 +76,7 @@ void main ()
     vec4 in_img_x, in_img_y;
     bvec4 out_bound;
     geomap_y (lut_x, lut_y, in_img_x, in_img_y, out_bound, out_data);
-    out_buf_y.data[g_y * out_img_width + g_x] = out_data;
+    out_buf_y.data[g_y * out_img_width + out_x] = out_data;
 
     bvec4 out_bound_uv = out_bound.xxzz;
     if (all (out_bound_uv)) {
@@ -80,11 +87,11 @@ void main ()
         in_uv_y = clamp (in_uv_y, 0.0f, float (in_img_height / 2u - 1u));
         geomap_uv (in_uv_x, in_uv_y, out_bound_uv, out_data);
     }
-    out_buf_uv.data[g_y / 2u * out_img_width + g_x] = out_data;
+    out_buf_uv.data[g_y / 2u * out_img_width + out_x] = out_data;
 
     lut_y += step.y;
     geomap_y (lut_x, lut_y, in_img_x, in_img_y, out_bound, out_data);
-    out_buf_y.data[(g_y + 1u) * out_img_width + g_x] = out_data;
+    out_buf_y.data[(g_y + 1u) * out_img_width + out_x] = out_data;
 }
 
 void geomap_y (vec4 lut_x, vec4 lut_y, out vec4 in_img_x, out vec4 in_img_y, out bvec4 out_bound, out uint out_data)

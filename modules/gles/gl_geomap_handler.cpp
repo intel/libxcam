@@ -40,12 +40,14 @@ GLGeoMapHandler::GLGeoMapHandler (const char *name)
     , _left_factor_y (0.0f)
     , _right_factor_x (0.0f)
     , _right_factor_y (0.0f)
+    , _extended_offset (0)
 {
     xcam_mem_clear (_lut_step);
 }
 
 bool
-GLGeoMapHandler::set_lookup_table (const PointFloat2 *data, uint32_t width, uint32_t height)
+GLGeoMapHandler::set_lookup_table (
+    const PointFloat2 *data, uint32_t width, uint32_t height)
 {
     XCAM_FAIL_RETURN (
         ERROR, data && width && height, false,
@@ -94,6 +96,49 @@ GLGeoMapHandler::get_right_factors (float &x, float &y)
     y = _right_factor_y;
 }
 
+bool
+GLGeoMapHandler::set_std_area (const Rect &area)
+{
+    _std_area = area;
+    return true;
+}
+
+const Rect &
+GLGeoMapHandler::get_std_area () const
+{
+    return _std_area;
+}
+
+bool
+GLGeoMapHandler::set_extended_offset (uint32_t offset)
+{
+    _extended_offset = offset;
+    return true;
+}
+
+uint32_t
+GLGeoMapHandler::get_extended_offset () const
+{
+   return _extended_offset;
+}
+
+bool
+GLGeoMapHandler::set_lut_buf (const SmartPtr<GLBuffer> &buf)
+{
+    _lut_buf = buf;
+    return true;
+}
+
+const SmartPtr<GLBuffer> &
+GLGeoMapHandler::get_lut_buf () const
+{
+    XCAM_FAIL_RETURN (
+        ERROR, _lut_buf.ptr (), NULL,
+        "gl-geomap lut buffer is empty, need set lookup table first");
+
+    return _lut_buf;
+}
+
 static void
 update_lut_step (
     float *lut_step,
@@ -109,11 +154,9 @@ update_lut_step (
 bool
 GLGeoMapHandler::init_factors ()
 {
-    float factor_x, factor_y;
-    get_factors (factor_x, factor_y);
-
-    if (!XCAM_DOUBLE_EQUAL_AROUND (factor_x, 0.0f) && !XCAM_DOUBLE_EQUAL_AROUND (factor_y, 0.0f))
-        return true;
+    XCAM_FAIL_RETURN (
+        ERROR, _lut_buf.ptr (), false,
+        "gl-geomap init factors failed, look up table is empty");
 
     const GLBufferDesc &lut_desc = _lut_buf->get_buffer_desc ();
     XCAM_FAIL_RETURN (
@@ -153,34 +196,86 @@ GLGeoMapHandler::update_factors (
 }
 
 XCamReturn
-GLGeoMapHandler::fix_parameters (
-    const VideoBufferInfo &in_info, const VideoBufferInfo &out_info)
+GLGeoMapHandler::fix_parameters (const SmartPtr<Parameters> &param)
 {
+    const VideoBufferInfo &in_info = param->in_buf->get_video_info ();
     const GLBufferDesc &lut_desc = _lut_buf->get_buffer_desc ();
 
     float factor_x, factor_y;
     get_factors (factor_x, factor_y);
     float lut_std_step[2] = {1.0f / factor_x, 1.0f / factor_y};
 
+    uint32_t width, height, std_width, std_height;
+    get_output_size (width, height);
+    get_std_output_size (std_width, std_height);
+
     const size_t unit_bytes = sizeof (uint32_t);
     uint32_t in_img_width = in_info.width / unit_bytes;
-    uint32_t out_img_width = out_info.width / unit_bytes;
+    uint32_t out_img_width = width / unit_bytes;
+    uint32_t extended_offset = _extended_offset / unit_bytes;
+
+    std_width /= unit_bytes;
+    uint32_t std_offset = _std_area.pos_x / unit_bytes;
+    uint32_t std_valid_width = _std_area.width / unit_bytes;
 
     GLCmdList cmds;
     cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_width", in_img_width));
     cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_height", in_info.height));
     cmds.push_back (new GLCmdUniformT<uint32_t> ("out_img_width", out_img_width));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("out_img_height", out_info.height));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("extended_offset", extended_offset));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("std_width", std_width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("std_height", _std_area.height));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("std_offset", std_offset));
     cmds.push_back (new GLCmdUniformT<uint32_t> ("lut_width", lut_desc.width));
     cmds.push_back (new GLCmdUniformT<uint32_t> ("lut_height", lut_desc.height));
     cmds.push_back (new GLCmdUniformTVect<float, 2> ("lut_std_step", lut_std_step));
     _geomap_shader->set_commands (cmds);
 
     GLGroupsSize groups_size;
-    groups_size.x = XCAM_ALIGN_UP (out_img_width, 8) / 8;
-    groups_size.y = XCAM_ALIGN_UP (out_info.height, 16) / 16;
+    groups_size.x = XCAM_ALIGN_UP (std_valid_width, 8) / 8;
+    groups_size.y = XCAM_ALIGN_UP (_std_area.height, 16) / 16;
     groups_size.z = 1;
     _geomap_shader->set_groups_size (groups_size);
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
+GLGeoMapHandler::init_shader (const SmartPtr<Parameters> &param)
+{
+    SmartPtr<GLImageShader> shader = new GLImageShader (shader_info.name);
+    XCAM_ASSERT (shader.ptr ());
+
+    XCamReturn ret = shader->create_compute_program (shader_info, "geomap_program");
+    XCAM_FAIL_RETURN (
+        ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
+        "gl-geomap create compute program failed");
+    _geomap_shader = shader;
+
+    fix_parameters (param);
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+static XCamReturn
+set_output_video_info (
+    const SmartPtr<GLGeoMapHandler> &handler, const SmartPtr<ImageHandler::Parameters> &param)
+{
+    const VideoBufferInfo &in_info = param->in_buf->get_video_info ();
+    XCAM_FAIL_RETURN (
+        ERROR, in_info.format == V4L2_PIX_FMT_NV12, XCAM_RETURN_ERROR_PARAM,
+        "gl-geomap only support NV12 format, but input format is %s",
+        xcam_fourcc_to_string (in_info.format));
+
+    uint32_t width, height;
+    handler->get_output_size (width, height);
+
+    VideoBufferInfo out_info;
+    out_info.init (
+        in_info.format, width, height,
+        XCAM_ALIGN_UP (width, XCAM_GL_GEOMAP_ALIGN_X),
+        XCAM_ALIGN_UP (height, XCAM_GL_GEOMAP_ALIGN_Y));
+    handler->set_out_video_info (out_info);
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -189,35 +284,19 @@ XCamReturn
 GLGeoMapHandler::configure_resource (const SmartPtr<Parameters> &param)
 {
     XCAM_ASSERT (param.ptr () && param->in_buf.ptr ());
+
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+    if (need_allocator ()) {
+        ret = set_output_video_info (this, param);
+        XCAM_FAIL_RETURN (
+            ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
+            "gl-geomap set output video info failed");
+    }
+
+    ret = init_shader (param);
     XCAM_FAIL_RETURN (
-        ERROR, _lut_buf.ptr (), XCAM_RETURN_ERROR_MEM,
-        "gl-geomap configure resource failed, look up table is empty");
-
-    const VideoBufferInfo &in_info = param->in_buf->get_video_info ();
-    XCAM_FAIL_RETURN (
-        ERROR, in_info.format == V4L2_PIX_FMT_NV12, XCAM_RETURN_ERROR_PARAM,
-        "gl-geomap only support NV12 format, but input format is %s",
-        xcam_fourcc_to_string (in_info.format));
-
-    uint32_t width, height;
-    get_output_size (width, height);
-    VideoBufferInfo out_info;
-    out_info.init (
-        in_info.format, width, height,
-        XCAM_ALIGN_UP (width, XCAM_GL_GEOMAP_ALIGN_X),
-        XCAM_ALIGN_UP (height, XCAM_GL_GEOMAP_ALIGN_Y));
-    set_out_video_info (out_info);
-
-    SmartPtr<GLImageShader> shader = new GLImageShader (shader_info.name);
-    XCAM_ASSERT (shader.ptr ());
-    XCamReturn ret = shader->create_compute_program (shader_info, "geomap_program");
-    XCAM_FAIL_RETURN (
-        ERROR, ret == XCAM_RETURN_NO_ERROR, XCAM_RETURN_ERROR_MEM,
-        "gl-geomap create compute program failed");
-    _geomap_shader = shader;
-
-    init_factors ();
-    fix_parameters (in_info, out_info);
+        ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
+        "gl-geomap init shader failed");
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -269,6 +348,10 @@ GLGeoMapHandler::terminate ()
         _geomap_shader.release ();
     }
 
+    if (_lut_buf.ptr ()) {
+        _lut_buf.release ();
+    }
+
     return GLImageHandler::terminate ();
 }
 
@@ -282,7 +365,7 @@ GLDualConstGeoMapHandler::update_factors (
         !XCAM_DOUBLE_EQUAL_AROUND (left_factor_y, 0.0f) &&
         !XCAM_DOUBLE_EQUAL_AROUND (right_factor_x, 0.0f) &&
         !XCAM_DOUBLE_EQUAL_AROUND (right_factor_y, 0.0f), false,
-        "gl-geomap update lut step failed, left factors: %f, %f, right factors: %f, %f",
+        "gl-geomap update lut step failed, left factors: %f %f, right factors: %f %f",
         left_factor_x, left_factor_y, right_factor_x, right_factor_y);
 
     _left_factor_x = left_factor_x;
