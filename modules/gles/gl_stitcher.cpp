@@ -642,13 +642,10 @@ GLStitcher::stitch_buffers (const VideoBufferList &in_bufs, SmartPtr<VideoBuffer
         ERROR, !in_bufs.empty (), XCAM_RETURN_ERROR_PARAM,
         "gl-stitcher stitch buffer failed, input buffers is empty");
 
-    uint32_t frame_count = (get_fm_frame_count () == UINT32_MAX) ? 0 : (get_fm_frame_count () + 1);
-    set_fm_frame_count (frame_count);
+    ensure_stitch_path ();
 
     SmartPtr<StitcherParam> param = new StitcherParam;
     param->out_buf = out_buf;
-    param->in_buf_num = in_bufs.size ();
-    param->frame_count = frame_count;
 
     uint32_t count = 0;
     for (VideoBufferList::const_iterator i = in_bufs.begin (); i != in_bufs.end (); ++i) {
@@ -739,27 +736,6 @@ GLStitcher::configure_resource (const SmartPtr<Parameters> &param)
     return ret;
 }
 
-static inline bool
-continue_stitch (Stitcher *stitcher, uint32_t frame_count)
-{
-    return (
-        stitcher->get_fm_mode () == FMNone ||
-        stitcher->get_fm_status () != FMStatusFMFirst ||
-        frame_count >= stitcher->get_fm_frames ());
-}
-
-static inline bool
-need_feature_match (Stitcher *stitcher, uint32_t frame_count)
-{
-    if (stitcher->get_fm_mode () == FMNone)
-        return false;
-
-    if (stitcher->get_fm_status () != FMStatusWholeWay && frame_count >= stitcher->get_fm_frames ())
-        return false;
-
-    return true;
-}
-
 XCamReturn
 GLStitcher::start_work (const SmartPtr<Parameters> &base)
 {
@@ -767,7 +743,7 @@ GLStitcher::start_work (const SmartPtr<Parameters> &base)
 
     SmartPtr<StitcherParam> param = base.dynamic_cast_ptr<StitcherParam> ();
     XCAM_FAIL_RETURN (
-        ERROR, param.ptr () && param->in_buf_num > 0 && param->in_bufs[0].ptr (),
+        ERROR, param.ptr () && param->in_bufs[0].ptr (),
         XCAM_RETURN_ERROR_MEM,
         "gl-stitcher execute failed, invalid parameters");
 
@@ -776,7 +752,7 @@ GLStitcher::start_work (const SmartPtr<Parameters> &base)
         ERROR, xcam_ret_is_ok (ret), ret,
         "gl_stitcher execute geomappers failed");
 
-    if (continue_stitch (this, param->frame_count)) {
+    if (complete_stitch ()) {
         ret = _impl->start_blenders (param);
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,
@@ -791,7 +767,7 @@ GLStitcher::start_work (const SmartPtr<Parameters> &base)
     GLSync::flush ();
 
 #if HAVE_OPENCV
-    if (need_feature_match (this, param->frame_count)) {
+    if (need_feature_match ()) {
         ret = _impl->start_feature_matches ();
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,

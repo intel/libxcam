@@ -99,7 +99,9 @@ Stitcher::Stitcher (uint32_t align_x, uint32_t align_y)
     , _fm_mode (FMNone)
     , _fm_status (FMStatusWholeWay)
     , _fm_frames (100)
-    , _fm_frame_count (UINT32_MAX)
+    , _fm_frame_count (0)
+    , _complete_stitch (true)
+    , _need_fm (false)
     , _blend_pyr_levels (2)
 {
     XCAM_ASSERT (align_x >= 1);
@@ -182,6 +184,21 @@ Stitcher::set_fm_region_ratio (const FMRegionRatio &ratio)
     }
 
     _fm_region_ratio = ratio;
+}
+
+bool
+Stitcher::ensure_stitch_path ()
+{
+    if (++_fm_frame_count > _fm_frames + 1)
+        return true;
+
+    _complete_stitch = (
+        _fm_mode == FMNone || _fm_status != FMStatusFMFirst || _fm_frame_count > _fm_frames);
+
+    _need_fm = (
+        _fm_mode != FMNone && (_fm_status == FMStatusWholeWay || _fm_frame_count <= _fm_frames));
+
+    return true;
 }
 
 #if 0

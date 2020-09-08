@@ -338,6 +338,15 @@ write_image (
     frame_num++;
 }
 
+static bool
+stable_stitch (const SmartPtr<Stitcher> &stitcher)
+{
+    return (
+        stitcher->get_fm_mode () == FMNone ||
+        stitcher->get_fm_status () == FMStatusWholeWay ||
+        stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ());
+}
+
 XCAM_OBJ_PROFILING_DEFINES;
 
 static int
@@ -367,16 +376,12 @@ single_frame (
         XCAM_OBJ_PROFILING_END ("stitch-buffers", XCAM_OBJ_DUR_FRAME_NUM);
 
         if (save_output || save_topview) {
-            if (stitcher->get_fm_mode () == FMNone ||
-                    stitcher->get_fm_status () != FMStatusFMFirst ||
-                    stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
+            if (stitcher->complete_stitch ()) {
                 write_image (stitcher, ins, outs, save_output, save_topview);
             }
         }
 
-        if (stitcher->get_fm_mode () == FMNone ||
-                stitcher->get_fm_status () == FMStatusWholeWay ||
-                stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
+        if (stable_stitch (stitcher)) {
             FPS_CALCULATION (surround_view, XCAM_OBJ_DUR_FRAME_NUM);
         }
     }
@@ -421,16 +426,12 @@ multi_frame (
             XCAM_OBJ_PROFILING_END ("stitch-buffers", XCAM_OBJ_DUR_FRAME_NUM);
 
             if (save_output || save_topview) {
-                if (stitcher->get_fm_mode () == FMNone ||
-                        stitcher->get_fm_status () != FMStatusFMFirst ||
-                        stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
+                if (stitcher->complete_stitch ()) {
                     write_image (stitcher, ins, outs, save_output, save_topview);
                 }
             }
 
-            if (stitcher->get_fm_mode () == FMNone ||
-                    stitcher->get_fm_status () == FMStatusWholeWay ||
-                    stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ()) {
+            if (stable_stitch (stitcher)) {
                 FPS_CALCULATION (surround_view, XCAM_OBJ_DUR_FRAME_NUM);
             }
         } while (true);
