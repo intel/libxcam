@@ -99,7 +99,7 @@ Stitcher::Stitcher (uint32_t align_x, uint32_t align_y)
     , _fm_mode (FMNone)
     , _fm_status (FMStatusWholeWay)
     , _fm_frames (100)
-    , _fm_frame_count (0)
+    , _fm_frame_count (1)
     , _complete_stitch (true)
     , _need_fm (false)
     , _blend_pyr_levels (2)
@@ -189,7 +189,7 @@ Stitcher::set_fm_region_ratio (const FMRegionRatio &ratio)
 bool
 Stitcher::ensure_stitch_path ()
 {
-    if (++_fm_frame_count > _fm_frames + 1)
+    if (_fm_frame_count > _fm_frames + 1)
         return true;
 
     _complete_stitch = (
@@ -197,6 +197,8 @@ Stitcher::ensure_stitch_path ()
 
     _need_fm = (
         _fm_mode != FMNone && (_fm_status == FMStatusWholeWay || _fm_frame_count <= _fm_frames));
+
+    _fm_frame_count++;
 
     return true;
 }

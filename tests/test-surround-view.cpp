@@ -344,7 +344,7 @@ stable_stitch (const SmartPtr<Stitcher> &stitcher)
     return (
         stitcher->get_fm_mode () == FMNone ||
         stitcher->get_fm_status () == FMStatusWholeWay ||
-        stitcher->get_fm_frame_count () >= stitcher->get_fm_frames ());
+        stitcher->get_fm_frame_count () > stitcher->get_fm_frames ());
 }
 
 XCAM_OBJ_PROFILING_DEFINES;
