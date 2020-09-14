@@ -59,6 +59,8 @@ private:
     virtual XCamReturn configure_resource (const SmartPtr<Parameters> &param);
     virtual XCamReturn start_work (const SmartPtr<Parameters> &param);
 
+    virtual bool auto_calculate_factors (uint32_t lut_w, uint32_t lut_h);
+
 private:
     virtual bool init_factors ();
 

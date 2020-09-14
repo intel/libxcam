@@ -69,6 +69,8 @@ protected:
 
 protected:
     virtual bool init_factors ();
+    virtual bool auto_calculate_factors (uint32_t lut_w, uint32_t lut_h);
+
     virtual SmartPtr<XCamSoftTasks::GeoMapTask> create_remap_task ();
     virtual XCamReturn start_remap_task (const SmartPtr<ImageHandler::Parameters> &param);
 
@@ -103,7 +105,6 @@ public:
 protected:
     XCamReturn prepare_arguments (const SmartPtr<Worker::Arguments> &args,
         const SmartPtr<ImageHandler::Parameters> &param);
-    virtual bool auto_calculate_factors (uint32_t lut_w, uint32_t lut_h);
 
 protected:
     virtual bool init_factors ();
