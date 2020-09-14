@@ -130,6 +130,30 @@ VKGeoMapHandler::set_lookup_table (const PointFloat2 *data, uint32_t width, uint
 }
 
 bool
+VKGeoMapHandler::auto_calculate_factors (uint32_t lut_w, uint32_t lut_h)
+{
+    XCAM_FAIL_RETURN (
+        ERROR, lut_w > 1 && lut_h > 1, false,
+        "VKGeoMapHandler(%s) auto calculate factors failed. lookuptable size need > 1, but set with %dx%d",
+        XCAM_STR(get_name ()), lut_w, lut_h);
+
+    uint32_t width, height;
+    get_output_size (width, height);
+    XCAM_FAIL_RETURN (
+        ERROR, width > 1 && height > 1, false,
+        "VKGeoMapHandler(%s) auto calculate factors failed. output size was not set %dx%d",
+        XCAM_STR(get_name ()), width, height);
+
+    float factor_x, factor_y;
+    factor_x = (width - 1.0f) / (lut_w - 1.0f);
+    factor_y = (height - 1.0f) / (lut_h - 1.0f);
+
+    set_factors (factor_x, factor_y);
+
+    return true;
+}
+
+bool
 VKGeoMapHandler::init_factors ()
 {
     XCAM_ASSERT (_lut_width && _lut_height);

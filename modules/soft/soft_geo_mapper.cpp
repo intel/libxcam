@@ -129,6 +129,30 @@ SoftGeoMapper::set_work_size (
 }
 
 bool
+SoftGeoMapper::auto_calculate_factors (uint32_t lut_w, uint32_t lut_h)
+{
+    XCAM_FAIL_RETURN (
+        ERROR, lut_w > 1 && lut_h > 1, false,
+        "SoftGeoMapper(%s) auto calculate factors failed. lookuptable size need > 1, but set with %dx%d",
+        XCAM_STR(get_name ()), lut_w, lut_h);
+
+    uint32_t width, height;
+    get_output_size (width, height);
+    XCAM_FAIL_RETURN (
+        ERROR, width > 1 && height > 1, false,
+        "SoftGeoMapper(%s) auto calculate factors failed. output size was not set %dx%d",
+        XCAM_STR(get_name ()), width, height);
+
+    float factor_x, factor_y;
+    factor_x = (width - 1.0f) / (lut_w - 1.0f);
+    factor_y = (height - 1.0f) / (lut_h - 1.0f);
+
+    set_factors (factor_x, factor_y);
+
+    return true;
+}
+
+bool
 SoftGeoMapper::init_factors ()
 {
     Float2 factors;
@@ -285,30 +309,6 @@ SoftDualConstGeoMapper::set_right_factors (float x, float y)
 }
 
 bool
-SoftDualConstGeoMapper::auto_calculate_factors (uint32_t lut_w, uint32_t lut_h)
-{
-    XCAM_FAIL_RETURN (
-        ERROR, lut_w > 1 && lut_w > 1, false,
-        "SoftGeoMapper(%s) auto calculate factors failed. lookuptable size need > 1. but set with (w:%d, h:%d)",
-        XCAM_STR(get_name ()), lut_w, lut_h);
-
-    uint32_t width, height;
-    get_output_size (width, height);
-    XCAM_FAIL_RETURN (
-        ERROR, width > 1 && height > 1, false,
-        "SoftGeoMapper(%s) auto calculate factors failed. output size was not set. (w:%d, h:%d)",
-        XCAM_STR(get_name ()), width, height);
-
-    _left_factor_x = (width - 1.0f) / (lut_w - 1.0f);
-    _left_factor_y = (height - 1.0f) / (lut_h - 1.0f);
-
-    _right_factor_x = _left_factor_x;
-    _right_factor_y = _left_factor_y;
-
-    return true;
-}
-
-bool
 SoftDualConstGeoMapper::init_factors ()
 {
     Float2 left_factors, right_factors;
@@ -318,10 +318,18 @@ SoftDualConstGeoMapper::init_factors ()
             !XCAM_DOUBLE_EQUAL_AROUND (right_factors.x, 0.0f) && !XCAM_DOUBLE_EQUAL_AROUND (right_factors.y, 0.0f))
         return true;
 
-    SmartPtr<Float2Image> lookup_table = get_lookup_table ();
-    XCAM_ASSERT (lookup_table.ptr ());
+    SmartPtr<Float2Image> lut_table = get_lookup_table ();
+    XCAM_ASSERT (lut_table.ptr ());
 
-    return auto_calculate_factors (lookup_table->get_width (), lookup_table->get_height ());
+    XCAM_FAIL_RETURN (
+        ERROR, auto_calculate_factors (lut_table->get_width (), lut_table->get_height ()),
+        false, "SoftGeoMapper(%s) auto calculate factors failed", XCAM_STR(get_name ()));
+
+    get_factors (_left_factor_x, _left_factor_y);
+    _right_factor_x = _left_factor_x;
+    _right_factor_y = _left_factor_y;
+
+    return true;
 }
 
 SmartPtr<XCamSoftTasks::GeoMapTask>
