@@ -44,11 +44,11 @@ uniform vec2 lut_std_step;
     { \
         vec4 value = unpackUnorm4x8 (in_buf_y.data[index00[index]]); \
         out_y00[index] = value[x00_fract[index]]; \
-        value = unpackUnorm4x8 (in_buf_y.data[index01[index]]); \
+        value = (index01[index] == index00[index]) ? value : unpackUnorm4x8 (in_buf_y.data[index01[index]]); \
         out_y01[index] = value[x01_fract[index]]; \
         value = unpackUnorm4x8 (in_buf_y.data[index10[index]]); \
         out_y10[index] = value[x10_fract[index]]; \
-        value = unpackUnorm4x8 (in_buf_y.data[index11[index]]); \
+        value = (index11[index] == index10[index]) ? value : unpackUnorm4x8 (in_buf_y.data[index11[index]]); \
         out_y11[index] = value[x11_fract[index]]; \
     }
 
@@ -222,20 +222,20 @@ void geomap_uv (vec2 in_uv_x, vec2 in_uv_y, bvec4 out_bound_uv, out uint out_dat
     vec4 out_uv00, out_uv01, out_uv10, out_uv11;
     vec4 value = unpackUnorm4x8 (in_buf_uv.data[index00.x]);
     out_uv00.xy = x00_fract.x == 0u ? value.xy : value.zw;
-    value = unpackUnorm4x8 (in_buf_uv.data[index01.x]);
+    value =  (index01.x == index00.x) ? value : unpackUnorm4x8 (in_buf_uv.data[index01.x]);
     out_uv01.xy = x01_fract.x == 0u ? value.xy : value.zw;
     value = unpackUnorm4x8 (in_buf_uv.data[index10.x]);
     out_uv10.xy = x10_fract.x == 0u ? value.xy : value.zw;
-    value = unpackUnorm4x8 (in_buf_uv.data[index11.x]);
+    value =  (index11.x == index10.x) ? value : unpackUnorm4x8 (in_buf_uv.data[index11.x]);
     out_uv11.xy = x11_fract.x == 0u ? value.xy : value.zw;
 
     value = unpackUnorm4x8 (in_buf_uv.data[index00.y]);
     out_uv00.zw = x00_fract.y == 0u ? value.xy : value.zw;
-    value = unpackUnorm4x8 (in_buf_uv.data[index01.y]);
+    value =  (index01.y == index00.y) ? value : unpackUnorm4x8 (in_buf_uv.data[index01.y]);
     out_uv01.zw = x01_fract.y == 0u ? value.xy : value.zw;
     value = unpackUnorm4x8 (in_buf_uv.data[index10.y]);
     out_uv10.zw = x10_fract.y == 0u ? value.xy : value.zw;
-    value = unpackUnorm4x8 (in_buf_uv.data[index11.y]);
+    value =  (index11.y == index10.y) ? value : unpackUnorm4x8 (in_buf_uv.data[index11.y]);
     out_uv11.zw = x11_fract.y == 0u ? value.xy : value.zw;
 
     vec4 inter_uv = out_uv00 * weight00.xxyy + out_uv01 * weight01.xxyy +
