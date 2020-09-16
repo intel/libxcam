@@ -232,8 +232,8 @@ GLGeoMapHandler::fix_parameters (const SmartPtr<Parameters> &param)
     _geomap_shader->set_commands (cmds);
 
     GLGroupsSize groups_size;
-    groups_size.x = XCAM_ALIGN_UP (std_valid_width, 8) / 8;
-    groups_size.y = XCAM_ALIGN_UP (_std_area.height, 16) / 16;
+    groups_size.x = XCAM_ALIGN_UP (std_valid_width, 4) / 4;
+    groups_size.y = XCAM_ALIGN_UP (_std_area.height, 8) / 8;
     groups_size.z = 1;
     _geomap_shader->set_groups_size (groups_size);
 
