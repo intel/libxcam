@@ -44,6 +44,9 @@ public:
     virtual bool is_a_object () const {
         return true;
     }
+    uint32_t ref_count () const {
+        return _ref_count;
+    }
 
 private:
     explicit RefObj (uint32_t i) : _ref_count (i) {}
@@ -172,6 +175,10 @@ public:
         }
         _ptr = NULL;
         _ref = NULL;
+    }
+
+    uint32_t ref_count () const {
+        return _ref->ref_count ();
     }
 
     template <typename ObjDerive>

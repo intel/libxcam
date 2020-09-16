@@ -958,6 +958,8 @@ SoftStitcher::SoftStitcher (const char *name)
 
 SoftStitcher::~SoftStitcher ()
 {
+    XCAM_LOG_DEBUG ("SoftStitcher::~SoftStitcher ");
+    terminate ();
 }
 
 XCamReturn

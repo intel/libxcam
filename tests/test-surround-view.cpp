@@ -342,9 +342,9 @@ static bool
 stable_stitch (const SmartPtr<Stitcher> &stitcher)
 {
     return (
-        stitcher->get_fm_mode () == FMNone ||
-        stitcher->get_fm_status () == FMStatusWholeWay ||
-        stitcher->get_fm_frame_count () > stitcher->get_fm_frames ());
+               stitcher->get_fm_mode () == FMNone ||
+               stitcher->get_fm_status () == FMStatusWholeWay ||
+               stitcher->get_fm_frame_count () > stitcher->get_fm_frames ());
 }
 
 XCAM_OBJ_PROFILING_DEFINES;
@@ -536,6 +536,7 @@ int main (int argc, char *argv[])
 #endif
 
     int loop = 1;
+    int repeat = 1;
     bool save_output = true;
     bool save_topview = false;
 
@@ -565,6 +566,7 @@ int main (int argc, char *argv[])
         {"save", required_argument, NULL, 's'},
         {"save-topview", required_argument, NULL, 't'},
         {"loop", required_argument, NULL, 'L'},
+        {"repeat", required_argument, NULL, 'R'},
         {"help", no_argument, NULL, 'e'},
         {NULL, 0, NULL, 0},
     };
@@ -744,6 +746,9 @@ int main (int argc, char *argv[])
         case 'L':
             loop = atoi(optarg);
             break;
+        case 'R':
+            repeat = atoi(optarg);
+            break;
         case 'e':
             usage (argv[0]);
             return 0;
@@ -805,6 +810,7 @@ int main (int argc, char *argv[])
     printf ("save output:\t\t%s\n", save_output ? "true" : "false");
     printf ("save topview:\t\t%s\n", save_topview ? "true" : "false");
     printf ("loop count:\t\t%d\n", loop);
+    printf ("repeat count:\t\t%d\n", repeat);
 
 #if HAVE_GLES
     SmartPtr<EGLBase> egl;
@@ -858,73 +864,78 @@ int main (int argc, char *argv[])
         CHECK (outs[IdxStitch]->open_writer ("wb"), "open output file(%s) failed", outs[IdxStitch]->get_file_name ());
     }
 
-    SmartPtr<Stitcher> stitcher = create_stitcher (outs[IdxStitch], module);
-    XCAM_ASSERT (stitcher.ptr ());
+    while (repeat--) {
 
-    stitcher->set_camera_num (fisheye_num);
-    stitcher->set_output_size (output_width, output_height);
-    stitcher->set_dewarp_mode (dewarp_mode);
-    stitcher->set_scale_mode (scale_mode);
-    stitcher->set_blend_pyr_levels (blend_pyr_levels);
-    stitcher->set_fm_mode (fm_mode);
+        XCAM_LOG_DEBUG ("create stitcher and run test, remain repeat %d times", repeat);
+
+        SmartPtr<Stitcher> stitcher = create_stitcher (outs[IdxStitch], module);
+        XCAM_ASSERT (stitcher.ptr ());
+
+        stitcher->set_camera_num (fisheye_num);
+        stitcher->set_output_size (output_width, output_height);
+        stitcher->set_dewarp_mode (dewarp_mode);
+        stitcher->set_scale_mode (scale_mode);
+        stitcher->set_blend_pyr_levels (blend_pyr_levels);
+        stitcher->set_fm_mode (fm_mode);
 #if HAVE_OPENCV
-    stitcher->set_fm_frames (fm_frames);
-    stitcher->set_fm_status (fm_status);
-    FMConfig cfg = (module == SVModuleSoft) ? soft_fm_config (cam_model) :
-                   ((module == SVModuleGLES) ? gl_fm_config (cam_model) : vk_fm_config (cam_model));
-    stitcher->set_fm_config (cfg);
-    if (dewarp_mode == DewarpSphere) {
-        stitcher->set_fm_region_ratio (fm_region_ratio (cam_model));
-    }
+        stitcher->set_fm_frames (fm_frames);
+        stitcher->set_fm_status (fm_status);
+        FMConfig cfg = (module == SVModuleSoft) ? soft_fm_config (cam_model) :
+                       ((module == SVModuleGLES) ? gl_fm_config (cam_model) : vk_fm_config (cam_model));
+        stitcher->set_fm_config (cfg);
+        if (dewarp_mode == DewarpSphere) {
+            stitcher->set_fm_region_ratio (fm_region_ratio (cam_model));
+        }
 #endif
 
-    float *vp_range = new float[XCAM_STITCH_FISHEYE_MAX_NUM];
-    stitcher->set_viewpoints_range (viewpoints_range (cam_model, vp_range));
-    delete [] vp_range;
+        float *vp_range = new float[XCAM_STITCH_FISHEYE_MAX_NUM];
+        stitcher->set_viewpoints_range (viewpoints_range (cam_model, vp_range));
+        delete [] vp_range;
 
-    if (dewarp_mode == DewarpSphere) {
-        StitchInfo info = (module == SVModuleSoft) ?
-                          soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
+        if (dewarp_mode == DewarpSphere) {
+            StitchInfo info = (module == SVModuleSoft) ?
+                              soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
 
-        get_fisheye_info (cam_model, scopic_mode, info.fisheye_info);
+            get_fisheye_info (cam_model, scopic_mode, info.fisheye_info);
 
-        for (uint32_t cam_id = 0; cam_id < XCAM_STITCH_FISHEYE_MAX_NUM; cam_id++) {
-            XCAM_LOG_DEBUG ("cam[%d]: flip=%d ", cam_id, info.fisheye_info[cam_id].intrinsic.flip);
-            XCAM_LOG_DEBUG ("fx=%f ", info.fisheye_info[cam_id].intrinsic.fx);
-            XCAM_LOG_DEBUG ("fy=%f ", info.fisheye_info[cam_id].intrinsic.fy);
-            XCAM_LOG_DEBUG ("cx=%f ", info.fisheye_info[cam_id].intrinsic.cx);
-            XCAM_LOG_DEBUG ("cy=%f ", info.fisheye_info[cam_id].intrinsic.cy);
-            XCAM_LOG_DEBUG ("w=%d ", info.fisheye_info[cam_id].intrinsic.width);
-            XCAM_LOG_DEBUG ("h=%d ", info.fisheye_info[cam_id].intrinsic.height);
-            XCAM_LOG_DEBUG ("fov=%f ", info.fisheye_info[cam_id].intrinsic.fov);
-            XCAM_LOG_DEBUG ("skew=%f ", info.fisheye_info[cam_id].intrinsic.skew);
-            XCAM_LOG_DEBUG ("radius=%f ", info.fisheye_info[cam_id].radius);
-            XCAM_LOG_DEBUG ("distroy coeff=%f %f %f %f ", info.fisheye_info[cam_id].distort_coeff[0], info.fisheye_info[cam_id].distort_coeff[1], info.fisheye_info[cam_id].distort_coeff[2], info.fisheye_info[cam_id].distort_coeff[3]);
-            XCAM_LOG_DEBUG ("fisheye eluer angles: yaw:%f, pitch:%f, roll:%f", info.fisheye_info[cam_id].extrinsic.yaw, info.fisheye_info[cam_id].extrinsic.pitch, info.fisheye_info[cam_id].extrinsic.roll);
-            XCAM_LOG_DEBUG ("fisheye translation: x:%f, y:%f, z:%f", info.fisheye_info[cam_id].extrinsic.trans_x, info.fisheye_info[cam_id].extrinsic.trans_y, info.fisheye_info[cam_id].extrinsic.trans_z);
+            for (uint32_t cam_id = 0; cam_id < XCAM_STITCH_FISHEYE_MAX_NUM; cam_id++) {
+                XCAM_LOG_DEBUG ("cam[%d]: flip=%d ", cam_id, info.fisheye_info[cam_id].intrinsic.flip);
+                XCAM_LOG_DEBUG ("fx=%f ", info.fisheye_info[cam_id].intrinsic.fx);
+                XCAM_LOG_DEBUG ("fy=%f ", info.fisheye_info[cam_id].intrinsic.fy);
+                XCAM_LOG_DEBUG ("cx=%f ", info.fisheye_info[cam_id].intrinsic.cx);
+                XCAM_LOG_DEBUG ("cy=%f ", info.fisheye_info[cam_id].intrinsic.cy);
+                XCAM_LOG_DEBUG ("w=%d ", info.fisheye_info[cam_id].intrinsic.width);
+                XCAM_LOG_DEBUG ("h=%d ", info.fisheye_info[cam_id].intrinsic.height);
+                XCAM_LOG_DEBUG ("fov=%f ", info.fisheye_info[cam_id].intrinsic.fov);
+                XCAM_LOG_DEBUG ("skew=%f ", info.fisheye_info[cam_id].intrinsic.skew);
+                XCAM_LOG_DEBUG ("radius=%f ", info.fisheye_info[cam_id].radius);
+                XCAM_LOG_DEBUG ("distroy coeff=%f %f %f %f ", info.fisheye_info[cam_id].distort_coeff[0], info.fisheye_info[cam_id].distort_coeff[1], info.fisheye_info[cam_id].distort_coeff[2], info.fisheye_info[cam_id].distort_coeff[3]);
+                XCAM_LOG_DEBUG ("fisheye eluer angles: yaw:%f, pitch:%f, roll:%f", info.fisheye_info[cam_id].extrinsic.yaw, info.fisheye_info[cam_id].extrinsic.pitch, info.fisheye_info[cam_id].extrinsic.roll);
+                XCAM_LOG_DEBUG ("fisheye translation: x:%f, y:%f, z:%f", info.fisheye_info[cam_id].extrinsic.trans_x, info.fisheye_info[cam_id].extrinsic.trans_y, info.fisheye_info[cam_id].extrinsic.trans_z);
+            }
+
+            stitcher->set_stitch_info (info);
+        } else {
+            stitcher->set_intrinsic_names (intrinsic_names);
+            stitcher->set_extrinsic_names (extrinsic_names);
+            stitcher->set_bowl_config (bowl_config (cam_model));
         }
 
-        stitcher->set_stitch_info (info);
-    } else {
-        stitcher->set_intrinsic_names (intrinsic_names);
-        stitcher->set_extrinsic_names (extrinsic_names);
-        stitcher->set_bowl_config (bowl_config (cam_model));
+        if (save_topview) {
+            add_stream (outs, "topview", topview_width, topview_height);
+            XCAM_ASSERT (outs.size () >= IdxCount);
+
+            CHECK (outs[IdxTopView]->estimate_file_format (),
+                   "%s: estimate file format failed", outs[IdxTopView]->get_file_name ());
+            CHECK (outs[IdxTopView]->open_writer ("wb"), "open output file(%s) failed", outs[IdxTopView]->get_file_name ());
+
+            create_topview_mapper (stitcher, outs[IdxStitch], outs[IdxTopView], module);
+        }
+
+        CHECK_EXP (
+            run_stitcher (stitcher, ins, outs, frame_mode, save_output, save_topview, loop) == 0,
+            "run stitcher failed");
     }
-
-    if (save_topview) {
-        add_stream (outs, "topview", topview_width, topview_height);
-        XCAM_ASSERT (outs.size () >= IdxCount);
-
-        CHECK (outs[IdxTopView]->estimate_file_format (),
-               "%s: estimate file format failed", outs[IdxTopView]->get_file_name ());
-        CHECK (outs[IdxTopView]->open_writer ("wb"), "open output file(%s) failed", outs[IdxTopView]->get_file_name ());
-
-        create_topview_mapper (stitcher, outs[IdxStitch], outs[IdxTopView], module);
-    }
-
-    CHECK_EXP (
-        run_stitcher (stitcher, ins, outs, frame_mode, save_output, save_topview, loop) == 0,
-        "run stitcher failed");
 
     return 0;
 }

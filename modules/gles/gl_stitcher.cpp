@@ -237,7 +237,7 @@ StitcherImpl::start_geomappers (const SmartPtr<GLStitcher::StitcherParam> &param
 XCamReturn
 StitcherImpl::start_blenders (const SmartPtr<GLStitcher::StitcherParam> &param)
 {
-    for (uint32_t idx = 0; idx <_camera_num; ++idx) {
+    for (uint32_t idx = 0; idx < _camera_num; ++idx) {
         uint32_t next_idx = (idx + 1) % _camera_num;
 
         SmartPtr<GLBlender::BlenderParam> blend_param = new GLBlender::BlenderParam (
@@ -294,7 +294,7 @@ StitcherImpl::start_feature_match (
 XCamReturn
 StitcherImpl::start_feature_matches ()
 {
-    for (uint32_t idx = 0; idx <_camera_num; ++idx) {
+    for (uint32_t idx = 0; idx < _camera_num; ++idx) {
         uint32_t next_idx = (idx + 1) % _camera_num;
 
         XCamReturn ret = start_feature_match (_geomap_buf[idx][FMRight], _geomap_buf[next_idx][FMLeft], idx);
@@ -564,7 +564,7 @@ StitcherImpl::config_geomappers_from_copy ()
             ext_width = XCAM_ALIGN_UP (ext_width, GL_STITCHER_ALIGNMENT_X);
 
             area.in_area.width = (area.in_idx == 0) ?
-                (area.in_area.width + ext_width) : (area.in_area.width + ext_width * 2);
+                                 (area.in_area.width + ext_width) : (area.in_area.width + ext_width * 2);
             area.out_area.width = area.in_area.width;
             if (area.out_area.pos_x > 0) {
                 area.in_area.pos_x -= ext_width;
@@ -760,6 +760,7 @@ GLStitcher::GLStitcher (const char *name)
 
 GLStitcher::~GLStitcher ()
 {
+    terminate ();
 }
 
 XCamReturn

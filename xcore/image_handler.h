@@ -28,8 +28,8 @@
 
 #define DECLARE_HANDLER_CALLBACK(CbClass, Next, mem_func)                \
     class CbClass : public ::XCam::ImageHandler::Callback {              \
-        private: ::XCam::SmartPtr<Next>  _h;                             \
-        public: CbClass (const ::XCam::SmartPtr<Next> &h) { _h = h;}     \
+        private: ::XCam::Next *_h;                                       \
+        public: CbClass (::XCam::Next *h) { _h = h;}                     \
         protected: void execute_status (                                 \
             const ::XCam::SmartPtr<::XCam::ImageHandler> &handler,       \
             const ::XCam::SmartPtr<::XCam::ImageHandler::Parameters> &params,  \
