@@ -151,11 +151,31 @@ public:
     }
 };
 
-DECLARE_WORK_CALLBACK (UTCbBridge, UintTestHandler, work_done);
+//DECLARE_WORK_CALLBACK (UTCbBridge, UintTestHandler, work_done);
+class UTCbBridge
+    : public Worker::Callback
+{
+private:
+    UintTestHandler *_h;
+
+public:
+    UTCbBridge (UintTestHandler *h) {
+        _h = h;
+    }
+
+protected:
+    void work_status (
+        const SmartPtr<Worker> &worker,
+        const SmartPtr<Worker::Arguments> &args,
+        const XCamReturn error)
+    {
+        _h->work_done (worker, args, error);
+    }
+};
 
 void test_base_worker()
 {
-    SmartPtr<UintTestHandler> handler = new UintTestHandler;
+    UintTestHandler *handler = new UintTestHandler;
     SmartPtr<Worker> worker = new UnitTestWorker;
     worker->set_callback (new UTCbBridge (handler));
     worker->work (new UTArguments);

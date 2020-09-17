@@ -672,6 +672,7 @@ VKStitcher::VKStitcher (const SmartPtr<VKDevice> &dev, const char *name)
 
 VKStitcher::~VKStitcher ()
 {
+    terminate ();
     _impl.release ();
 }
 

@@ -29,8 +29,8 @@
 
 #define DECLARE_WORK_CALLBACK(CbClass, Handler, mem_func)                 \
     class CbClass : public ::XCam::Worker::Callback {                     \
-        private: ::XCam::SmartPtr<Handler>  _h;                           \
-        public: CbClass (const ::XCam::SmartPtr<Handler> &h) { _h = h;}   \
+        private: ::XCam::Handler *_h;                                     \
+        public: CbClass (::XCam::Handler *h) { _h = h;}                   \
         protected: void work_status (                                     \
             const ::XCam::SmartPtr<::XCam::Worker> &worker,               \
             const ::XCam::SmartPtr<::XCam::Worker::Arguments> &args,      \

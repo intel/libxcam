@@ -678,7 +678,7 @@ create_gauss_scale_pyr_shader (const SmartPtr<VKBlender> &blender)
         binding_layout.push_back (binding);
     }
 
-    SmartPtr<VKWorker> worker = new VKWorker (dev, "VKGaussScaleShader", new CbGaussScalePyr (blender));
+    SmartPtr<VKWorker> worker = new VKWorker (dev, "VKGaussScaleShader", new CbGaussScalePyr (blender.ptr()));
     XCAM_ASSERT (worker.ptr ());
 
     XCamReturn ret = worker->build (shaders_info[ShaderGaussScalePyr], binding_layout, push_consts);
@@ -705,7 +705,7 @@ create_lap_trans_pyr_shader (const SmartPtr<VKBlender> &blender)
         binding_layout.push_back (binding);
     }
 
-    SmartPtr<VKWorker> worker = new VKWorker (dev, "VKLapTransShader", new CbLapTransPyr (blender));
+    SmartPtr<VKWorker> worker = new VKWorker (dev, "VKLapTransShader", new CbLapTransPyr (blender.ptr()));
     XCAM_ASSERT (worker.ptr ());
 
     XCamReturn ret = worker->build (shaders_info[ShaderLapTransPyr], binding_layout, push_consts);
@@ -732,7 +732,7 @@ create_blend_pyr_shader (const SmartPtr<VKBlender> &blender)
         binding_layout.push_back (binding);
     }
 
-    SmartPtr<VKWorker> worker = new VKWorker (dev, "VKBlendPyrShader", new CbBlendPyr (blender));
+    SmartPtr<VKWorker> worker = new VKWorker (dev, "VKBlendPyrShader", new CbBlendPyr (blender.ptr()));
     XCAM_ASSERT (worker.ptr ());
 
     XCamReturn ret = worker->build (shaders_info[ShaderBlendPyr], binding_layout, push_consts);
@@ -759,7 +759,7 @@ create_reconstruct_pyr_shader (const SmartPtr<VKBlender> &blender)
         binding_layout.push_back (binding);
     }
 
-    SmartPtr<VKWorker> worker = new VKWorker (dev, "VKReconstructShader", new CbReconstructPyr (blender));
+    SmartPtr<VKWorker> worker = new VKWorker (dev, "VKReconstructShader", new CbReconstructPyr (blender.ptr()));
     XCAM_ASSERT (worker.ptr ());
 
     XCamReturn ret = worker->build (shaders_info[ShaderReconstructPyr], binding_layout, push_consts);
