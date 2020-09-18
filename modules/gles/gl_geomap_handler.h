@@ -51,6 +51,8 @@ public:
     virtual bool update_factors (
         float left_factor_x, float left_factor_y, float right_factor_x, float right_factor_y);
 
+    void activate_fastmap ();
+
     XCamReturn remap (const SmartPtr<VideoBuffer> &in_buf, SmartPtr<VideoBuffer> &out_buf);
     virtual XCamReturn terminate ();
 
@@ -59,8 +61,10 @@ protected:
     virtual XCamReturn start_work (const SmartPtr<Parameters> &param);
 
 private:
-    XCamReturn init_shader (const SmartPtr<Parameters> &param);
     XCamReturn fix_parameters (const SmartPtr<Parameters> &param);
+
+    XCamReturn prepare_dump_coords (GLCmdList &cmds);
+    XCamReturn switch_to_fastmap (const SmartPtr<ImageHandler::Parameters> &param);
 
     XCAM_DEAD_COPY (GLGeoMapHandler);
 
@@ -74,7 +78,13 @@ protected:
     Rect                       _std_area;
     uint32_t                   _extended_offset;
 
+    bool                       _activate_fastmap;
+    bool                       _fastmap_activated;
+
     SmartPtr<GLBuffer>         _lut_buf;
+    SmartPtr<GLBuffer>         _coordx_buf;
+    SmartPtr<GLBuffer>         _coordy_buf;
+
     SmartPtr<GLImageShader>    _geomap_shader;
 };
 
