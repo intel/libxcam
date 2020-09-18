@@ -203,12 +203,22 @@ StitcherImpl::start_geomappers (const SmartPtr<GLStitcher::StitcherParam> &param
             _geomap_buf[idx][BlendLeft] = _geomap_pool[idx][BlendLeft]->get_buffer ();
             _geomap_buf[idx][BlendRight] = _geomap_pool[idx][BlendRight]->get_buffer ();
 
+            if (!_stitcher->need_feature_match ()) {
+                _geomapper[idx][Copy0]->activate_fastmap ();
+                _geomapper[idx][BlendLeft]->activate_fastmap ();
+                _geomapper[idx][BlendRight]->activate_fastmap ();
+            }
+
             start_geomapper (_geomapper[idx][Copy0], param->in_bufs[idx], _geomap_buf[idx][Copy0]);
             start_geomapper (_geomapper[idx][BlendLeft], param->in_bufs[idx], _geomap_buf[idx][BlendLeft]);
             start_geomapper (_geomapper[idx][BlendRight], param->in_bufs[idx], _geomap_buf[idx][BlendRight]);
 
             if (idx == 0) {
                 _geomap_buf[idx][Copy1] = param->out_buf;
+                if (!_stitcher->need_feature_match ()) {
+                    _geomapper[idx][Copy1]->activate_fastmap ();
+                }
+
                 start_geomapper (_geomapper[idx][Copy1], param->in_bufs[idx], _geomap_buf[idx][Copy1]);
             }
         }
