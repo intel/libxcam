@@ -137,7 +137,9 @@ SoftWorker::set_threads (const SmartPtr<ThreadPool> &threads)
 XCamReturn
 SoftWorker::stop ()
 {
-    _threads->stop ();
+    if (_threads.ptr ()) {
+        _threads->stop ();
+    }
     return XCAM_RETURN_NO_ERROR;
 }
 
