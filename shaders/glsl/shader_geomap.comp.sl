@@ -157,6 +157,7 @@ void geomap_y (
     if (dump_coords == 1u) {
         coordx.data[coord_pos] = in_img_x;
         coordy.data[coord_pos] = in_img_y;
+        return;
     }
 
     for (uint i = 0u; i < UNIT_SIZE; ++i) {
