@@ -25,7 +25,7 @@
 #include <ocl/cl_device.h>
 #include <ocl/cl_context.h>
 #include <ocl/cl_blender.h>
-#include <image_file_handle.h>
+#include <image_file.h>
 #include <ocl/cl_geo_map_handler.h>
 #include <ocl/cl_video_buffer.h>
 #if HAVE_LIBDRM
@@ -93,7 +93,7 @@ geo_correct_image (
     if (need_save_output) {
         char gdc_dump_name[1024];
         snprintf (gdc_dump_name, 1024, "gdc-%s", file_name);
-        ImageFileHandle file_out;
+        ImageFile file_out;
         file_out.open (gdc_dump_name, "wb");
         file_out.write_buf (geo_out);
         file_out.close ();
@@ -166,7 +166,7 @@ int main (int argc, char *argv[])
     SmartPtr<CLBlender> blender;
     VideoBufferInfo input_buf_info0, input_buf_info1, output_buf_info;
     SmartPtr<CLContext> context;
-    ImageFileHandle file_in0, file_in1, file_out;
+    ImageFile file_in0, file_in1, file_out;
     SmartPtr<VideoBuffer> input0, input1;
     SmartPtr<VideoBuffer> output_buf;
     SmartPtr<VideoBuffer> read_buf;

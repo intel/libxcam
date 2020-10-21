@@ -22,7 +22,7 @@
 
 #include "test_common.h"
 #include "test_inline.h"
-#include "image_file_handle.h"
+#include "image_file.h"
 #include "ocl/cl_device.h"
 #include "ocl/cl_context.h"
 #include "ocl/cl_demo_handler.h"
@@ -168,7 +168,7 @@ int main (int argc, char *argv[])
     int32_t kernel_loop_count = 0;
     const char *input_file = NULL, *output_file = NULL, *refer_file = NULL;
     const char *bin_kernel_path = NULL;
-    ImageFileHandle input_fp, output_fp, refer_fp;
+    ImageFile input_fp, output_fp, refer_fp;
     const char *bin_name = argv[0];
     TestHandlerType handler_type = TestHandlerUnknown;
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
@@ -321,7 +321,7 @@ int main (int argc, char *argv[])
         if (!bin_kernel_path)
             image_handler = create_cl_demo_image_handler (context);
         else {
-            FileHandle file;
+            File file;
             if (file.open (bin_kernel_path, "r") != XCAM_RETURN_NO_ERROR) {
                 XCAM_LOG_ERROR ("open binary kernel failed");
                 return -1;

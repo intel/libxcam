@@ -36,8 +36,8 @@ endif
 XCAM_XCORE_SRC_FILES := \
     xcore/buffer_pool.cpp \
     xcore/calibration_parser.cpp \
-    xcore/file_handle.cpp \
-    xcore/image_file_handle.cpp \
+    xcore/file.cpp \
+    xcore/image_file.cpp \
     xcore/image_handler.cpp \
     xcore/surview_fisheye_dewarp.cpp \
     xcore/thread_pool.cpp \

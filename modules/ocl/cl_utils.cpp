@@ -19,7 +19,7 @@
  */
 
 #include "cl_utils.h"
-#include "image_file_handle.h"
+#include "image_file.h"
 
 namespace XCam {
 

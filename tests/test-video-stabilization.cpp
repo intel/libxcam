@@ -26,7 +26,7 @@
 #include <ocl/cl_device.h>
 #include <ocl/cl_context.h>
 #include <ocl/cl_blender.h>
-#include <image_file_handle.h>
+#include <image_file.h>
 #include <ocl/cl_video_stabilizer.h>
 #include <dma_video_buffer.h>
 
@@ -74,7 +74,7 @@ int main (int argc, char *argv[])
     uint32_t output_width = 1920;
     uint32_t output_height = 1080;
 
-    ImageFileHandle file_in, file_out;
+    ImageFile file_in, file_out;
     const char *file_in_name = NULL;
     const char *file_out_name = NULL;
 

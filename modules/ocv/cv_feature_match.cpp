@@ -20,7 +20,7 @@
  */
 
 #include "xcam_obj_debug.h"
-#include "image_file_handle.h"
+#include "image_file.h"
 #include "cv_feature_match.h"
 #if HAVE_LIBCL
 #include <opencv2/core/ocl.hpp>

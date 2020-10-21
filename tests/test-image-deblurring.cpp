@@ -24,7 +24,7 @@
 
 #include <unistd.h>
 #include <getopt.h>
-#include <image_file_handle.h>
+#include <image_file.h>
 #include "ocv/cv_image_sharp.h"
 #include "ocv/cv_wiener_filter.h"
 #include "ocv/cv_image_deblurring.h"

@@ -1,7 +1,7 @@
 /*
- * image_file_handle.h - Image file handle
+ * image_file.h - Image file class
  *
- *  Copyright (c) 2016 Intel Corporation
+ *  Copyright (c) 2016-2020 Intel Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,33 +15,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
+ * Author: Yinhang Liu <yinhangx.liu@intel.com>
  * Author: Wind Yuan <feng.yuan@intel.com>
  */
 
-#ifndef XCAM_IMAGE_FILE_HANDLE_H
-#define XCAM_IMAGE_FILE_HANDLE_H
+#ifndef XCAM_IMAGE_FILE_H
+#define XCAM_IMAGE_FILE_H
 
 #include <xcam_std.h>
-#include <file_handle.h>
+#include <file.h>
 #include <video_buffer.h>
 
 namespace XCam {
 
-class ImageFileHandle
-    : public FileHandle
+class ImageFile
+    : public File
 {
 public:
-    ImageFileHandle ();
-    explicit ImageFileHandle (const char *name, const char *option);
-    virtual ~ImageFileHandle ();
+    ImageFile ();
+    explicit ImageFile (const char *name, const char *option);
+    virtual ~ImageFile ();
 
     XCamReturn read_buf (const SmartPtr<VideoBuffer> &buf);
     XCamReturn write_buf (const SmartPtr<VideoBuffer> &buf);
 
 private:
-    XCAM_DEAD_COPY (ImageFileHandle);
+    XCAM_DEAD_COPY (ImageFile);
 };
 
 }
 
-#endif  //XCAM_IMAGE_FILE_HANDLE_H
+#endif // XCAM_IMAGE_FILE_H

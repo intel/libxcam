@@ -19,7 +19,7 @@
  */
 
 #include "xcam_obj_debug.h"
-#include "image_file_handle.h"
+#include "image_file.h"
 #include "cv_feature_match_cluster.h"
 
 #define XCAM_CV_FM_DEBUG 0

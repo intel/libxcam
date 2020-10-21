@@ -23,12 +23,12 @@ xcam_sources = \
     smart_analysis_handler.cpp     \
     smart_buffer_priv.cpp          \
     fake_poll_thread.cpp           \
-    file_handle.cpp                \
+    file.cpp                       \
     handler_interface.cpp          \
     image_handler.cpp              \
     image_processor.cpp            \
     image_projector.cpp            \
-    image_file_handle.cpp          \
+    image_file.cpp                 \
     poll_thread.cpp                \
     fisheye_dewarp.cpp             \
     swapped_buffer.cpp             \
@@ -104,13 +104,13 @@ nobase_libxcam_coreinclude_HEADERS = \
     calibration_parser.h          \
     device_manager.h              \
     dma_video_buffer.h            \
-    file_handle.h                 \
+    file.h                        \
     pipe_manager.h                \
     handler_interface.h           \
     image_handler.h               \
     image_processor.h             \
     image_projector.h             \
-    image_file_handle.h           \
+    image_file.h                  \
     safe_list.h                   \
     smartptr.h                    \
     fisheye_dewarp.h              \

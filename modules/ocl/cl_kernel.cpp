@@ -22,7 +22,7 @@
 #include "cl_error.h"
 #include "cl_context.h"
 #include "cl_device.h"
-#include "file_handle.h"
+#include "file.h"
 
 #include <sys/stat.h>
 
@@ -129,8 +129,8 @@ CLKernel::build_kernel (const XCamKernelInfo& info, const char* options)
 
     char temp_filename[XCAM_MAX_STR_SIZE] = {0};
     char cache_filename[XCAM_MAX_STR_SIZE] = {0};
-    FileHandle temp_file;
-    FileHandle cache_file;
+    File temp_file;
+    File cache_file;
     size_t read_cache_size = 0;
     size_t write_cache_size = 0;
     uint8_t *kernel_cache = NULL;

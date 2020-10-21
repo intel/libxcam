@@ -23,7 +23,7 @@
 
 #include "xcam_utils.h"
 #include "video_buffer.h"
-#include "image_file_handle.h"
+#include "image_file.h"
 
 namespace XCam {
 
@@ -298,7 +298,7 @@ dump_buf_perfix_path (const SmartPtr<VideoBuffer> buf, const char *prefix_name)
 bool
 dump_video_buf (const SmartPtr<VideoBuffer> buf, const char *file_name)
 {
-    ImageFileHandle file;
+    ImageFile file;
     XCAM_ASSERT (file_name);
 
     XCamReturn ret = file.open (file_name, "wb");
@@ -317,7 +317,7 @@ dump_video_buf (const SmartPtr<VideoBuffer> buf, const char *file_name)
 bool
 dump_data_buf (const void *buf, const size_t &size, const char *file_name)
 {
-    FileHandle file;
+    File file;
     XCAM_ASSERT (buf);
     XCAM_ASSERT (file_name);
     XCAM_ASSERT (size > 0);

@@ -20,7 +20,7 @@
  */
 
 #include "calibration_parser.h"
-#include "file_handle.h"
+#include "file.h"
 #include <unistd.h>
 
 #if HAVE_JSON
@@ -201,7 +201,7 @@ CalibrationParser::parse_intrinsic_file(const char *file_path, IntrinsicParamete
         ERROR, !access (file_path, R_OK), XCAM_RETURN_ERROR_PARAM,
         "cannot access intrinsic file %s", file_path);
 
-    FileHandle file_reader;
+    File file_reader;
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     std::vector<char> context;
     size_t file_size = 0;
@@ -229,7 +229,7 @@ CalibrationParser::parse_extrinsic_file(const char *file_path, ExtrinsicParamete
         ERROR, !access (file_path, R_OK), XCAM_RETURN_ERROR_PARAM,
         "cannot access extrinsic file %s", file_path);
 
-    FileHandle file_reader;
+    File file_reader;
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     std::vector<char> context;
     size_t file_size = 0;
