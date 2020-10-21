@@ -20,7 +20,7 @@
 
 #include "test_common.h"
 #include "test_inline.h"
-#include "file_handle.h"
+#include "file.h"
 #include "ocl/cl_device.h"
 #include "ocl/cl_context.h"
 #include "ocl/cl_kernel.h"
@@ -53,7 +53,7 @@ int main (int argc, char *argv[])
     char *kernel_name = NULL;
     char *kernel_body = NULL;
     uint8_t *program_binaries = NULL;
-    FileHandle src_file, bin_file;
+    File src_file, bin_file;
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
     const struct option long_opts [] = {

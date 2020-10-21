@@ -23,7 +23,7 @@
 #define XCAM_TEST_STREAM_H
 
 #include <buffer_pool.h>
-#include <image_file_handle.h>
+#include <image_file.h>
 #if (!defined(ANDROID) && (HAVE_OPENCV))
 #include "ocv/cv_utils.h"
 #endif
@@ -138,7 +138,7 @@ private:
     SmartPtr<VideoBuffer>    _buf;
     SmartPtr<BufferPool>     _pool;
 
-    ImageFileHandle          _file;
+    ImageFile                _file;
     int                      _fifo;
 #if XCAM_TEST_OPENCV
     cv::VideoWriter          _writer;

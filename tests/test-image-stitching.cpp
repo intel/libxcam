@@ -22,7 +22,7 @@
 #include "test_common.h"
 #include "test_inline.h"
 #include "test_stream.h"
-#include <image_file_handle.h>
+#include <image_file.h>
 #include <ocl/cl_device.h>
 #include <ocl/cl_context.h>
 #include <ocl/cl_fisheye_handler.h>

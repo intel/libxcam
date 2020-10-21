@@ -24,7 +24,7 @@
 #include "soft_image.h"
 #include "soft_worker.h"
 #include "soft_blender_tasks_priv.h"
-#include "image_file_handle.h"
+#include "image_file.h"
 #include "soft_video_buf_allocator.h"
 #include <map>
 

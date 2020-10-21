@@ -1,7 +1,7 @@
 /*
- * file_handle.cpp - File handle
+ * file.cpp - File implementation
  *
- *  Copyright (c) 2016-2017 Intel Corporation
+ *  Copyright (c) 2016-2020 Intel Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,19 +19,19 @@
  * Author: Wind Yuan <feng.yuan@intel.com>
  */
 
-#include "file_handle.h"
+#include "file.h"
 
 #define INVALID_SIZE (size_t)(-1)
 
 namespace XCam {
 
-FileHandle::FileHandle ()
+File::File ()
     : _fp (NULL)
     , _file_name (NULL)
     , _file_size (INVALID_SIZE)
 {}
 
-FileHandle::FileHandle (const char *name, const char *option)
+File::File (const char *name, const char *option)
     : _fp (NULL)
     , _file_name (NULL)
     , _file_size (INVALID_SIZE)
@@ -39,13 +39,13 @@ FileHandle::FileHandle (const char *name, const char *option)
     open (name, option);
 }
 
-FileHandle::~FileHandle ()
+File::~File ()
 {
     close ();
 }
 
 bool
-FileHandle::end_of_file()
+File::end_of_file ()
 {
     if (!is_valid ())
         return true;
@@ -54,25 +54,26 @@ FileHandle::end_of_file()
 }
 
 XCamReturn
-FileHandle::open (const char *name, const char *option)
+File::open (const char *name, const char *option)
 {
-    XCAM_ASSERT (name);
-    if (!name)
-        return XCAM_RETURN_ERROR_FILE;
+    XCAM_FAIL_RETURN (
+        ERROR, name != NULL && option != NULL, XCAM_RETURN_ERROR_FILE,
+        "File file name or option is empty");
 
     close ();
     XCAM_ASSERT (!_file_name && !_fp);
-    _fp = fopen (name, option);
 
+    _fp = fopen (name, option);
     if (!_fp)
         return XCAM_RETURN_ERROR_FILE;
+
     _file_name = strndup (name, 512);
 
     return XCAM_RETURN_NO_ERROR;
 }
 
 XCamReturn
-FileHandle::close ()
+File::close ()
 {
     if (_fp) {
         fclose (_fp);
@@ -85,19 +86,21 @@ FileHandle::close ()
     }
 
     _file_size = INVALID_SIZE;
+
     return XCAM_RETURN_NO_ERROR;
 }
 
 XCamReturn
-FileHandle::rewind ()
+File::rewind ()
 {
-    if (!is_valid ())
+    if (!is_valid () || fseek (_fp, 0L, SEEK_SET) != 0)
         return XCAM_RETURN_ERROR_FILE;
-    return (fseek (_fp, 0L, SEEK_SET) == 0) ? XCAM_RETURN_NO_ERROR : XCAM_RETURN_ERROR_FILE;
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
 XCamReturn
-FileHandle::get_file_size (size_t &size)
+File::get_file_size (size_t &size)
 {
     if (_file_size != INVALID_SIZE) {
         size = _file_size;
@@ -124,12 +127,12 @@ FileHandle::get_file_size (size_t &size)
     return XCAM_RETURN_NO_ERROR;
 
 read_error:
-    XCAM_LOG_ERROR ("get file size failed with errno:%d", errno);
+    XCAM_LOG_ERROR ("File get file size failed with errno:%d", errno);
     return XCAM_RETURN_ERROR_FILE;
 }
 
 XCamReturn
-FileHandle::read_file (void *buf, const size_t &size)
+File::read_file (void *buf, size_t size)
 {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
@@ -137,7 +140,7 @@ FileHandle::read_file (void *buf, const size_t &size)
         if (end_of_file ()) {
             ret = XCAM_RETURN_BYPASS;
         } else {
-            XCAM_LOG_ERROR ("read file failed, size doesn't match");
+            XCAM_LOG_ERROR ("File read file failed, size doesn't match");
             ret = XCAM_RETURN_ERROR_FILE;
         }
     }
@@ -146,16 +149,14 @@ FileHandle::read_file (void *buf, const size_t &size)
 }
 
 XCamReturn
-FileHandle::write_file (const void *buf, const size_t &size)
+File::write_file (const void *buf, size_t size)
 {
-    XCamReturn ret = XCAM_RETURN_NO_ERROR;
-
     if (fwrite (buf, 1, size, _fp) != size) {
-        XCAM_LOG_ERROR ("write file failed, size doesn't match");
-        ret = XCAM_RETURN_ERROR_FILE;
+        XCAM_LOG_ERROR ("File write file failed, size doesn't match");
+        return XCAM_RETURN_ERROR_FILE;
     }
 
-    return ret;
+    return XCAM_RETURN_NO_ERROR;
 }
 
 }

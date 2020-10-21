@@ -25,7 +25,7 @@
 #include <xcam_std.h>
 #include <video_buffer.h>
 #include <vec_mat.h>
-#include <file_handle.h>
+#include <file.h>
 
 #if ENABLE_AVX512
 #include <immintrin.h>
@@ -312,12 +312,12 @@ typedef SoftImage<Float2> Float2Image;
 
 template <class SoftImageT>
 class SoftImageFile
-    : public FileHandle
+    : public File
 {
 public:
     SoftImageFile () {}
     explicit SoftImageFile (const char *name, const char *option)
-        : FileHandle (name, option)
+        : File (name, option)
     {}
 
     inline XCamReturn read_buf (const SmartPtr<SoftImageT> &buf);

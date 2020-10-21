@@ -24,7 +24,7 @@
 #include "vk_instance.h"
 #include "vk_sync.h"
 #include "vk_cmdbuf.h"
-#include "file_handle.h"
+#include "file.h"
 
 namespace XCam {
 
@@ -113,7 +113,7 @@ VKDevice::prepare_compute_queue ()
 SmartPtr<VKShader>
 VKDevice::create_shader (const char *file_name)
 {
-    FileHandle file (file_name, "rb");
+    File file (file_name, "rb");
     XCAM_FAIL_RETURN (
         ERROR, file.is_valid (), NULL,
         "VKDevice load shader failed when opend shader file:%s.",

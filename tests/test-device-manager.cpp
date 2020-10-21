@@ -46,7 +46,7 @@
 #include "drm_display.h"
 #endif
 #include "fake_poll_thread.h"
-#include "image_file_handle.h"
+#include "image_file.h"
 #include <base/xcam_3a_types.h>
 #include <unistd.h>
 #include <signal.h>
@@ -83,7 +83,7 @@ public:
     }
 
     ~MainDeviceManager () {
-        _file_handle.close ();
+        _file.close ();
     }
 
     void enable_save_file (bool enable) {
@@ -133,7 +133,7 @@ private:
     uint32_t   _frame_count;
     uint32_t   _frame_save;
     bool       _enable_display;
-    ImageFileHandle _file_handle;
+    ImageFile  _file;
 #if HAVE_LIBDRM
     SmartPtr<DrmDisplay> _display;
 #endif
@@ -177,11 +177,11 @@ MainDeviceManager::handle_buffer (const SmartPtr<VideoBuffer> &buf)
 
     open_file ();
 
-    if (!_file_handle.is_valid ()) {
+    if (!_file.is_valid ()) {
         XCAM_LOG_ERROR ("open file failed");
         return;
     }
-    _file_handle.write_buf (buf);
+    _file.write_buf (buf);
 }
 
 int
@@ -213,7 +213,7 @@ MainDeviceManager::display_buf (const SmartPtr<VideoBuffer> &data)
 void
 MainDeviceManager::open_file ()
 {
-    if (_file_handle.is_valid () && (_frame_save == 0))
+    if (_file.is_valid () && (_frame_save == 0))
         return;
 
     std::string file_name = DEFAULT_SAVE_FILE_NAME;
@@ -223,7 +223,7 @@ MainDeviceManager::open_file ()
     }
     file_name += ".raw";
 
-    if (_file_handle.open (file_name.c_str (), "wb") != XCAM_RETURN_NO_ERROR) {
+    if (_file.open (file_name.c_str (), "wb") != XCAM_RETURN_NO_ERROR) {
         XCAM_LOG_WARNING ("create file(%s) failed", file_name.c_str ());
     }
 }
