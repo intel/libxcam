@@ -22,6 +22,7 @@
 #define XCAM_GL_BLENDER_H
 
 #include <interface/blender.h>
+#include <gles/gl_buffer.h>
 #include <gles/gl_image_handler.h>
 
 #define XCAM_GL_PYRAMID_MAX_LEVEL 4
@@ -55,6 +56,7 @@ public:
     ~GLBlender ();
 
     bool set_pyr_levels (uint32_t levels);
+    const SmartPtr<GLBuffer> &get_layer0_mask () const;
 
     virtual XCamReturn terminate ();
 

@@ -47,6 +47,9 @@ public:
     bool set_lut_buf (const SmartPtr<GLBuffer> &buf);
     const SmartPtr<GLBuffer> &get_lut_buf () const;
 
+    const SmartPtr<GLBuffer> &get_coordx_buf () const;
+    const SmartPtr<GLBuffer> &get_coordy_buf () const;
+
     bool init_factors ();
     virtual bool update_factors (
         float left_factor_x, float left_factor_y, float right_factor_x, float right_factor_y);

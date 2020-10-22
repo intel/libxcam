@@ -154,6 +154,26 @@ GLGeoMapHandler::get_lut_buf () const
     return _lut_buf;
 }
 
+const SmartPtr<GLBuffer> &
+GLGeoMapHandler::get_coordx_buf () const
+{
+    XCAM_FAIL_RETURN (
+        ERROR, _coordx_buf.ptr (), NULL,
+        "gl-geomap coordx buffer is empty");
+
+    return _coordx_buf;
+}
+
+const SmartPtr<GLBuffer> &
+GLGeoMapHandler::get_coordy_buf () const
+{
+    XCAM_FAIL_RETURN (
+        ERROR, _coordy_buf.ptr (), NULL,
+        "gl-geomap coordy buffer is empty");
+
+    return _coordy_buf;
+}
+
 static void
 update_lut_step (
     float *lut_step,
