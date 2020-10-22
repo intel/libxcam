@@ -751,6 +751,12 @@ GLBlender::set_pyr_levels (uint32_t levels)
     return true;
 }
 
+const SmartPtr<GLBuffer> &
+GLBlender::get_layer0_mask () const
+{
+    return _impl->_pyr_layer[0].mask;
+}
+
 XCamReturn
 GLBlender::terminate ()
 {

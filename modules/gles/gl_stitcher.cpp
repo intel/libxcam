@@ -20,6 +20,7 @@
 
 #include "fisheye_dewarp.h"
 #include "gl_blender.h"
+#include "gl_fastmap_blender.h"
 #include "gl_copy_handler.h"
 #include "gl_geomap_handler.h"
 #include "gl_stitcher.h"
@@ -103,7 +104,7 @@ private:
     XCamReturn activate_fastmap (const SmartPtr<GLStitcher::StitcherParam> &param);
 
     XCamReturn release_geomapper_src (uint32_t cam_id, GeoMapIdx idx);
-    XCamReturn release_fm_src ();
+    XCamReturn release_unused_src ();
 
 #if HAVE_OPENCV
     XCamReturn init_feature_match (uint32_t idx);
@@ -122,6 +123,7 @@ private:
     SmartPtr<GLGeoMapHandler>     _geomapper[XCAM_STITCH_MAX_CAMERAS][MapMax];
     SmartPtr<FeatureMatch>        _matcher[XCAM_STITCH_MAX_CAMERAS];
     SmartPtr<GLBlender>           _blender[XCAM_STITCH_MAX_CAMERAS];
+    SmartPtr<GLFastmapBlender>    _fastmap_blender[XCAM_STITCH_MAX_CAMERAS];
 
     SmartPtr<BufferPool>          _geomap_pool[XCAM_STITCH_MAX_CAMERAS][MapMax];
     SmartPtr<VideoBuffer>         _geomap_buf[XCAM_STITCH_MAX_CAMERAS][MapMax];
@@ -131,6 +133,7 @@ private:
     Factor                        _fm_right_factor[XCAM_STITCH_MAX_CAMERAS];
 
     bool                          _fastmap_activated;
+    bool                          _fastmap_blend_activated;
 
     GLStitcher                   *_stitcher;
 };
@@ -139,6 +142,7 @@ StitcherImpl::StitcherImpl (GLStitcher *handler)
     : _camera_num (0)
     , _dewarp_mode (DewarpSphere)
     , _fastmap_activated (false)
+    , _fastmap_blend_activated (false)
     , _stitcher (handler)
 {
 }
@@ -221,6 +225,22 @@ StitcherImpl::activate_fastmap (const SmartPtr<GLStitcher::StitcherParam> &param
         start_geomapper (_geomapper[idx][BlendRight], param->in_bufs[idx], _geomap_buf[idx][BlendRight]);
     }
 
+    if (_stitcher->get_blend_pyr_levels () == 1) {
+        _fastmap_blend_activated = true;
+
+        for (uint32_t idx = 0; idx < _camera_num; ++idx) {
+            uint32_t next_idx = (idx + _camera_num + 1) % _camera_num;
+            SmartPtr<GLFastmapBlender> fastmap_blender = new GLFastmapBlender ("stitcher_fastmap_blender");
+            XCAM_ASSERT (fastmap_blender.ptr ());
+
+            fastmap_blender->set_fastmappers (_geomapper[idx][BlendRight], _geomapper[next_idx][BlendLeft]);
+            fastmap_blender->set_blender (_blender[idx]);
+            fastmap_blender->enable_allocator (false);
+
+            _fastmap_blender[idx] = fastmap_blender;
+        }
+    }
+
     _fastmap_activated = true;
 
     return XCAM_RETURN_NO_ERROR;
@@ -239,11 +259,16 @@ StitcherImpl::start_geomappers (const SmartPtr<GLStitcher::StitcherParam> &param
         for (uint32_t idx = 0; idx < _camera_num; ++idx) {
             start_geomapper (_geomapper[idx][Copy0], param->in_bufs[idx], param->out_buf);
 
-            _geomap_buf[idx][BlendLeft] = _geomap_pool[idx][BlendLeft]->get_buffer ();
-            start_geomapper (_geomapper[idx][BlendLeft], param->in_bufs[idx], _geomap_buf[idx][BlendLeft]);
+            if (_fastmap_blend_activated) {
+                _geomap_buf[idx][BlendLeft] = param->in_bufs[idx];
+                _geomap_buf[idx][BlendRight] = param->in_bufs[idx];
+            } else {
+                _geomap_buf[idx][BlendLeft] = _geomap_pool[idx][BlendLeft]->get_buffer ();
+                start_geomapper (_geomapper[idx][BlendLeft], param->in_bufs[idx], _geomap_buf[idx][BlendLeft]);
 
-            _geomap_buf[idx][BlendRight] = _geomap_pool[idx][BlendRight]->get_buffer ();
-            start_geomapper (_geomapper[idx][BlendRight], param->in_bufs[idx], _geomap_buf[idx][BlendRight]);
+                _geomap_buf[idx][BlendRight] = _geomap_pool[idx][BlendRight]->get_buffer ();
+                start_geomapper (_geomapper[idx][BlendRight], param->in_bufs[idx], _geomap_buf[idx][BlendRight]);
+            }
         }
     }
 
@@ -271,13 +296,19 @@ StitcherImpl::start_geomappers (const SmartPtr<GLStitcher::StitcherParam> &param
 XCamReturn
 StitcherImpl::start_blenders (const SmartPtr<GLStitcher::StitcherParam> &param)
 {
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
     for (uint32_t idx = 0; idx < _camera_num; ++idx) {
         uint32_t next_idx = (idx + 1) % _camera_num;
-
         SmartPtr<GLBlender::BlenderParam> blend_param = new GLBlender::BlenderParam (
             _geomap_buf[idx][BlendRight], _geomap_buf[next_idx][BlendLeft], param->out_buf);
 
-        XCamReturn ret = _blender[idx]->execute_buffer (blend_param, false);
+        if (_fastmap_blend_activated) {
+            ret = _fastmap_blender[idx]->execute_buffer (blend_param, false);
+        } else {
+            ret = _blender[idx]->execute_buffer (blend_param, false);
+        }
+
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,
             "gl-stitcher execute blender failed, idx: %d", idx);
@@ -384,7 +415,7 @@ StitcherImpl::release_geomapper_src (uint32_t cam_id, GeoMapIdx idx)
 }
 
 XCamReturn
-StitcherImpl::release_fm_src ()
+StitcherImpl::release_unused_src ()
 {
     static bool have_been_released = false;
     if (have_been_released)
@@ -393,9 +424,17 @@ StitcherImpl::release_fm_src ()
     for (uint32_t idx = 0; idx < _camera_num; ++idx) {
         release_geomapper_src (idx, FMLeft);
         release_geomapper_src (idx, FMRight);
-
         if (_matcher[idx].ptr ()) {
             _matcher[idx].release ();
+        }
+
+        if (_fastmap_blend_activated) {
+            release_geomapper_src (idx, BlendLeft);
+            release_geomapper_src (idx, BlendRight);
+            if (_blender[idx].ptr ()) {
+                _blender[idx]->terminate ();
+                _blender[idx].release ();
+            }
         }
     }
 
@@ -418,9 +457,15 @@ StitcherImpl::stop ()
         if (_matcher[idx].ptr ()) {
             _matcher[idx].release ();
         }
+
         if (_blender[idx].ptr ()) {
             _blender[idx]->terminate ();
             _blender[idx].release ();
+        }
+
+        if (_fastmap_blender[idx].ptr ()) {
+            _fastmap_blender[idx]->terminate ();
+            _fastmap_blender[idx].release ();
         }
     }
 
@@ -515,8 +560,6 @@ XCamReturn
 StitcherImpl::config_geomapper_from_blend (
     const Stitcher::ImageOverlapInfo &overlap, uint32_t idx)
 {
-    uint32_t next_idx = (idx + _camera_num + 1) % _camera_num;
-
     _geomapper[idx][BlendRight]->set_std_area (overlap.left);
     _geomapper[idx][BlendRight]->set_extended_offset (0);
     _geomapper[idx][BlendRight]->set_output_size (overlap.out_area.width, overlap.out_area.height);
@@ -525,6 +568,7 @@ StitcherImpl::config_geomapper_from_blend (
         ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
         "gl-stitcher create buffer pool failed, idx: %d", idx);
 
+    uint32_t next_idx = (idx + _camera_num + 1) % _camera_num;
     _geomapper[next_idx][BlendLeft]->set_std_area (overlap.right);
     _geomapper[next_idx][BlendLeft]->set_extended_offset (0);
     _geomapper[next_idx][BlendLeft]->set_output_size (overlap.out_area.width, overlap.out_area.height);
@@ -935,10 +979,12 @@ GLStitcher::start_work (const SmartPtr<Parameters> &base)
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,
             "gl_stitcher execute feature matches failed");
-    } else {
-        _impl->release_fm_src ();
     }
 #endif
+
+    if (!need_feature_match ()) {
+        _impl->release_unused_src ();
+    }
 
     return ret;
 }
