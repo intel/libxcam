@@ -434,6 +434,17 @@ gl_fm_config (CamModel model)
         cfg.max_track_error = 6.0f;
         break;
     }
+    case CamD3C8K: {
+        cfg.stitch_min_width = 256;
+        cfg.min_corners = 4;
+        cfg.offset_factor = 0.6f;
+        cfg.delta_mean_offset = 256.0f;
+        cfg.recur_offset_error = 2.0f;
+        cfg.max_adjusted_offset = 24.0f;
+        cfg.max_valid_offset_y = 32.0f;
+        cfg.max_track_error = 10.0f;
+        break;
+    }
     default:
         XCAM_LOG_ERROR ("unknown camera model (%d)", model);
         break;
@@ -505,6 +516,56 @@ gl_stitch_info (CamModel model, StitchScopicMode scopic_mode)
             info.fisheye_info[2].intrinsic.fov = 200.0f;
             info.fisheye_info[2].radius = 1984.0f;
             info.fisheye_info[2].extrinsic.roll = 90.1f;
+            break;
+        }
+        default:
+            XCAM_LOG_ERROR ("unsupported scopic mode (%d)", scopic_mode);
+            break;
+        }
+        break;
+    }
+    case CamD3C8K: {
+        switch (scopic_mode) {
+        case ScopicStereoLeft: {
+            info.merge_width[0] = 192;
+            info.merge_width[1] = 192;
+            info.merge_width[2] = 192;
+            info.fisheye_info[0].intrinsic.cx = 1804.0f;
+            info.fisheye_info[0].intrinsic.cy = 1532.0f;
+            info.fisheye_info[0].intrinsic.fov = 190.0f;
+            info.fisheye_info[0].radius = 1900.0f;
+            info.fisheye_info[0].extrinsic.roll = 91.5f;
+            info.fisheye_info[1].intrinsic.cx = 1836.0f;
+            info.fisheye_info[1].intrinsic.cy = 1532.0f;
+            info.fisheye_info[1].intrinsic.fov = 190.0f;
+            info.fisheye_info[1].radius = 1900.0f;
+            info.fisheye_info[1].extrinsic.roll = 92.0f;
+            info.fisheye_info[2].intrinsic.cx = 1820.0f;
+            info.fisheye_info[2].intrinsic.cy = 1532.0f;
+            info.fisheye_info[2].intrinsic.fov = 190.0f;
+            info.fisheye_info[2].radius = 1900.0f;
+            info.fisheye_info[2].extrinsic.roll = 91.0f;
+            break;
+        }
+        case ScopicStereoRight: {
+            info.merge_width[0] = 192;
+            info.merge_width[1] = 192;
+            info.merge_width[2] = 192;
+            info.fisheye_info[0].intrinsic.cx = 1836.0f;
+            info.fisheye_info[0].intrinsic.cy = 1532.0f;
+            info.fisheye_info[0].intrinsic.fov = 190.0f;
+            info.fisheye_info[0].radius = 1900.0f;
+            info.fisheye_info[0].extrinsic.roll = 88.0f;
+            info.fisheye_info[1].intrinsic.cx = 1852.0f;
+            info.fisheye_info[1].intrinsic.cy = 1576.0f;
+            info.fisheye_info[1].intrinsic.fov = 190.0f;
+            info.fisheye_info[1].radius = 1900.0f;
+            info.fisheye_info[1].extrinsic.roll = 90.0f;
+            info.fisheye_info[2].intrinsic.cx = 1836.0f;
+            info.fisheye_info[2].intrinsic.cy = 1532.0f;
+            info.fisheye_info[2].intrinsic.fov = 190.0f;
+            info.fisheye_info[2].radius = 1900.0f;
+            info.fisheye_info[2].extrinsic.roll = 91.0f;
             break;
         }
         default:
