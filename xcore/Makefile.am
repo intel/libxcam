@@ -24,6 +24,7 @@ xcam_sources = \
     smart_buffer_priv.cpp          \
     fake_poll_thread.cpp           \
     file.cpp                       \
+    fisheye_image_file.cpp         \
     handler_interface.cpp          \
     image_handler.cpp              \
     image_processor.cpp            \
@@ -105,6 +106,7 @@ nobase_libxcam_coreinclude_HEADERS = \
     device_manager.h              \
     dma_video_buffer.h            \
     file.h                        \
+    fisheye_image_file.h          \
     pipe_manager.h                \
     handler_interface.h           \
     image_handler.h               \

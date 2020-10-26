@@ -36,6 +36,8 @@
 
 #define DUMP_BUFFER 0
 
+#define XCAM_FISHEYE_IMG_ROI_RADIUS 0
+
 namespace XCam {
 
 enum GeoMapIdx {
@@ -102,6 +104,7 @@ private:
         const Stitcher::ImageOverlapInfo &overlap, uint32_t idx, GeoMapIdx fm_idx);
 
     XCamReturn activate_fastmap (const SmartPtr<GLStitcher::StitcherParam> &param);
+    XCamReturn calc_fisheye_img_roi_radius (uint32_t idx);
 
     XCamReturn release_geomapper_src (uint32_t cam_id, GeoMapIdx idx);
     XCamReturn release_unused_src ();
@@ -134,6 +137,8 @@ private:
 
     bool                          _fastmap_activated;
     bool                          _fastmap_blend_activated;
+
+    uint32_t                      _fisheye_img_roi_radius[XCAM_STITCH_MAX_CAMERAS];
 
     GLStitcher                   *_stitcher;
 };
@@ -203,6 +208,58 @@ start_geomapper (
     return XCAM_RETURN_NO_ERROR;
 }
 
+#if XCAM_FISHEYE_IMG_ROI_RADIUS
+XCamReturn
+StitcherImpl::calc_fisheye_img_roi_radius (uint32_t idx)
+{
+    float cx, cy;
+    if(_dewarp_mode == DewarpBowl) {
+        CameraInfo cam_info;
+        _stitcher->get_camera_info (idx, cam_info);
+
+        cx = cam_info.calibration.intrinsic.cx;
+        cy = cam_info.calibration.intrinsic.cy;
+    } else {
+        cx = _stitch_info.fisheye_info[idx].intrinsic.cx;
+        cy = _stitch_info.fisheye_info[idx].intrinsic.cy;
+    }
+
+    const SmartPtr<GLBuffer> &coordx = _geomapper[idx][Copy0]->get_coordx_buf ();
+    const SmartPtr<GLBuffer> &coordy = _geomapper[idx][Copy0]->get_coordy_buf ();
+    const GLBufferDesc &desc = coordx->get_buffer_desc ();
+
+    float *xptr = (float *) coordx->map_range (0, desc.size, GL_MAP_READ_BIT);
+    float *yptr = (float *) coordy->map_range (0, desc.size, GL_MAP_READ_BIT);
+    XCAM_FAIL_RETURN (ERROR, xptr || yptr, XCAM_RETURN_ERROR_MEM, "gl-stitcher map range failed");
+
+    uint32_t i;
+    float max_r = 0.0f, x, y, r;
+
+    for (uint32_t h = 0; h < desc.height; ++h) {
+        for (uint32_t w = 0; w < desc.width; ++w) {
+            if (h > 0 && h < (desc.height - 1) && w > 0 && w < (desc.width - 1))
+                break;
+
+            i = h * desc.width + w;
+            x = fabs (xptr[i] - cx) + 0.5f;
+            y = fabs (yptr[i] - cy) + 0.5f;
+
+            r = sqrt (x * x + y * y);
+            max_r = max_r < r ? r : max_r;
+        }
+    }
+    coordx->unmap ();
+    coordy->unmap ();
+
+    _fisheye_img_roi_radius[idx] = max_r + 1.0f;
+    XCAM_LOG_INFO (
+        "calculate fisheye img roi radius fisheye_img_roi_radius = %d",
+        _fisheye_img_roi_radius[idx]);
+
+    return XCAM_RETURN_NO_ERROR;
+}
+#endif
+
 XCamReturn
 StitcherImpl::activate_fastmap (const SmartPtr<GLStitcher::StitcherParam> &param)
 {
@@ -223,6 +280,10 @@ StitcherImpl::activate_fastmap (const SmartPtr<GLStitcher::StitcherParam> &param
         _geomapper[idx][BlendRight]->activate_fastmap ();
         _geomap_buf[idx][BlendRight] = _geomap_pool[idx][BlendRight]->get_buffer ();
         start_geomapper (_geomapper[idx][BlendRight], param->in_bufs[idx], _geomap_buf[idx][BlendRight]);
+
+#if XCAM_FISHEYE_IMG_ROI_RADIUS
+        calc_fisheye_img_roi_radius (idx);
+#endif
     }
 
     if (_stitcher->get_blend_pyr_levels () == 1) {
