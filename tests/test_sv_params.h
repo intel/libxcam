@@ -62,6 +62,66 @@ static const char *camera_calibration_json_names[] = {
 };
 #endif
 
+uint32_t *
+get_fisheye_img_roi_radius (
+    CamModel model, StitchScopicMode scopic_mode, uint32_t *roi_radius)
+{
+    // enable macro XCAM_FISHEYE_IMG_ROI_RADIUS, and fine-tune the roi_radius
+
+    switch (model) {
+    case CamA2C1080P: {
+        roi_radius[0] = 456;
+        roi_radius[1] = 456;
+        break;
+    }
+    case CamC3C8K: {
+        switch (scopic_mode) {
+        case ScopicStereoLeft: {
+            roi_radius[0] = 1787;
+            roi_radius[1] = 1787;
+            roi_radius[2] = 1787;
+            break;
+        }
+        case ScopicStereoRight: {
+            roi_radius[0] = 1787;
+            roi_radius[1] = 1787;
+            roi_radius[2] = 1787;
+            break;
+        }
+        default:
+            XCAM_LOG_ERROR ("unsupported scopic mode (%d)", scopic_mode);
+            break;
+        }
+        break;
+    }
+    case CamD3C8K: {
+        switch (scopic_mode) {
+        case ScopicStereoLeft: {
+            roi_radius[0] = 1802;
+            roi_radius[1] = 1802;
+            roi_radius[2] = 1802;
+            break;
+        }
+        case ScopicStereoRight: {
+            roi_radius[0] = 1801;
+            roi_radius[1] = 1801;
+            roi_radius[2] = 1801;
+            break;
+        }
+        default:
+            XCAM_LOG_ERROR ("unsupported scopic mode (%d)", scopic_mode);
+            break;
+        }
+        break;
+    }
+    default:
+        XCAM_LOG_ERROR ("unsupported camera model (%d)", model);
+        break;
+    }
+
+    return roi_radius;
+}
+
 BowlDataConfig
 bowl_config (CamModel model)
 {

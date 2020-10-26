@@ -36,7 +36,7 @@ public:
     explicit ImageFile (const char *name, const char *option);
     virtual ~ImageFile ();
 
-    XCamReturn read_buf (const SmartPtr<VideoBuffer> &buf);
+    virtual XCamReturn read_buf (const SmartPtr<VideoBuffer> &buf);
     XCamReturn write_buf (const SmartPtr<VideoBuffer> &buf);
 
 private:

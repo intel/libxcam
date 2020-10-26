@@ -24,6 +24,7 @@
 #include <interface/geo_mapper.h>
 #include <interface/stitcher.h>
 #include <calibration_parser.h>
+#include <fisheye_image_file.h>
 #include <soft/soft_video_buf_allocator.h>
 #if HAVE_GLES
 #include <gles/gl_video_buffer.h>
@@ -407,7 +408,7 @@ multi_frame (
             in_buffers.clear ();
 
             for (uint32_t i = 0; i < ins.size (); ++i) {
-                ret = ins[i]->read_buf();
+                ret = ins[i]->read_buf ();
                 if (ret == XCAM_RETURN_BYPASS)
                     break;
                 CHECK (ret, "read buffer from file(%s) failed.", ins[i]->get_file_name ());
@@ -848,6 +849,28 @@ int main (int argc, char *argv[])
         XCAM_LOG_ERROR ("vulkan module is unsupported");
         return -1;
 #endif
+    }
+
+    if (module == SVModuleGLES && (cam_model == CamC3C8K || cam_model == CamD3C8K)) {
+        StitchInfo info = (module == SVModuleSoft) ?
+           soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
+
+        get_fisheye_info (cam_model, scopic_mode, info.fisheye_info);
+
+        uint32_t *roi_radius = new uint32_t[XCAM_STITCH_FISHEYE_MAX_NUM];
+        get_fisheye_img_roi_radius (cam_model, scopic_mode, roi_radius);
+
+        for (uint32_t i = 0; i < ins.size (); i++) {
+            SmartPtr<FisheyeImageFile> file = new FisheyeImageFile ();
+            XCAM_ASSERT (file.ptr ());
+            file->set_img_size (input_width, input_height);
+
+            FisheyeInfo &fisheye_info = info.fisheye_info[i];
+            file->set_center (fisheye_info.intrinsic.cx, fisheye_info.intrinsic.cy);
+            file->set_roi_radius (roi_radius[i]);
+            ins[i]->set_file (file);
+        }
+        delete [] roi_radius;
     }
 
     for (uint32_t i = 0; i < ins.size (); ++i) {

@@ -96,6 +96,10 @@ public:
     const char *get_file_name () const {
         return _file_name;
     }
+    void set_file (const SmartPtr<ImageFile> &file) {
+        _file = file;
+    }
+
     SmartPtr<VideoBuffer> &get_buf ();
     XCamReturn estimate_file_format ();
 
@@ -138,7 +142,7 @@ private:
     SmartPtr<VideoBuffer>    _buf;
     SmartPtr<BufferPool>     _pool;
 
-    ImageFile                _file;
+    SmartPtr<ImageFile>      _file;
     int                      _fifo;
 #if XCAM_TEST_OPENCV
     cv::VideoWriter          _writer;
@@ -159,7 +163,10 @@ Stream::Stream (const char *file_name, uint32_t width, uint32_t height)
 
 Stream::~Stream ()
 {
-    _file.close ();
+    if (_file.ptr ()) {
+        _file->close ();
+        _file.release ();
+    }
 
     if (_file_name) {
         xcam_free (_file_name);
@@ -183,7 +190,13 @@ Stream::open_reader (const char *option)
         ERROR, (_format == FileNV12) || (_format == FileYUV420), XCAM_RETURN_ERROR_PARAM,
         "stream(%s) only support NV12 or YUV420 input format", _file_name);
 
-    if (_file.open (_file_name, option) != XCAM_RETURN_NO_ERROR) {
+    if (!_file.ptr ()) {
+        SmartPtr<ImageFile> file = new ImageFile ();
+        XCAM_ASSERT (file.ptr ());
+        _file = file;
+    }
+
+    if (_file->open (_file_name, option) != XCAM_RETURN_NO_ERROR) {
         XCAM_LOG_ERROR ("stream(%s) open failed", _file_name);
         return XCAM_RETURN_ERROR_FILE;
     }
@@ -197,7 +210,13 @@ Stream::open_writer (const char *option)
     XCAM_ASSERT (_format != FileNone);
 
     if (_format == FileNV12 || _format == FileYUV420) {
-        if (_file.open (_file_name, option) != XCAM_RETURN_NO_ERROR) {
+        if (!_file.ptr ()) {
+            SmartPtr<ImageFile> file = new ImageFile ();
+            XCAM_ASSERT (file.ptr ());
+            _file = file;
+        }
+
+        if (_file->open (_file_name, option) != XCAM_RETURN_NO_ERROR) {
             XCAM_LOG_ERROR ("stream(%s) open failed", _file_name);
             return XCAM_RETURN_ERROR_FILE;
         }
@@ -225,13 +244,13 @@ Stream::open_writer (const char *option)
 XCamReturn
 Stream::close_file ()
 {
-    return _file.close ();
+    return _file->close ();
 }
 
 XCamReturn
 Stream::rewind ()
 {
-    return _file.rewind ();
+    return _file->rewind ();
 }
 
 XCamReturn
@@ -242,13 +261,13 @@ Stream::read_buf ()
     _buf = _pool->get_buffer (_pool);
     XCAM_ASSERT (_buf.ptr ());
 
-    return _file.read_buf (_buf);
+    return _file->read_buf (_buf);
 }
 
 XCamReturn
 Stream::write_buf (char *frame_str) {
     if (_format == FileNV12 || _format == FileYUV420) {
-        _file.write_buf (_buf);
+        _file->write_buf (_buf);
     } else if (_format == FileMP4) {
 #if XCAM_TEST_OPENCV
         cv_write_buf (frame_str);
