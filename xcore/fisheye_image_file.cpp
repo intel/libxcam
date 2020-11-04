@@ -55,7 +55,6 @@ FisheyeImageFile::~FisheyeImageFile ()
 bool
 FisheyeImageFile::set_fisheye_num (uint32_t num)
 {
-    if (num > FISHEYE_MAX_NUM)
     XCAM_FAIL_RETURN (
         ERROR, num <= FISHEYE_MAX_NUM, false,
         "FisheyeImageFile fisheye number(%d) should not be greater than %d",
