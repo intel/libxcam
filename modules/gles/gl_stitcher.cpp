@@ -106,8 +106,8 @@ private:
     XCamReturn activate_fastmap (const SmartPtr<GLStitcher::StitcherParam> &param);
     XCamReturn calc_fisheye_img_roi_radius (uint32_t idx);
 
-    XCamReturn release_geomapper_src (uint32_t cam_id, GeoMapIdx idx);
-    XCamReturn release_unused_src ();
+    XCamReturn release_geomapper_rsc (uint32_t cam_id, GeoMapIdx idx);
+    XCamReturn release_unused_rsc ();
 
 #if HAVE_OPENCV
     XCamReturn init_feature_match (uint32_t idx);
@@ -457,7 +457,7 @@ StitcherImpl::start_fm_geomapper (
 #endif
 
 XCamReturn
-StitcherImpl::release_geomapper_src (uint32_t cam_id, GeoMapIdx idx)
+StitcherImpl::release_geomapper_rsc (uint32_t cam_id, GeoMapIdx idx)
 {
     if (_geomapper[cam_id][idx].ptr ()) {
         _geomapper[cam_id][idx]->terminate ();
@@ -476,22 +476,22 @@ StitcherImpl::release_geomapper_src (uint32_t cam_id, GeoMapIdx idx)
 }
 
 XCamReturn
-StitcherImpl::release_unused_src ()
+StitcherImpl::release_unused_rsc ()
 {
     static bool have_been_released = false;
     if (have_been_released)
         return XCAM_RETURN_NO_ERROR;
 
     for (uint32_t idx = 0; idx < _camera_num; ++idx) {
-        release_geomapper_src (idx, FMLeft);
-        release_geomapper_src (idx, FMRight);
+        release_geomapper_rsc (idx, FMLeft);
+        release_geomapper_rsc (idx, FMRight);
         if (_matcher[idx].ptr ()) {
             _matcher[idx].release ();
         }
 
         if (_fastmap_blend_activated) {
-            release_geomapper_src (idx, BlendLeft);
-            release_geomapper_src (idx, BlendRight);
+            release_geomapper_rsc (idx, BlendLeft);
+            release_geomapper_rsc (idx, BlendRight);
             if (_blender[idx].ptr ()) {
                 _blender[idx]->terminate ();
                 _blender[idx].release ();
@@ -508,12 +508,12 @@ XCamReturn
 StitcherImpl::stop ()
 {
     for (uint32_t idx = 0; idx < _camera_num; ++idx) {
-        release_geomapper_src (idx, Copy0);
-        release_geomapper_src (idx, Copy1);
-        release_geomapper_src (idx, BlendLeft);
-        release_geomapper_src (idx, BlendRight);
-        release_geomapper_src (idx, FMLeft);
-        release_geomapper_src (idx, FMRight);
+        release_geomapper_rsc (idx, Copy0);
+        release_geomapper_rsc (idx, Copy1);
+        release_geomapper_rsc (idx, BlendLeft);
+        release_geomapper_rsc (idx, BlendRight);
+        release_geomapper_rsc (idx, FMLeft);
+        release_geomapper_rsc (idx, FMRight);
 
         if (_matcher[idx].ptr ()) {
             _matcher[idx].release ();
@@ -1044,7 +1044,7 @@ GLStitcher::start_work (const SmartPtr<Parameters> &base)
 #endif
 
     if (!need_feature_match ()) {
-        _impl->release_unused_src ();
+        _impl->release_unused_rsc ();
     }
 
     return ret;
