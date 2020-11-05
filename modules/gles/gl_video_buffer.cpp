@@ -117,11 +117,6 @@ GLVideoBufferPool::~GLVideoBufferPool ()
 SmartPtr<BufferData>
 GLVideoBufferPool::allocate_data (const VideoBufferInfo &info)
 {
-    XCAM_FAIL_RETURN (
-        ERROR, info.format == V4L2_PIX_FMT_NV12, NULL,
-        "GLVideoBufferPool unsupported format:%s, try NV12",
-        xcam_fourcc_to_string (info.format));
-
     SmartPtr<GLBuffer> buf =
         XCam::GLBuffer::create_buffer (_target, NULL, info.size, GL_STATIC_DRAW);
     XCAM_ASSERT (buf.ptr ());
@@ -133,12 +128,12 @@ GLVideoBufferPool::allocate_data (const VideoBufferInfo &info)
     desc.aligned_width = info.aligned_width;
     desc.aligned_height = info.aligned_height;
     desc.size = info.size;
-    desc.strides[0] = info.strides[0];
-    desc.strides[1] = info.strides[1];
-    desc.offsets[0] = info.offsets[0];
-    desc.offsets[1] = info.offsets[1];
-    desc.slice_size[0] = info.strides [0] * info.aligned_height;
-    desc.slice_size[1] = info.size - info.offsets[1];
+    for (uint32_t comp = 0; comp < info.components; ++comp) {
+        desc.strides[comp] = info.strides[comp];
+        desc.offsets[comp] = info.offsets[comp];
+        desc.slice_size[comp] = (comp + 1 < info.components) ?
+            info.offsets [comp + 1] - info.offsets [comp] : info.size - info.offsets[comp];
+    }
 
     buf->set_buffer_desc (desc);
 

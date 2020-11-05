@@ -78,7 +78,7 @@ class StitcherImpl {
 public:
     explicit StitcherImpl (GLStitcher *handler);
 
-    XCamReturn init_config ();
+    XCamReturn init_config (const SmartPtr<GLStitcher::StitcherParam> &param);
     XCamReturn start_geomappers (const SmartPtr<GLStitcher::StitcherParam> &param);
     XCamReturn start_blenders (const SmartPtr<GLStitcher::StitcherParam> &param);
     XCamReturn start_feature_matches ();
@@ -109,6 +109,9 @@ private:
     XCamReturn release_geomapper_rsc (uint32_t cam_id, GeoMapIdx idx);
     XCamReturn release_unused_rsc ();
 
+    XCamReturn create_buffer_pool (
+        SmartPtr<BufferPool> &geomap_pool, const Rect &area);
+
 #if HAVE_OPENCV
     XCamReturn init_feature_match (uint32_t idx);
     XCamReturn create_feature_match (SmartPtr<FeatureMatch> &matcher);
@@ -121,6 +124,7 @@ private:
 private:
     StitchInfo                    _stitch_info;
     uint32_t                      _camera_num;
+    uint32_t                      _pix_fmt;
     FisheyeDewarpMode             _dewarp_mode;
 
     SmartPtr<GLGeoMapHandler>     _geomapper[XCAM_STITCH_MAX_CAMERAS][MapMax];
@@ -145,6 +149,7 @@ private:
 
 StitcherImpl::StitcherImpl (GLStitcher *handler)
     : _camera_num (0)
+    , _pix_fmt (V4L2_PIX_FMT_NV12)
     , _dewarp_mode (DewarpSphere)
     , _fastmap_activated (false)
     , _fastmap_blend_activated (false)
@@ -153,8 +158,11 @@ StitcherImpl::StitcherImpl (GLStitcher *handler)
 }
 
 XCamReturn
-StitcherImpl::init_config ()
+StitcherImpl::init_config (const SmartPtr<GLStitcher::StitcherParam> &param)
 {
+    const VideoBufferInfo &info = param->in_bufs[0]->get_video_info ();
+    _pix_fmt = info.format;
+
     _camera_num = _stitcher->get_camera_num ();
     _dewarp_mode = _stitcher->get_dewarp_mode ();
     if (_dewarp_mode == DewarpSphere)
@@ -597,12 +605,12 @@ StitcherImpl::init_geomappers (uint32_t idx)
 }
 
 XCamReturn
-create_buffer_pool (
+StitcherImpl::create_buffer_pool (
     SmartPtr<BufferPool> &geomap_pool, const Rect &area)
 {
     VideoBufferInfo info;
     info.init (
-        V4L2_PIX_FMT_NV12, area.width, area.height,
+        _pix_fmt, area.width, area.height,
         XCAM_ALIGN_UP (area.width, GL_STITCHER_ALIGNMENT_X),
         XCAM_ALIGN_UP (area.height, GL_STITCHER_ALIGNMENT_Y));
 
@@ -943,8 +951,12 @@ GLStitcher::stitch_buffers (const VideoBufferList &in_bufs, SmartPtr<VideoBuffer
 }
 
 static XCamReturn
-set_output_info (const SmartPtr<GLStitcher> &stitch)
+set_output_info (
+    const SmartPtr<GLStitcher> &stitch,
+    const SmartPtr<GLStitcher::StitcherParam> &param)
 {
+    const VideoBufferInfo &in_info = param->in_bufs[0]->get_video_info ();
+
     VideoBufferInfo info;
     uint32_t width, height;
     stitch->get_output_size (width, height);
@@ -953,7 +965,7 @@ set_output_info (const SmartPtr<GLStitcher> &stitch)
         "gl-stitcher invalid output size %dx%d", width, height);
 
     info.init (
-        V4L2_PIX_FMT_NV12, width, height,
+        in_info.format, width, height,
         XCAM_ALIGN_UP (width, GL_STITCHER_ALIGNMENT_X),
         XCAM_ALIGN_UP (height, GL_STITCHER_ALIGNMENT_Y));
     stitch->set_out_video_info (info);
@@ -964,7 +976,7 @@ set_output_info (const SmartPtr<GLStitcher> &stitch)
 XCamReturn
 GLStitcher::configure_resource (const SmartPtr<Parameters> &param)
 {
-    XCAM_UNUSED (param);
+    XCAM_ASSERT (param.ptr ());
     XCAM_ASSERT (_impl.ptr ());
 
     XCamReturn ret = init_camera_info ();
@@ -997,12 +1009,17 @@ GLStitcher::configure_resource (const SmartPtr<Parameters> &param)
         ERROR, xcam_ret_is_ok (ret), ret,
         "gl-stitcher update copy areas failed");
 
-    ret = _impl->init_config ();
+    SmartPtr<StitcherParam> stitch_param = param.dynamic_cast_ptr<StitcherParam> ();
+    XCAM_FAIL_RETURN (
+        ERROR, stitch_param.ptr () && stitch_param->in_bufs[0].ptr (), XCAM_RETURN_ERROR_MEM,
+        "gl-stitcher configure resource failed, invalid parameters");
+
+    ret = _impl->init_config (stitch_param);
     XCAM_FAIL_RETURN (
         ERROR, xcam_ret_is_ok (ret), ret,
         "gl-stitcher initialize private config failed");
 
-    ret = set_output_info (this);
+    ret = set_output_info (this, stitch_param);
     XCAM_FAIL_RETURN (
         ERROR, xcam_ret_is_ok (ret), ret,
         "gl-stitcher set output info failed");
