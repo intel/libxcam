@@ -863,10 +863,6 @@ GLBlender::configure_resource (const SmartPtr<Parameters> &param)
 
     const VideoBufferInfo &in0_info = blend_param->in_buf->get_video_info ();
     const VideoBufferInfo &in1_info = blend_param->in1_buf->get_video_info ();
-    XCAM_FAIL_RETURN (
-        ERROR, in0_info.format == V4L2_PIX_FMT_NV12, XCAM_RETURN_ERROR_PARAM,
-        "gl-blender only supports NV12 format, but input format is %s",
-        xcam_fourcc_to_string (in0_info.format));
 
     XCamReturn ret = set_output_info (this, in0_info.format);
     XCAM_FAIL_RETURN (ERROR, xcam_ret_is_ok (ret), ret, "gl-blender set output info failed");

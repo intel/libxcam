@@ -287,10 +287,6 @@ set_output_video_info (
     const SmartPtr<GLGeoMapHandler> &handler, const SmartPtr<ImageHandler::Parameters> &param)
 {
     const VideoBufferInfo &in_info = param->in_buf->get_video_info ();
-    XCAM_FAIL_RETURN (
-        ERROR, in_info.format == V4L2_PIX_FMT_NV12, XCAM_RETURN_ERROR_PARAM,
-        "gl-geomap only support NV12 format, but input format is %s",
-        xcam_fourcc_to_string (in_info.format));
 
     uint32_t width, height;
     handler->get_output_size (width, height);
