@@ -41,7 +41,14 @@ static const int64_t InvalidTimestamp = INT64_C(-1);
 enum NV12PlaneIdx {
     NV12PlaneYIdx = 0,
     NV12PlaneUVIdx,
-    NV12PlaneMax,
+    NV12PlaneMax
+};
+
+enum YUV420PlaneIdx {
+    YUV420PlaneYIdx = 0,
+    YUV420PlaneUIdx,
+    YUV420PlaneVIdx,
+    YUV420PlaneMax
 };
 
 };
