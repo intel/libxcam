@@ -1,6 +1,7 @@
 glslx_sources = \
     shader_copy.comp.slx            \
     shader_geomap.comp.slx          \
+    shader_geomap_yuv420.comp.slx   \
     shader_geomap_fastmap.comp.slx  \
     shader_gauss_scale_pyr.comp.slx \
     shader_lap_trans_pyr.comp.slx   \

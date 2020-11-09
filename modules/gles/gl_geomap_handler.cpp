@@ -28,8 +28,10 @@
 namespace XCam {
 
 enum ShaderID {
-    ShaderComMap = 0,    // common mapping
-    ShaderFastMap        // fast mapping
+    ShaderComMap = 0,      // NV12 common mapping
+    ShaderFastMap,         // NV12 fast mapping
+    ShaderYUV420ComMap,    // YUV420 common mapping
+    ShaderYUV420FastMap    // YUV420 fast mapping
 };
 
 static const GLShaderInfo shaders_info[] = {
@@ -45,6 +47,12 @@ static const GLShaderInfo shaders_info[] = {
 #include "shader_geomap_fastmap.comp.slx"
     , 0
     },
+    {
+        GL_COMPUTE_SHADER,
+        "shader_geomap_yuv420",
+#include "shader_geomap_yuv420.comp.slx"
+    , 0
+    }
 };
 
 GLGeoMapHandler::GLGeoMapHandler (const char *name)
@@ -274,7 +282,8 @@ GLGeoMapHandler::fix_parameters (const SmartPtr<Parameters> &param)
     _geomap_shader->set_commands (cmds);
 
     GLGroupsSize groups_size;
-    groups_size.x = XCAM_ALIGN_UP (std_valid_width, 4) / 4;
+    groups_size.x = (in_info.format == V4L2_PIX_FMT_NV12) ?
+        XCAM_ALIGN_UP (std_valid_width, 4) / 4 : XCAM_ALIGN_UP (std_valid_width, 8) / 8;
     groups_size.y = XCAM_ALIGN_UP (_std_area.height, 8) / 8;
     groups_size.z = 1;
     _geomap_shader->set_groups_size (groups_size);
@@ -301,6 +310,20 @@ set_output_video_info (
     return XCAM_RETURN_NO_ERROR;
 }
 
+static SmartPtr<GLImageShader>
+create_shader (ShaderID id, const char *prog_name)
+{
+    SmartPtr<GLImageShader> shader = new GLImageShader (shaders_info[id].name);
+    XCAM_ASSERT (shader.ptr ());
+
+    XCamReturn ret = shader->create_compute_program (shaders_info[id], prog_name);
+    XCAM_FAIL_RETURN (
+        ERROR, ret == XCAM_RETURN_NO_ERROR, NULL,
+        "gl-geomap create compute program for %s failed", shaders_info[id].name);
+
+    return shader;
+}
+
 XCamReturn
 GLGeoMapHandler::configure_resource (const SmartPtr<Parameters> &param)
 {
@@ -314,14 +337,11 @@ GLGeoMapHandler::configure_resource (const SmartPtr<Parameters> &param)
             "gl-geomap set output video info failed");
     }
 
-    SmartPtr<GLImageShader> shader = new GLImageShader (shaders_info[ShaderComMap].name);
-    XCAM_ASSERT (shader.ptr ());
+    const VideoBufferInfo &info = param->in_buf->get_video_info ();
+    ShaderID id = (info.format == V4L2_PIX_FMT_NV12) ? ShaderComMap : ShaderYUV420ComMap;
 
-    ret = shader->create_compute_program (shaders_info[ShaderComMap], "geomap_program");
-    XCAM_FAIL_RETURN (
-        ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
-        "gl-geomap create compute program for common mapping failed");
-    _geomap_shader = shader;
+    _geomap_shader = create_shader (id, "commap_program");
+    XCAM_ASSERT (_geomap_shader.ptr ());
 
     fix_parameters (param);
 
@@ -362,14 +382,11 @@ GLGeoMapHandler::switch_to_fastmap (const SmartPtr<ImageHandler::Parameters> &pa
     _lut_buf.release ();
     _geomap_shader.release ();
 
-    SmartPtr<GLImageShader> shader = new GLImageShader (shaders_info[ShaderFastMap].name);
-    XCAM_ASSERT (shader.ptr ());
+    const VideoBufferInfo &info = param->in_buf->get_video_info ();
+    ShaderID id = (info.format == V4L2_PIX_FMT_NV12) ? ShaderFastMap : ShaderYUV420FastMap;
 
-    XCamReturn ret = shader->create_compute_program (shaders_info[ShaderFastMap], "fastmap_program");
-    XCAM_FAIL_RETURN (
-        ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
-        "gl-geomap create compute program for fast mapping failed");
-    _geomap_shader = shader;
+    _geomap_shader = create_shader (id, "fastmap_program");
+    XCAM_ASSERT (_geomap_shader.ptr ());
 
     const VideoBufferInfo &in_info = param->in_buf->get_video_info ();
     const GLBufferDesc &desc = _coordx_buf->get_buffer_desc ();
@@ -392,7 +409,8 @@ GLGeoMapHandler::switch_to_fastmap (const SmartPtr<ImageHandler::Parameters> &pa
     _geomap_shader->set_commands (cmds);
 
     GLGroupsSize groups_size;
-    groups_size.x = XCAM_ALIGN_UP (std_valid_width, 4) / 4;
+    groups_size.x = (in_info.format == V4L2_PIX_FMT_NV12) ?
+        XCAM_ALIGN_UP (std_valid_width, 4) / 4 : XCAM_ALIGN_UP (std_valid_width, 8) / 8;
     groups_size.y = XCAM_ALIGN_UP (_std_area.height, 8) / 8;
     groups_size.z = 1;
     _geomap_shader->set_groups_size (groups_size);
@@ -409,19 +427,32 @@ GLGeoMapHandler::start_work (const SmartPtr<ImageHandler::Parameters> &param)
 
     SmartPtr<GLBuffer> in_buf = get_glbuffer (param->in_buf);
     SmartPtr<GLBuffer> out_buf = get_glbuffer (param->out_buf);
+    const GLBufferDesc &desc = in_buf->get_buffer_desc ();
 
     GLCmdList cmds;
-    cmds.push_back (new GLCmdBindBufRange (in_buf, 0, NV12PlaneYIdx));
-    cmds.push_back (new GLCmdBindBufRange (in_buf, 1, NV12PlaneUVIdx));
-    cmds.push_back (new GLCmdBindBufRange (out_buf, 2, NV12PlaneYIdx));
-    cmds.push_back (new GLCmdBindBufRange (out_buf, 3, NV12PlaneUVIdx));
-    if (_fastmap_activated) {
-        cmds.push_back (new GLCmdBindBufRange (_coordx_buf, 4));
-        cmds.push_back (new GLCmdBindBufRange (_coordy_buf, 5));
+    if (desc.format == V4L2_PIX_FMT_NV12) {
+        cmds.push_back (new GLCmdBindBufRange (in_buf, 0, NV12PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (in_buf, 1, NV12PlaneUVIdx));
+        cmds.push_back (new GLCmdBindBufRange (out_buf, 2, NV12PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (out_buf, 3, NV12PlaneUVIdx));
+        if (_fastmap_activated) {
+            cmds.push_back (new GLCmdBindBufRange (_coordx_buf, 4));
+            cmds.push_back (new GLCmdBindBufRange (_coordy_buf, 5));
+        } else {
+            cmds.push_back (new GLCmdBindBufBase (_lut_buf, 4));
+            cmds.push_back (new GLCmdUniformTVect<float, 4> ("lut_step", _lut_step));
+        }
     } else {
-        cmds.push_back (new GLCmdBindBufBase (_lut_buf, 4));
+        cmds.push_back (new GLCmdBindBufRange (in_buf, 0, YUV420PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (in_buf, 1, YUV420PlaneUIdx));
+        cmds.push_back (new GLCmdBindBufRange (in_buf, 2, YUV420PlaneVIdx));
+        cmds.push_back (new GLCmdBindBufRange (out_buf, 3, YUV420PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (out_buf, 4, YUV420PlaneUIdx));
+        cmds.push_back (new GLCmdBindBufRange (out_buf, 5, YUV420PlaneVIdx));
+        cmds.push_back (new GLCmdBindBufBase (_lut_buf, 6));
         cmds.push_back (new GLCmdUniformTVect<float, 4> ("lut_step", _lut_step));
     }
+
     if (_activate_fastmap && !_fastmap_activated) {
         prepare_dump_coords (cmds);
     }

@@ -99,6 +99,7 @@ static void usage (const char *arg0)
             "\t--in-h              optional, input height, default: 800\n"
             "\t--out-w             optional, output width, default: 1280\n"
             "\t--out-h             optional, output height, default: 800\n"
+            "\t--fmt               optional, pixel format, default: nv12\n"
             "\t--save              optional, save file or not, select from [true/false], default: true\n"
             "\t--loop              optional, how many loops need to run, default: 1\n"
             "\t--help              usage\n",
@@ -111,6 +112,7 @@ int main (int argc, char **argv)
     uint32_t input_height = 800;
     uint32_t output_width = 1280;
     uint32_t output_height = 800;
+    uint32_t pix_fmt = V4L2_PIX_FMT_NV12;
 
     GLStreams ins;
     GLStreams outs;
@@ -128,6 +130,7 @@ int main (int argc, char **argv)
         {"in-h", required_argument, NULL, 'h'},
         {"out-w", required_argument, NULL, 'W'},
         {"out-h", required_argument, NULL, 'H'},
+        {"fmt", required_argument, NULL, 'F'},
         {"save", required_argument, NULL, 's'},
         {"loop", required_argument, NULL, 'l'},
         {"help", no_argument, NULL, 'e'},
@@ -175,6 +178,17 @@ int main (int argc, char **argv)
         case 'H':
             output_height = atoi(optarg);
             break;
+        case 'F':
+            if (!strcasecmp (optarg, "nv12"))
+                pix_fmt = V4L2_PIX_FMT_NV12;
+            else if (!strcasecmp (optarg, "yuv420"))
+                pix_fmt = V4L2_PIX_FMT_YUV420;
+            else {
+                XCAM_LOG_ERROR ("unsupported input format: %s", optarg);
+                usage (argv[0]);
+                return -1;
+            }
+            break;
         case 's':
             save_output = (strcasecmp (optarg, "false") == 0 ? false : true);
             break;
@@ -211,6 +225,7 @@ int main (int argc, char **argv)
     printf ("input height:\t\t%d\n", input_height);
     printf ("output width:\t\t%d\n", output_width);
     printf ("output height:\t\t%d\n", output_height);
+    printf ("pixel format:\t\t%s\n", pix_fmt == V4L2_PIX_FMT_NV12 ? "nv12" : "yuv420");
     printf ("save output:\t\t%s\n", save_output ? "true" : "false");
     printf ("loop count:\t\t%d\n", loop);
 
@@ -219,7 +234,7 @@ int main (int argc, char **argv)
 
     for (uint32_t i = 0; i < ins.size (); ++i) {
         ins[i]->set_buf_size (input_width, input_height);
-        CHECK (ins[i]->create_buf_pool (XCAM_GL_RESERVED_BUF_COUNT), "create buffer pool failed");
+        CHECK (ins[i]->create_buf_pool (XCAM_GL_RESERVED_BUF_COUNT, pix_fmt), "create buffer pool failed");
         CHECK (ins[i]->open_reader ("rb"), "open input file(%s) failed", ins[i]->get_file_name ());
     }
 
@@ -235,7 +250,7 @@ int main (int argc, char **argv)
         XCAM_ASSERT (copyer.ptr ());
 
         VideoBufferInfo out_info;
-        out_info.init (V4L2_PIX_FMT_NV12, output_width, output_height);
+        out_info.init (pix_fmt, output_width, output_height);
 
         Rect in_area = Rect (0, 0, output_width, output_height);
         Rect out_area = in_area;
