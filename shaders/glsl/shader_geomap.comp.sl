@@ -51,22 +51,22 @@ uniform uint coords_width;
 
 #define UNIT_SIZE 4u
 
-#define unpack_unorm_y(index) \
+#define unpack_unorm(buf, index) \
     { \
-        vec4 value = unpackUnorm4x8 (in_buf_y.data[index00[index]]); \
-        out_y00[index] = value[x00_fract[index]]; \
-        value = (index01[index] == index00[index]) ? value : unpackUnorm4x8 (in_buf_y.data[index01[index]]); \
-        out_y01[index] = value[x01_fract[index]]; \
-        value = unpackUnorm4x8 (in_buf_y.data[index10[index]]); \
-        out_y10[index] = value[x10_fract[index]]; \
-        value = (index11[index] == index10[index]) ? value : unpackUnorm4x8 (in_buf_y.data[index11[index]]); \
-        out_y11[index] = value[x11_fract[index]]; \
+        vec4 value = unpackUnorm4x8 (buf.data[index00[index]]); \
+        out00[index] = value[x00_fract[index]]; \
+        value = (index01[index] == index00[index]) ? value : unpackUnorm4x8 (buf.data[index01[index]]); \
+        out01[index] = value[x01_fract[index]]; \
+        value = unpackUnorm4x8 (buf.data[index10[index]]); \
+        out10[index] = value[x10_fract[index]]; \
+        value = (index11[index] == index10[index]) ? value : unpackUnorm4x8 (buf.data[index11[index]]); \
+        out11[index] = value[x11_fract[index]]; \
     }
 
 void geomap_y (
-    vec4 lut_x, vec4 lut_y, uint coord_pos,
-    out vec4 in_img_x, out vec4 in_img_y, out bvec4 out_bound, out uint out_data);
-void geomap_uv (vec2 in_uv_x, vec2 in_uv_y, bvec4 out_bound_uv, out uint out_data);
+    vec4 lut_x, vec4 lut_y, uint coord_pos, uint out_pos,
+    out vec4 in_img_x, out vec4 in_img_y, out bvec4 out_bound);
+void geomap_uv (vec2 in_uv_x, vec2 in_uv_y, uint out_pos, bvec4 out_bound_uv);
 
 void main ()
 {
@@ -76,43 +76,41 @@ void main ()
     uint std_x = g_x + std_offset;
     uint out_x = g_x + extended_offset;
 
-    vec2 cent = (vec2 (std_width, std_height) - 1.0f) / 2.0f;
+    vec2 cent = (vec2 (std_width, std_height) - 1.0f) * 0.5f;
     vec2 step = std_x < uint (cent.x) ? lut_step.xy : lut_step.zw;
 
     vec2 start = (vec2 (std_x, g_y) - cent) * step + cent * lut_std_step;
     vec4 lut_x = start.x * float (UNIT_SIZE) + vec4 (0.0f, step.x, step.x * 2.0f, step.x * 3.0f);
-    vec4 lut_y = start.yyyy;
-    lut_x = clamp (lut_x, 0.0f, float (lut_width) - 1.0f);
-    lut_y = clamp (lut_y, 0.0f, float (lut_height) - 1.0f - step.y);
+    lut_x = clamp (lut_x, 0.0f, float (lut_width - 1u));
+    vec4 lut_y = clamp (start.yyyy, 0.0f, float (lut_height - 1u) - step.y);
 
-    uint out_data;
     vec4 in_img_x, in_img_y;
     bvec4 out_bound;
 
     uint coord_pos = g_y * coords_width + g_x;
-    geomap_y (lut_x, lut_y, coord_pos, in_img_x, in_img_y, out_bound, out_data);
-    out_buf_y.data[g_y * out_img_width + out_x] = out_data;
+    uint out_pos = g_y * out_img_width + out_x;
+    geomap_y (lut_x, lut_y, coord_pos, out_pos, in_img_x, in_img_y, out_bound);
 
     bvec4 out_bound_uv = out_bound.xxzz;
     if (all (out_bound_uv)) {
-        out_data = packUnorm4x8 (vec4 (0.5f));
+        out_buf_uv.data[(g_y >> 1u) * out_img_width + out_x] = packUnorm4x8 (vec4 (0.5f));
     } else {
         vec2 in_uv_x = in_img_x.xz;
-        vec2 in_uv_y = in_img_y.xz / 2.0f;
+        vec2 in_uv_y = in_img_y.xz * 0.5f;
         in_uv_y = clamp (in_uv_y, 0.0f, float ((in_img_height >> 1u) - 1u));
-        geomap_uv (in_uv_x, in_uv_y, out_bound_uv, out_data);
+        uint out_pos = (g_y >> 1u) * out_img_width + out_x;
+        geomap_uv (in_uv_x, in_uv_y, out_pos, out_bound_uv);
     }
-    out_buf_uv.data[(g_y >> 1u) * out_img_width + out_x] = out_data;
 
     lut_y += step.y;
     coord_pos += coords_width;
-    geomap_y (lut_x, lut_y, coord_pos, in_img_x, in_img_y, out_bound, out_data);
-    out_buf_y.data[(g_y + 1u) * out_img_width + out_x] = out_data;
+    out_pos += out_img_width;
+    geomap_y (lut_x, lut_y, coord_pos, out_pos, in_img_x, in_img_y, out_bound);
 }
 
 void geomap_y (
-    vec4 lut_x, vec4 lut_y, uint coord_pos,
-    out vec4 in_img_x, out vec4 in_img_y, out bvec4 out_bound, out uint out_data)
+    vec4 lut_x, vec4 lut_y, uint coord_pos, uint out_pos,
+    out vec4 in_img_x, out vec4 in_img_y, out bvec4 out_bound)
 {
     uvec4 x00 = uvec4 (lut_x);
     uvec4 y00 = uvec4 (lut_y);
@@ -165,7 +163,7 @@ void geomap_y (
                        in_img_y[i] < 0.0f || in_img_y[i] > float (in_img_height - 1u);
     }
     if (all (out_bound)) {
-        out_data = 0u;
+        out_buf_y.data[out_pos] = 0u;
         return;
     }
 
@@ -200,17 +198,17 @@ void geomap_y (
     index11 = y11 * in_img_width + x11_floor;
 
     // pixel Y-value
-    vec4 out_y00, out_y01, out_y10, out_y11;
-    unpack_unorm_y (0);
-    unpack_unorm_y (1);
-    unpack_unorm_y (2);
-    unpack_unorm_y (3);
+    vec4 out00, out01, out10, out11;
+    unpack_unorm (in_buf_y, 0);
+    unpack_unorm (in_buf_y, 1);
+    unpack_unorm (in_buf_y, 2);
+    unpack_unorm (in_buf_y, 3);
 
-    vec4 inter_y = out_y00 * weight00 + out_y01 * weight01 + out_y10 * weight10 + out_y11 * weight11;
-    out_data = packUnorm4x8 (inter_y * vec4 (not (out_bound)));
+    vec4 inter = out00 * weight00 + out01 * weight01 + out10 * weight10 + out11 * weight11;
+    out_buf_y.data[out_pos] = packUnorm4x8 (inter * vec4 (not (out_bound)));
 }
 
-void geomap_uv (vec2 in_uv_x, vec2 in_uv_y, bvec4 out_bound_uv, out uint out_data)
+void geomap_uv (vec2 in_uv_x, vec2 in_uv_y, uint out_pos, bvec4 out_bound_uv)
 {
     uvec2 x00 = uvec2 (in_uv_x);
     uvec2 y00 = uvec2 (in_uv_y);
@@ -243,27 +241,27 @@ void geomap_uv (vec2 in_uv_x, vec2 in_uv_y, bvec4 out_bound_uv, out uint out_dat
     uvec2 index11 = y11 * in_img_width + x11_floor;
 
     // pixel UV-value
-    vec4 out_uv00, out_uv01, out_uv10, out_uv11;
+    vec4 out00, out01, out10, out11;
     vec4 value = unpackUnorm4x8 (in_buf_uv.data[index00.x]);
-    out_uv00.xy = (x00_fract.x == 0u) ? value.xy : value.zw;
+    out00.xy = (x00_fract.x == 0u) ? value.xy : value.zw;
     value = (index01.x == index00.x) ? value : unpackUnorm4x8 (in_buf_uv.data[index01.x]);
-    out_uv01.xy = (x01_fract.x == 0u) ? value.xy : value.zw;
+    out01.xy = (x01_fract.x == 0u) ? value.xy : value.zw;
     value = unpackUnorm4x8 (in_buf_uv.data[index10.x]);
-    out_uv10.xy = (x10_fract.x == 0u) ? value.xy : value.zw;
+    out10.xy = (x10_fract.x == 0u) ? value.xy : value.zw;
     value = (index11.x == index10.x) ? value : unpackUnorm4x8 (in_buf_uv.data[index11.x]);
-    out_uv11.xy = (x11_fract.x == 0u) ? value.xy : value.zw;
+    out11.xy = (x11_fract.x == 0u) ? value.xy : value.zw;
 
     value = unpackUnorm4x8 (in_buf_uv.data[index00.y]);
-    out_uv00.zw = (x00_fract.y == 0u) ? value.xy : value.zw;
+    out00.zw = (x00_fract.y == 0u) ? value.xy : value.zw;
     value = (index01.y == index00.y) ? value : unpackUnorm4x8 (in_buf_uv.data[index01.y]);
-    out_uv01.zw = (x01_fract.y == 0u) ? value.xy : value.zw;
+    out01.zw = (x01_fract.y == 0u) ? value.xy : value.zw;
     value = unpackUnorm4x8 (in_buf_uv.data[index10.y]);
-    out_uv10.zw = (x10_fract.y == 0u) ? value.xy : value.zw;
+    out10.zw = (x10_fract.y == 0u) ? value.xy : value.zw;
     value = (index11.y == index10.y) ? value : unpackUnorm4x8 (in_buf_uv.data[index11.y]);
-    out_uv11.zw = (x11_fract.y == 0u) ? value.xy : value.zw;
+    out11.zw = (x11_fract.y == 0u) ? value.xy : value.zw;
 
-    vec4 inter_uv = out_uv00 * weight00.xxyy + out_uv01 * weight01.xxyy +
-                    out_uv10 * weight10.xxyy + out_uv11 * weight11.xxyy;
-    inter_uv = inter_uv * vec4 (not (out_bound_uv)) + vec4 (out_bound_uv) * 0.5f;
-    out_data = packUnorm4x8 (inter_uv);
+    vec4 inter = out00 * weight00.xxyy + out01 * weight01.xxyy +
+                 out10 * weight10.xxyy + out11 * weight11.xxyy;
+    inter = inter * vec4 (not (out_bound_uv)) + vec4 (out_bound_uv) * 0.5f;
+    out_buf_uv.data[out_pos] = packUnorm4x8 (inter);
 }
