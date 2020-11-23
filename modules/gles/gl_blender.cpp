@@ -68,7 +68,11 @@ enum ShaderID {
     ShaderGaussScalePyr = 0,
     ShaderLapTransPyr,
     ShaderBlendPyr,
-    ShaderReconstructPyr
+    ShaderReconstructPyr,
+    ShaderYUV420GaussScalePyr,
+    ShaderYUV420LapTransPyr,
+    ShaderYUV420BlendPyr,
+    ShaderYUV420ReconstructPyr
 };
 
 static const GLShaderInfo shaders_info[] = {
@@ -94,6 +98,30 @@ static const GLShaderInfo shaders_info[] = {
         GL_COMPUTE_SHADER,
         "shader_reconstruct_pyr",
 #include "shader_reconstruct_pyr.comp.slx"
+        , 0
+    },
+    {
+        GL_COMPUTE_SHADER,
+        "shader_gauss_scale_pyr_yuv420",
+#include "shader_gauss_scale_pyr_yuv420.comp.slx"
+        , 0
+    },
+    {
+        GL_COMPUTE_SHADER,
+        "shader_lap_trans_pyr_yuv420",
+#include "shader_lap_trans_pyr_yuv420.comp.slx"
+        , 0
+    },
+    {
+        GL_COMPUTE_SHADER,
+        "shader_blend_pyr_yuv420",
+#include "shader_blend_pyr_yuv420.comp.slx"
+        , 0
+    },
+    {
+        GL_COMPUTE_SHADER,
+        "shader_reconstruct_pyr_yuv420",
+#include "shader_reconstruct_pyr_yuv420.comp.slx"
         , 0
     }
 };
@@ -127,6 +155,8 @@ public:
     uint32_t                      _pyr_layers_num;
 
 private:
+    GLBlender                    *_blender;
+
     Rect                          _in_area[BufIdxMax];
     Rect                          _out_area;
 
@@ -135,17 +165,15 @@ private:
     uint32_t                      _out_width;
     uint32_t                      _out_height;
 
-    GLBlender                    *_blender;
+    uint32_t                      _pix_fmt;
+    bool                          _is_nv12_fmt;
 
 public:
-    BlenderImpl (GLBlender *blender, uint32_t level)
-        : _pyr_layers_num (level)
-        , _blender (blender)
-    {}
+    BlenderImpl (GLBlender *blender, uint32_t level);
 
     XCamReturn init_parameters (
         const VideoBufferInfo &in0_info, const VideoBufferInfo &in1_info);
-    XCamReturn init_buffers (uint32_t format);
+    XCamReturn init_buffers ();
     XCamReturn create_shaders ();
     XCamReturn fix_parameters ();
 
@@ -172,6 +200,18 @@ private:
     XCamReturn scale_down_mask (uint32_t level);
 
 };
+
+BlenderImpl::BlenderImpl (GLBlender *blender, uint32_t level)
+    : _pyr_layers_num (level)
+    , _blender (blender)
+    , _out_width (0)
+    , _out_height (0)
+    , _pix_fmt (V4L2_PIX_FMT_NV12)
+    , _is_nv12_fmt (true)
+{
+    xcam_mem_clear (_in_width);
+    xcam_mem_clear (_in_height);
+}
 
 SmartPtr<GLImageShader>
 create_pyr_shader (ShaderID id)
@@ -264,11 +304,14 @@ BlenderImpl::init_parameters (
         layer.blend_height = XCAM_ALIGN_UP ((prev_layer.blend_height + 1) / 2, GL_BLENDER_ALIGN_Y);
     }
 
+    _pix_fmt = in0_info.format;
+    _is_nv12_fmt = (_pix_fmt == V4L2_PIX_FMT_NV12);
+
     return XCAM_RETURN_NO_ERROR;
 }
 
 XCamReturn
-BlenderImpl::init_buffers (uint32_t format)
+BlenderImpl::init_buffers ()
 {
     XCamReturn ret = init_layer0_mask ();
     XCAM_FAIL_RETURN (ERROR, xcam_ret_is_ok (ret), ret, "gl-blender init layer0 mask failed");
@@ -282,7 +325,7 @@ BlenderImpl::init_buffers (uint32_t format)
             "gl-blender scale down mask failed, level: %d", i);
 
         PyrLayer &layer = _pyr_layer[i];
-        info.init (format, layer.blend_width, layer.blend_height);
+        info.init (_pix_fmt, layer.blend_width, layer.blend_height);
 
         pool = new GLVideoBufferPool (info);
         XCAM_FAIL_RETURN (
@@ -299,7 +342,7 @@ BlenderImpl::init_buffers (uint32_t format)
         layer.reconstruct_pool = pool;
 
         PyrLayer &prev_layer = _pyr_layer[i - 1];
-        info.init (format, prev_layer.blend_width, prev_layer.blend_height);
+        info.init (_pix_fmt, prev_layer.blend_width, prev_layer.blend_height);
 
         pool = new GLVideoBufferPool (info);
         XCAM_FAIL_RETURN (
@@ -316,17 +359,25 @@ XCamReturn
 BlenderImpl::create_shaders ()
 {
     PyrLayer &top_layer = _pyr_layer[_pyr_layers_num - 1];
-    top_layer.blend = create_pyr_shader (ShaderBlendPyr);
+    top_layer.blend = _is_nv12_fmt ?
+        create_pyr_shader (ShaderBlendPyr) : create_pyr_shader (ShaderYUV420BlendPyr);
     XCAM_ASSERT (top_layer.blend.ptr ());
 
     for (uint32_t i = PYR_BOTTOM_LAYER; i < _pyr_layers_num; ++i) {
         PyrLayer &layer = _pyr_layer[i];
-        layer.gauss_scale[BufIdx0] = create_pyr_shader (ShaderGaussScalePyr);;
-        layer.gauss_scale[BufIdx1] = create_pyr_shader (ShaderGaussScalePyr);;
-        layer.lap_trans[BufIdx0] = create_pyr_shader (ShaderLapTransPyr);;
-        layer.lap_trans[BufIdx1] = create_pyr_shader (ShaderLapTransPyr);;
-        layer.reconstruct = create_pyr_shader (ShaderReconstructPyr);;
-
+        if (_is_nv12_fmt) {
+            layer.gauss_scale[BufIdx0] = create_pyr_shader (ShaderGaussScalePyr);
+            layer.gauss_scale[BufIdx1] = create_pyr_shader (ShaderGaussScalePyr);
+            layer.lap_trans[BufIdx0] = create_pyr_shader (ShaderLapTransPyr);
+            layer.lap_trans[BufIdx1] = create_pyr_shader (ShaderLapTransPyr);
+            layer.reconstruct = create_pyr_shader (ShaderReconstructPyr);
+        } else {
+            layer.gauss_scale[BufIdx0] = create_pyr_shader (ShaderYUV420GaussScalePyr);
+            layer.gauss_scale[BufIdx1] = create_pyr_shader (ShaderYUV420GaussScalePyr);
+            layer.lap_trans[BufIdx0] = create_pyr_shader (ShaderYUV420LapTransPyr);
+            layer.lap_trans[BufIdx1] = create_pyr_shader (ShaderYUV420LapTransPyr);
+            layer.reconstruct = create_pyr_shader (ShaderYUV420ReconstructPyr);
+        }
         XCAM_ASSERT (layer.gauss_scale[BufIdx0].ptr () && layer.gauss_scale[BufIdx1].ptr ());
         XCAM_ASSERT (layer.lap_trans[BufIdx0].ptr () && layer.lap_trans[BufIdx1].ptr ());
         XCAM_ASSERT (layer.reconstruct.ptr ());
@@ -387,10 +438,19 @@ BlenderImpl::start_gauss_scale (uint32_t level, BufIdx idx)
     PyrLayer &layer = _pyr_layer[level];
 
     GLCmdList cmds;
-    cmds.push_back (new GLCmdBindBufRange (prev_layer.gs_buf[idx], 0, NV12PlaneYIdx));
-    cmds.push_back (new GLCmdBindBufRange (prev_layer.gs_buf[idx], 1, NV12PlaneUVIdx));
-    cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[idx], 2, NV12PlaneYIdx));
-    cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[idx], 3, NV12PlaneUVIdx));
+    if (_is_nv12_fmt) {
+        cmds.push_back (new GLCmdBindBufRange (prev_layer.gs_buf[idx], 0, NV12PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (prev_layer.gs_buf[idx], 1, NV12PlaneUVIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[idx], 2, NV12PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[idx], 3, NV12PlaneUVIdx));
+    } else {
+        cmds.push_back (new GLCmdBindBufRange (prev_layer.gs_buf[idx], 0, YUV420PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (prev_layer.gs_buf[idx], 1, YUV420PlaneUIdx));
+        cmds.push_back (new GLCmdBindBufRange (prev_layer.gs_buf[idx], 2, YUV420PlaneVIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[idx], 3, YUV420PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[idx], 4, YUV420PlaneUIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[idx], 5, YUV420PlaneVIdx));
+    }
     layer.gauss_scale[idx]->set_commands (cmds);
 
     return layer.gauss_scale[idx]->work (NULL);
@@ -403,12 +463,24 @@ BlenderImpl::start_lap_trans (uint32_t level, BufIdx idx)
     PyrLayer &layer = _pyr_layer[level];
 
     GLCmdList cmds;
-    cmds.push_back (new GLCmdBindBufRange (prev_layer.gs_buf[idx], 0, NV12PlaneYIdx));
-    cmds.push_back (new GLCmdBindBufRange (prev_layer.gs_buf[idx], 1, NV12PlaneUVIdx));
-    cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[idx], 2, NV12PlaneYIdx));
-    cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[idx], 3, NV12PlaneUVIdx));
-    cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[idx], 4, NV12PlaneYIdx));
-    cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[idx], 5, NV12PlaneUVIdx));
+    if (_is_nv12_fmt) {
+        cmds.push_back (new GLCmdBindBufRange (prev_layer.gs_buf[idx], 0, NV12PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (prev_layer.gs_buf[idx], 1, NV12PlaneUVIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[idx], 2, NV12PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[idx], 3, NV12PlaneUVIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[idx], 4, NV12PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[idx], 5, NV12PlaneUVIdx));
+    } else {
+        cmds.push_back (new GLCmdBindBufRange (prev_layer.gs_buf[idx], 0, YUV420PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (prev_layer.gs_buf[idx], 1, YUV420PlaneUIdx));
+        cmds.push_back (new GLCmdBindBufRange (prev_layer.gs_buf[idx], 2, YUV420PlaneVIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[idx], 3, YUV420PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[idx], 4, YUV420PlaneUIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[idx], 5, YUV420PlaneVIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[idx], 6, YUV420PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[idx], 7, YUV420PlaneUIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[idx], 8, YUV420PlaneVIdx));
+    }
     layer.lap_trans[idx]->set_commands (cmds);
 
     return layer.lap_trans[idx]->work (NULL);
@@ -420,13 +492,26 @@ BlenderImpl::start_blend ()
     PyrLayer &layer = _pyr_layer[_pyr_layers_num - 1];
 
     GLCmdList cmds;
-    cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[BufIdx0], 0, NV12PlaneYIdx));
-    cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[BufIdx0], 1, NV12PlaneUVIdx));
-    cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[BufIdx1], 2, NV12PlaneYIdx));
-    cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[BufIdx1], 3, NV12PlaneUVIdx));
-    cmds.push_back (new GLCmdBindBufRange (layer.blend_buf, 4, NV12PlaneYIdx));
-    cmds.push_back (new GLCmdBindBufRange (layer.blend_buf, 5, NV12PlaneUVIdx));
-    cmds.push_back (new GLCmdBindBufBase (layer.mask, 6));
+    if (_is_nv12_fmt) {
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[BufIdx0], 0, NV12PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[BufIdx0], 1, NV12PlaneUVIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[BufIdx1], 2, NV12PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[BufIdx1], 3, NV12PlaneUVIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.blend_buf, 4, NV12PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.blend_buf, 5, NV12PlaneUVIdx));
+        cmds.push_back (new GLCmdBindBufBase (layer.mask, 6));
+    } else {
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[BufIdx0], 0, YUV420PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[BufIdx0], 1, YUV420PlaneUIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[BufIdx0], 2, YUV420PlaneVIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[BufIdx1], 3, YUV420PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[BufIdx1], 4, YUV420PlaneUIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.gs_buf[BufIdx1], 5, YUV420PlaneVIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.blend_buf, 6, YUV420PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.blend_buf, 7, YUV420PlaneUIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.blend_buf, 8, YUV420PlaneVIdx));
+        cmds.push_back (new GLCmdBindBufBase (layer.mask, 9));
+    }
     layer.blend->set_commands (cmds);
 
     return layer.blend->work (NULL);
@@ -439,15 +524,31 @@ BlenderImpl::start_reconstruct (uint32_t level)
     PyrLayer &layer = _pyr_layer[level];
 
     GLCmdList cmds;
-    cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[BufIdx0], 0, NV12PlaneYIdx));
-    cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[BufIdx0], 1, NV12PlaneUVIdx));
-    cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[BufIdx1], 2, NV12PlaneYIdx));
-    cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[BufIdx1], 3, NV12PlaneUVIdx));
-    cmds.push_back (new GLCmdBindBufRange (prev_layer.blend_buf, 4, NV12PlaneYIdx));
-    cmds.push_back (new GLCmdBindBufRange (prev_layer.blend_buf, 5, NV12PlaneUVIdx));
-    cmds.push_back (new GLCmdBindBufRange (layer.blend_buf, 6, NV12PlaneYIdx));
-    cmds.push_back (new GLCmdBindBufRange (layer.blend_buf, 7, NV12PlaneUVIdx));
-    cmds.push_back (new GLCmdBindBufBase (prev_layer.mask, 8));
+    if (_is_nv12_fmt) {
+        cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[BufIdx0], 0, NV12PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[BufIdx0], 1, NV12PlaneUVIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[BufIdx1], 2, NV12PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[BufIdx1], 3, NV12PlaneUVIdx));
+        cmds.push_back (new GLCmdBindBufRange (prev_layer.blend_buf, 4, NV12PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (prev_layer.blend_buf, 5, NV12PlaneUVIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.blend_buf, 6, NV12PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.blend_buf, 7, NV12PlaneUVIdx));
+        cmds.push_back (new GLCmdBindBufBase (prev_layer.mask, 8));
+    } else {
+        cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[BufIdx0], 0, YUV420PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[BufIdx0], 1, YUV420PlaneUIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[BufIdx0], 2, YUV420PlaneVIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[BufIdx1], 3, YUV420PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[BufIdx1], 4, YUV420PlaneUIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.lap_buf[BufIdx1], 5, YUV420PlaneVIdx));
+        cmds.push_back (new GLCmdBindBufRange (prev_layer.blend_buf, 6, YUV420PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (prev_layer.blend_buf, 7, YUV420PlaneUIdx));
+        cmds.push_back (new GLCmdBindBufRange (prev_layer.blend_buf, 8, YUV420PlaneVIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.blend_buf, 9, YUV420PlaneYIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.blend_buf, 10, YUV420PlaneUIdx));
+        cmds.push_back (new GLCmdBindBufRange (layer.blend_buf, 11, YUV420PlaneVIdx));
+        cmds.push_back (new GLCmdBindBufBase (prev_layer.mask, 12));
+    }
     layer.reconstruct->set_commands (cmds);
 
     return layer.reconstruct->work (NULL);
@@ -484,11 +585,11 @@ BlenderImpl::fix_gs_params (uint32_t level, BufIdx idx)
     PyrLayer &layer = _pyr_layer[level];
     SmartPtr<GLImageShader> &gauss_scale = layer.gauss_scale[idx];
 
-    const size_t unit_bytes = sizeof (uint32_t);
+    const size_t unit_bytes = sizeof (uint32_t) * (_is_nv12_fmt ? 1 : 4);
     bool bottom_layer = level == PYR_BOTTOM_LAYER;
     uint32_t in_img_width = (bottom_layer ? _in_width[idx] : prev_layer.blend_width) / unit_bytes;
     uint32_t in_offset_x = (bottom_layer ? _in_area[idx].pos_x : 0) / unit_bytes;
-    uint32_t out_img_width = layer.blend_width / unit_bytes;
+    uint32_t out_img_width = layer.blend_width / unit_bytes * (_is_nv12_fmt ? 1 : 2);
     uint32_t merge_width = prev_layer.blend_width / unit_bytes;
 
     GLCmdList cmds;
@@ -517,11 +618,11 @@ BlenderImpl::fix_lap_params (uint32_t level, BufIdx idx)
     PyrLayer &layer = _pyr_layer[level];
     SmartPtr<GLImageShader> &lap_trans = layer.lap_trans[idx];
 
-    const size_t unit_bytes = sizeof (uint32_t) * 2;
+    const size_t unit_bytes = sizeof (uint32_t) * (_is_nv12_fmt ? 2 : 4);
     bool bottom_layer = level == PYR_BOTTOM_LAYER;
     uint32_t in_img_width = (bottom_layer? _in_width[idx] : prev_layer.blend_width) / unit_bytes;
     uint32_t in_offset_x = (bottom_layer ? _in_area[idx].pos_x : 0) / unit_bytes;
-    uint32_t gaussscale_img_width = layer.blend_width / sizeof (uint32_t);
+    uint32_t gaussscale_img_width = layer.blend_width / unit_bytes * 2;
     uint32_t merge_width = prev_layer.blend_width / unit_bytes;
 
     GLCmdList cmds;
@@ -547,7 +648,7 @@ BlenderImpl::fix_blend_params ()
 {
     PyrLayer &layer = _pyr_layer[_pyr_layers_num - 1];
 
-    const size_t unit_bytes = sizeof (uint32_t) * 2;
+    const size_t unit_bytes = sizeof (uint32_t) * (_is_nv12_fmt ? 2 : 4);
     bool single_layer = _pyr_layers_num == PYR_BOTTOM_LAYER;
     uint32_t in0_img_width = (single_layer ? _in_width[BufIdx0] : layer.blend_width) / unit_bytes;
     uint32_t in1_img_width = (single_layer ? _in_width[BufIdx1] : layer.blend_width) / unit_bytes;
@@ -585,12 +686,12 @@ BlenderImpl::fix_reconstruct_params (uint32_t level)
     PyrLayer &layer = _pyr_layer[level];
     SmartPtr<GLImageShader> &reconstruct = layer.reconstruct;
 
-    const size_t unit_bytes = sizeof (uint32_t) * 2;
+    const size_t unit_bytes = sizeof (uint32_t) * (_is_nv12_fmt ? 2 : 4);
     bool bottom_layer = level == PYR_BOTTOM_LAYER;
     uint32_t lap_img_width = prev_layer.blend_width / unit_bytes;
     uint32_t out_img_width = (bottom_layer ? _out_width : prev_layer.blend_width) / unit_bytes;;
     uint32_t out_offset_x = (bottom_layer ? _out_area.pos_x : 0) / unit_bytes;
-    uint32_t prev_blend_img_width = layer.blend_width / sizeof (uint32_t);
+    uint32_t prev_blend_img_width = layer.blend_width / unit_bytes * 2;
 
     GLCmdList cmds;
     cmds.push_back (new GLCmdUniformT<uint32_t> ("lap_img_width", lap_img_width));
@@ -819,6 +920,7 @@ GLBlender::start_work (const SmartPtr<ImageHandler::Parameters> &base)
 
     dump_buf (_impl->_pyr_layer[0].gs_buf[BufIdx0], "input0");
     dump_buf (_impl->_pyr_layer[0].gs_buf[BufIdx1], "input1");
+    dump_buf (_impl->_pyr_layer[0].blend_buf, "output");
     dump_buf (_impl->_pyr_layer[_impl->_pyr_layers_num - 1].blend_buf, "blend");
     for (uint32_t level = PYR_BOTTOM_LAYER; level < _impl->_pyr_layers_num; ++level) {
         GLBlenderPriv::PyrLayer &layer = _impl->_pyr_layer[level];
@@ -870,7 +972,7 @@ GLBlender::configure_resource (const SmartPtr<Parameters> &param)
     ret = _impl->init_parameters (in0_info, in1_info);
     XCAM_FAIL_RETURN (ERROR, xcam_ret_is_ok (ret), ret, "gl-blender init parameters failed");
 
-    ret = _impl->init_buffers (in0_info.format);
+    ret = _impl->init_buffers ();
     XCAM_FAIL_RETURN (ERROR, xcam_ret_is_ok (ret), ret, "gl-blender init buffers failed");
 
     ret = _impl->create_shaders ();

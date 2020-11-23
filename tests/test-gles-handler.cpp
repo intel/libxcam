@@ -99,7 +99,7 @@ static void usage (const char *arg0)
             "\t--in-h              optional, input height, default: 800\n"
             "\t--out-w             optional, output width, default: 1280\n"
             "\t--out-h             optional, output height, default: 800\n"
-            "\t--fmt               optional, pixel format, default: nv12\n"
+            "\t--fmt               optional, pixel format, select from [nv12/yuv420], default: nv12\n"
             "\t--save              optional, save file or not, select from [true/false], default: true\n"
             "\t--loop              optional, how many loops need to run, default: 1\n"
             "\t--help              usage\n",
