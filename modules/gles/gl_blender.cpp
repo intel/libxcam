@@ -568,7 +568,7 @@ BlenderImpl::fix_blend_params ()
     layer.blend->set_commands (cmds);
 
     GLGroupsSize groups_size;
-    groups_size.x = XCAM_ALIGN_UP (layer.blend_width, 8) / 8;
+    groups_size.x = XCAM_ALIGN_UP (blend_width, 8) / 8;
     groups_size.y = XCAM_ALIGN_UP (layer.blend_height, 16) / 16;
     groups_size.z = 1;
     layer.blend->set_groups_size (groups_size);
