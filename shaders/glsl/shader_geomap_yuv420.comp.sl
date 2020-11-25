@@ -242,7 +242,7 @@ void geomap_uv (vec4 in_uv_x, vec4 in_uv_y)
     unpack_unorm (in_buf_u, 2);
     unpack_unorm (in_buf_u, 3);
     vec4 inter = out00 * weight00 + out01 * weight01 + out10 * weight10 + out11 * weight11;
-    uint pos = gl_GlobalInvocationID.y * (out_img_width >> 1u) + gl_GlobalInvocationID.x;
+    uint pos = (gl_GlobalInvocationID.y * out_img_width + extended_offset >> 1u) + gl_GlobalInvocationID.x;
     out_buf_u.data[pos] = packUnorm4x8 (inter);
 
     // pixel V-value
