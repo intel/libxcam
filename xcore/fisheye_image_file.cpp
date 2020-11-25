@@ -129,18 +129,22 @@ FisheyeImageFile::read_roi (const SmartPtr<VideoBuffer> &buf, uint32_t idx)
         VideoBufferPlanarInfo planar;
         info.get_planar_info (planar, comp);
 
-        uint32_t step = info.height / planar.height;
+        uint32_t x_step = info.width / planar.width;
+        uint32_t y_step = info.height / planar.height;
         uint8_t *start = memory + info.offsets [comp];
 
-        uint32_t bytes;
+        uint32_t x_min, x_max, bytes;
         uint32_t h = 0;
         uint32_t fp_offset = 0;
 
         for (uint32_t i = 0; i < planar.height; i++) {
-            fseek (_fp, fp_offset + _x_min[idx][h], SEEK_CUR);
-            bytes = (_x_max[idx][h] - _x_min[idx][h]) * planar.pixel_bytes;
+            x_min = _x_min[idx][h] / x_step;
+            x_max = (_x_max[idx][h] + x_step - 1) / x_step;
 
-            if (fread (start + _x_min[idx][h], 1, bytes, _fp) != bytes) {
+            fseek (_fp, fp_offset + x_min, SEEK_CUR);
+            bytes = (x_max - x_min) * planar.pixel_bytes;
+
+            if (fread (start + x_min, 1, bytes, _fp) != bytes) {
                 XCamReturn ret = XCAM_RETURN_NO_ERROR;
                 if (end_of_file ()) {
                     ret = XCAM_RETURN_BYPASS;
@@ -153,9 +157,9 @@ FisheyeImageFile::read_roi (const SmartPtr<VideoBuffer> &buf, uint32_t idx)
                 return ret;
             }
 
-            fp_offset = info.strides [comp] - _x_max[idx][h];
+            fp_offset = info.strides [comp] - x_max;
             start += info.strides [comp];
-            h += step;
+            h += y_step;
         }
 
         fseek (_fp, fp_offset, SEEK_CUR);
