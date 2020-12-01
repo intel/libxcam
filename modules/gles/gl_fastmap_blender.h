@@ -26,6 +26,10 @@
 
 namespace XCam {
 
+namespace GLFastmapBlendPriv {
+class Impl;
+}
+
 class GLFastmapBlender
     : public GLImageHandler
 {
@@ -43,22 +47,12 @@ protected:
     virtual XCamReturn configure_resource (const SmartPtr<Parameters> &param);
     virtual XCamReturn start_work (const SmartPtr<Parameters> &param);
 
-    XCamReturn init_mask (uint32_t width);
-    XCamReturn transfer_buffers ();
-    XCamReturn fix_parameters (const SmartPtr<Parameters> &base);
-
 private:
-    SmartPtr<GLBuffer>           _left_coordx;
-    SmartPtr<GLBuffer>           _left_coordy;
-    SmartPtr<GLBuffer>           _right_coordx;
-    SmartPtr<GLBuffer>           _right_coordy;
-    SmartPtr<GLBuffer>           _mask;
+    SmartPtr<GLGeoMapHandler>             _left_mapper;
+    SmartPtr<GLGeoMapHandler>             _right_mapper;
+    SmartPtr<GLBlender>                   _blender;
 
-    SmartPtr<GLGeoMapHandler>    _left_mapper;
-    SmartPtr<GLGeoMapHandler>    _right_mapper;
-    SmartPtr<GLBlender>          _blender;
-
-    SmartPtr<GLImageShader>      _shader;
+    SmartPtr<GLFastmapBlendPriv::Impl>    _impl;
 };
 
 }
