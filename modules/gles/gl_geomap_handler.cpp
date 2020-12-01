@@ -28,10 +28,9 @@
 namespace XCam {
 
 enum ShaderID {
-    ShaderComMap = 0,      // NV12 common mapping
-    ShaderFastMap,         // NV12 fast mapping
-    ShaderYUV420ComMap,    // YUV420 common mapping
-    ShaderYUV420FastMap    // YUV420 fast mapping
+    ShaderComMapNV12 = 0,    // NV12 common mapping
+    ShaderComMapYUV420,      // YUV420 common mapping
+    ShaderFastMapNV12        // NV12 fast mapping
 };
 
 static const GLShaderInfo shaders_info[] = {
@@ -39,21 +38,398 @@ static const GLShaderInfo shaders_info[] = {
         GL_COMPUTE_SHADER,
         "shader_geomap",
 #include "shader_geomap.comp.slx"
-    , 0
-    },
-    {
-        GL_COMPUTE_SHADER,
-        "shader_geomap_fastmap",
-#include "shader_geomap_fastmap.comp.slx"
-    , 0
+      , 0
     },
     {
         GL_COMPUTE_SHADER,
         "shader_geomap_yuv420",
 #include "shader_geomap_yuv420.comp.slx"
-    , 0
+      , 0
+    },
+    {
+        GL_COMPUTE_SHADER,
+        "shader_geomap_fastmap",
+#include "shader_geomap_fastmap.comp.slx"
+      , 0
     }
 };
+
+namespace GLGeoMapPriv {
+
+class ComMap
+{
+public:
+    explicit ComMap (GLGeoMapHandler *mapper);
+    virtual ~ComMap ();
+
+    virtual XCamReturn start (const SmartPtr<ImageHandler::Parameters> &param) = 0;
+    virtual XCamReturn configure_resource (const SmartPtr<ImageHandler::Parameters> &param) = 0;
+    virtual XCamReturn prepare_dump_coords () = 0;
+
+protected:
+    GLGeoMapHandler           *_mapper;
+    SmartPtr<GLImageShader>    _shader;
+};
+
+class ComMapNV12
+    : public ComMap
+{
+public:
+    explicit ComMapNV12 (GLGeoMapHandler *mapper);
+    virtual ~ComMapNV12 () {}
+
+    virtual XCamReturn start (const SmartPtr<ImageHandler::Parameters> &param);
+    virtual XCamReturn configure_resource (const SmartPtr<ImageHandler::Parameters> &param);
+    virtual XCamReturn prepare_dump_coords ();
+};
+
+class ComMapYUV420
+    : public ComMap
+{
+public:
+    explicit ComMapYUV420 (GLGeoMapHandler *mapper);
+    virtual ~ComMapYUV420 () {}
+
+    virtual XCamReturn start (const SmartPtr<ImageHandler::Parameters> &param);
+    virtual XCamReturn configure_resource (const SmartPtr<ImageHandler::Parameters> &param);
+    virtual XCamReturn prepare_dump_coords ();
+};
+
+class FastMap
+{
+public:
+    explicit FastMap (GLGeoMapHandler *mapper);
+    virtual ~FastMap () {}
+
+    virtual XCamReturn start (const SmartPtr<ImageHandler::Parameters> &param) = 0;
+    virtual XCamReturn configure_resource (const SmartPtr<ImageHandler::Parameters> &param) = 0;
+
+protected:
+    GLGeoMapHandler   *_mapper;
+};
+
+class FastMapNV12
+    : public FastMap
+{
+public:
+    explicit FastMapNV12 (GLGeoMapHandler *mapper);
+    virtual ~FastMapNV12 ();
+
+    virtual XCamReturn start (const SmartPtr<ImageHandler::Parameters> &param);
+    virtual XCamReturn configure_resource (const SmartPtr<ImageHandler::Parameters> &param);
+
+private:
+    SmartPtr<GLImageShader>    _shader;
+};
+
+ComMap::ComMap (GLGeoMapHandler *mapper)
+    : _mapper (mapper)
+{
+}
+
+ComMap::~ComMap ()
+{
+    _shader.release ();
+}
+
+ComMapNV12::ComMapNV12 (GLGeoMapHandler *mapper)
+    : ComMap (mapper)
+{
+}
+
+XCamReturn
+ComMapNV12::start (const SmartPtr<ImageHandler::Parameters> &param)
+{
+    SmartPtr<GLBuffer> in_buf = get_glbuffer (param->in_buf);
+    SmartPtr<GLBuffer> out_buf = get_glbuffer (param->out_buf);
+    const SmartPtr<GLBuffer> &lut_buf = _mapper->get_lut_buf ();
+
+    GLCmdList cmds;
+    cmds.push_back (new GLCmdBindBufRange (in_buf, 0, NV12PlaneYIdx));
+    cmds.push_back (new GLCmdBindBufRange (in_buf, 1, NV12PlaneUVIdx));
+    cmds.push_back (new GLCmdBindBufRange (out_buf, 2, NV12PlaneYIdx));
+    cmds.push_back (new GLCmdBindBufRange (out_buf, 3, NV12PlaneUVIdx));
+    cmds.push_back (new GLCmdBindBufBase (lut_buf, 4));
+    cmds.push_back (new GLCmdUniformTVect<float, 4> ("lut_step", _mapper->get_lut_step ()));
+    _shader->set_commands (cmds);
+
+    return _shader->work (NULL);
+}
+
+static SmartPtr<GLImageShader>
+create_shader (ShaderID id, const char *prog_name)
+{
+    SmartPtr<GLImageShader> shader = new GLImageShader (shaders_info[id].name);
+    XCAM_ASSERT (shader.ptr ());
+
+    XCamReturn ret = shader->create_compute_program (shaders_info[id], prog_name);
+    XCAM_FAIL_RETURN (
+        ERROR, ret == XCAM_RETURN_NO_ERROR, NULL,
+        "gl-geomap create compute program for %s failed", shaders_info[id].name);
+
+    return shader;
+}
+
+XCamReturn
+ComMapNV12::configure_resource (const SmartPtr<ImageHandler::Parameters> &param)
+{
+    _shader = create_shader (ShaderComMapNV12, "commap_program_nv12");
+    XCAM_ASSERT (_shader.ptr ());
+
+    const VideoBufferInfo &in_info = param->in_buf->get_video_info ();
+    const GLBufferDesc &lut_desc = _mapper->get_lut_buf ()->get_buffer_desc ();
+    const Rect &std_area = _mapper->get_std_area ();
+
+    float factor_x, factor_y;
+    _mapper->get_factors (factor_x, factor_y);
+    float lut_std_step[2] = {1.0f / factor_x, 1.0f / factor_y};
+
+    uint32_t width, height, std_width, std_height;
+    _mapper->get_output_size (width, height);
+    _mapper->get_std_output_size (std_width, std_height);
+
+    const size_t unit_bytes = sizeof (uint32_t);
+    uint32_t in_img_width = in_info.width / unit_bytes;
+    uint32_t out_img_width = width / unit_bytes;
+    uint32_t extended_offset = _mapper->get_extended_offset () / unit_bytes;
+
+    std_width /= unit_bytes;
+    uint32_t std_offset = std_area.pos_x / unit_bytes;
+    uint32_t std_valid_width = std_area.width / unit_bytes;
+
+    GLCmdList cmds;
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_width", in_img_width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_height", in_info.height));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("out_img_width", out_img_width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("extended_offset", extended_offset));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("std_width", std_width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("std_height", std_area.height));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("std_offset", std_offset));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("lut_width", lut_desc.width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("lut_height", lut_desc.height));
+    cmds.push_back (new GLCmdUniformTVect<float, 2> ("lut_std_step", lut_std_step));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("dump_coords", 0));
+    _shader->set_commands (cmds);
+
+    GLGroupsSize groups_size;
+    groups_size.x = XCAM_ALIGN_UP (std_valid_width, 4) / 4;
+    groups_size.y = XCAM_ALIGN_UP (std_area.height, 8) / 8;
+    groups_size.z = 1;
+    _shader->set_groups_size (groups_size);
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
+ComMapNV12::prepare_dump_coords ()
+{
+    const Rect &std_area = _mapper->get_std_area ();
+
+    GLBufferDesc desc;
+    desc.width = std_area.width;
+    desc.height = std_area.height;
+    desc.size = desc.width * desc.height * sizeof (float);
+
+    SmartPtr<GLBuffer> coordx_y = GLBuffer::create_buffer (GL_SHADER_STORAGE_BUFFER, NULL, desc.size);
+    SmartPtr<GLBuffer> coordy_y = GLBuffer::create_buffer (GL_SHADER_STORAGE_BUFFER, NULL, desc.size);
+    XCAM_ASSERT (coordx_y.ptr () && coordy_y.ptr ());
+
+    coordx_y->set_buffer_desc (desc);
+    coordy_y->set_buffer_desc (desc);
+    _mapper->set_coordx_y (coordx_y);
+    _mapper->set_coordy_y (coordy_y);
+
+    GLCmdList cmds;
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("dump_coords", 1));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("coords_width", desc.width / sizeof (uint32_t)));
+    cmds.push_back (new GLCmdBindBufBase (coordx_y, 5));
+    cmds.push_back (new GLCmdBindBufBase (coordy_y, 6));
+    _shader->set_commands (cmds);
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+ComMapYUV420::ComMapYUV420 (GLGeoMapHandler *mapper)
+    : ComMap (mapper)
+{
+}
+
+XCamReturn
+ComMapYUV420::start (const SmartPtr<ImageHandler::Parameters> &param)
+{
+    SmartPtr<GLBuffer> in_buf = get_glbuffer (param->in_buf);
+    SmartPtr<GLBuffer> out_buf = get_glbuffer (param->out_buf);
+    const SmartPtr<GLBuffer> &lut_buf = _mapper->get_lut_buf ();
+
+    GLCmdList cmds;
+    cmds.push_back (new GLCmdBindBufRange (in_buf, 0, YUV420PlaneYIdx));
+    cmds.push_back (new GLCmdBindBufRange (in_buf, 1, YUV420PlaneUIdx));
+    cmds.push_back (new GLCmdBindBufRange (in_buf, 2, YUV420PlaneVIdx));
+    cmds.push_back (new GLCmdBindBufRange (out_buf, 3, YUV420PlaneYIdx));
+    cmds.push_back (new GLCmdBindBufRange (out_buf, 4, YUV420PlaneUIdx));
+    cmds.push_back (new GLCmdBindBufRange (out_buf, 5, YUV420PlaneVIdx));
+    cmds.push_back (new GLCmdBindBufBase (lut_buf, 6));
+    cmds.push_back (new GLCmdUniformTVect<float, 4> ("lut_step", _mapper->get_lut_step ()));
+    _shader->set_commands (cmds);
+
+    return _shader->work (NULL);
+}
+
+XCamReturn
+ComMapYUV420::configure_resource (const SmartPtr<ImageHandler::Parameters> &param)
+{
+    _shader = create_shader (ShaderComMapYUV420, "commap_program_yuv420");
+    XCAM_ASSERT (_shader.ptr ());
+
+    const VideoBufferInfo &in_info = param->in_buf->get_video_info ();
+    const GLBufferDesc &lut_desc = _mapper->get_lut_buf ()->get_buffer_desc ();
+    const Rect &std_area = _mapper->get_std_area ();
+
+    float factor_x, factor_y;
+    _mapper->get_factors (factor_x, factor_y);
+    float lut_std_step[2] = {1.0f / factor_x, 1.0f / factor_y};
+
+    uint32_t width, height, std_width, std_height;
+    _mapper->get_output_size (width, height);
+    _mapper->get_std_output_size (std_width, std_height);
+
+    const size_t unit_bytes = sizeof (uint32_t);
+    uint32_t in_img_width = in_info.width / unit_bytes;
+    uint32_t out_img_width = width / unit_bytes;
+    uint32_t extended_offset = _mapper->get_extended_offset () / unit_bytes;
+
+    std_width /= unit_bytes;
+    uint32_t std_offset = std_area.pos_x / unit_bytes;
+    uint32_t std_valid_width = std_area.width / unit_bytes;
+
+    GLCmdList cmds;
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_width", in_img_width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_height", in_info.height));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("out_img_width", out_img_width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("extended_offset", extended_offset));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("std_width", std_width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("std_height", std_area.height));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("std_offset", std_offset));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("lut_width", lut_desc.width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("lut_height", lut_desc.height));
+    cmds.push_back (new GLCmdUniformTVect<float, 2> ("lut_std_step", lut_std_step));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("dump_coords", 0));
+    _shader->set_commands (cmds);
+
+    GLGroupsSize groups_size;
+    groups_size.x = XCAM_ALIGN_UP (std_valid_width, 8) / 8;
+    groups_size.y = XCAM_ALIGN_UP (std_area.height, 8) / 8;
+    groups_size.z = 1;
+    _shader->set_groups_size (groups_size);
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
+ComMapYUV420::prepare_dump_coords ()
+{
+    const Rect &std_area = _mapper->get_std_area ();
+
+    GLBufferDesc desc;
+    desc.width = std_area.width;
+    desc.height = std_area.height;
+    desc.size = desc.width * desc.height * sizeof (float);
+
+    SmartPtr<GLBuffer> coordx_y = GLBuffer::create_buffer (GL_SHADER_STORAGE_BUFFER, NULL, desc.size);
+    SmartPtr<GLBuffer> coordy_y = GLBuffer::create_buffer (GL_SHADER_STORAGE_BUFFER, NULL, desc.size);
+    XCAM_ASSERT (coordx_y.ptr () && coordy_y.ptr ());
+
+    coordx_y->set_buffer_desc (desc);
+    coordy_y->set_buffer_desc (desc);
+    _mapper->set_coordx_y (coordx_y);
+    _mapper->set_coordy_y (coordy_y);
+
+    GLCmdList cmds;
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("dump_coords", 1));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("coords_width", desc.width / sizeof (uint32_t)));
+    cmds.push_back (new GLCmdBindBufBase (coordx_y, 7));
+    cmds.push_back (new GLCmdBindBufBase (coordy_y, 8));
+
+    _shader->set_commands (cmds);
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+FastMap::FastMap (GLGeoMapHandler *mapper)
+    : _mapper (mapper)
+{
+}
+
+FastMapNV12::FastMapNV12 (GLGeoMapHandler *mapper)
+    : FastMap (mapper)
+{
+}
+
+FastMapNV12::~FastMapNV12 ()
+{
+    _shader.release ();
+}
+
+XCamReturn
+FastMapNV12::start (const SmartPtr<ImageHandler::Parameters> &param)
+{
+    SmartPtr<GLBuffer> in_buf = get_glbuffer (param->in_buf);
+    SmartPtr<GLBuffer> out_buf = get_glbuffer (param->out_buf);
+    const SmartPtr<GLBuffer> &coordx_y = _mapper->get_coordx_y ();
+    const SmartPtr<GLBuffer> &coordy_y = _mapper->get_coordy_y ();
+
+    GLCmdList cmds;
+    cmds.push_back (new GLCmdBindBufRange (in_buf, 0, NV12PlaneYIdx));
+    cmds.push_back (new GLCmdBindBufRange (in_buf, 1, NV12PlaneUVIdx));
+    cmds.push_back (new GLCmdBindBufRange (out_buf, 2, NV12PlaneYIdx));
+    cmds.push_back (new GLCmdBindBufRange (out_buf, 3, NV12PlaneUVIdx));
+    cmds.push_back (new GLCmdBindBufRange (coordx_y, 4));
+    cmds.push_back (new GLCmdBindBufRange (coordy_y, 5));
+    _shader->set_commands (cmds);
+
+    return _shader->work (NULL);
+};
+
+XCamReturn
+FastMapNV12::configure_resource (const SmartPtr<ImageHandler::Parameters> &param)
+{
+    _shader = create_shader (ShaderFastMapNV12, "fastmap_program_nv12");
+    XCAM_ASSERT (_shader.ptr ());
+
+    const VideoBufferInfo &in_info = param->in_buf->get_video_info ();
+    const Rect &std_area = _mapper->get_std_area ();
+    uint32_t extended_offset = _mapper->get_extended_offset ();
+
+    const SmartPtr<GLBuffer> &coordx_y = _mapper->get_coordx_y ();
+    const GLBufferDesc &desc = coordx_y->get_buffer_desc ();
+
+    uint32_t width, height;
+    _mapper->get_output_size (width, height);
+
+    const size_t unit_bytes = sizeof (uint32_t);
+    uint32_t in_img_width = in_info.width / unit_bytes;
+    uint32_t out_img_width = width / unit_bytes;
+    extended_offset /= unit_bytes;
+    uint32_t std_valid_width = std_area.width / unit_bytes;
+
+    GLCmdList cmds;
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_width", in_img_width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_height", in_info.height));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("out_img_width", out_img_width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("extended_offset", extended_offset));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("coords_width", desc.width / unit_bytes));
+    _shader->set_commands (cmds);
+
+    GLGroupsSize groups_size;
+    groups_size.x = XCAM_ALIGN_UP (std_valid_width, 4) / 4;
+    groups_size.y = XCAM_ALIGN_UP (std_area.height, 8) / 8;
+    groups_size.z = 1;
+    _shader->set_groups_size (groups_size);
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+} // GLGeoMapPriv
 
 GLGeoMapHandler::GLGeoMapHandler (const char *name)
     : GLImageHandler (name)
@@ -66,6 +442,11 @@ GLGeoMapHandler::GLGeoMapHandler (const char *name)
     , _fastmap_activated (false)
 {
     xcam_mem_clear (_lut_step);
+}
+
+GLGeoMapHandler::~GLGeoMapHandler ()
+{
+    terminate ();
 }
 
 bool
@@ -162,24 +543,44 @@ GLGeoMapHandler::get_lut_buf () const
     return _lut_buf;
 }
 
-const SmartPtr<GLBuffer> &
-GLGeoMapHandler::get_coordx_buf () const
+bool
+GLGeoMapHandler::set_coordx_y (const SmartPtr<GLBuffer> &coordx_y)
 {
-    XCAM_FAIL_RETURN (
-        ERROR, _coordx_buf.ptr (), NULL,
-        "gl-geomap coordx buffer is empty");
-
-    return _coordx_buf;
+    _coordx_y = coordx_y;
+    return true;
 }
 
 const SmartPtr<GLBuffer> &
-GLGeoMapHandler::get_coordy_buf () const
+GLGeoMapHandler::get_coordx_y () const
 {
     XCAM_FAIL_RETURN (
-        ERROR, _coordy_buf.ptr (), NULL,
+        ERROR, _coordx_y.ptr (), NULL,
+        "gl-geomap coordx buffer is empty");
+
+    return _coordx_y;
+}
+
+bool
+GLGeoMapHandler::set_coordy_y (const SmartPtr<GLBuffer> &coordy_y)
+{
+    _coordy_y = coordy_y;
+    return true;
+}
+
+const SmartPtr<GLBuffer> &
+GLGeoMapHandler::get_coordy_y () const
+{
+    XCAM_FAIL_RETURN (
+        ERROR, _coordy_y.ptr (), NULL,
         "gl-geomap coordy buffer is empty");
 
-    return _coordy_buf;
+    return _coordy_y;
+}
+
+const float *
+GLGeoMapHandler::get_lut_step () const
+{
+    return _lut_step;
 }
 
 static void
@@ -244,53 +645,6 @@ GLGeoMapHandler::activate_fastmap ()
     _activate_fastmap = true;
 }
 
-XCamReturn
-GLGeoMapHandler::fix_parameters (const SmartPtr<Parameters> &param)
-{
-    const VideoBufferInfo &in_info = param->in_buf->get_video_info ();
-    const GLBufferDesc &lut_desc = _lut_buf->get_buffer_desc ();
-
-    float factor_x, factor_y;
-    get_factors (factor_x, factor_y);
-    float lut_std_step[2] = {1.0f / factor_x, 1.0f / factor_y};
-
-    uint32_t width, height, std_width, std_height;
-    get_output_size (width, height);
-    get_std_output_size (std_width, std_height);
-
-    const size_t unit_bytes = sizeof (uint32_t);
-    uint32_t in_img_width = in_info.width / unit_bytes;
-    uint32_t out_img_width = width / unit_bytes;
-    uint32_t extended_offset = _extended_offset / unit_bytes;
-
-    std_width /= unit_bytes;
-    uint32_t std_offset = _std_area.pos_x / unit_bytes;
-    uint32_t std_valid_width = _std_area.width / unit_bytes;
-
-    GLCmdList cmds;
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_width", in_img_width));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_height", in_info.height));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("out_img_width", out_img_width));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("extended_offset", extended_offset));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("std_width", std_width));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("std_height", _std_area.height));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("std_offset", std_offset));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("lut_width", lut_desc.width));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("lut_height", lut_desc.height));
-    cmds.push_back (new GLCmdUniformTVect<float, 2> ("lut_std_step", lut_std_step));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("dump_coords", 0));
-    _geomap_shader->set_commands (cmds);
-
-    GLGroupsSize groups_size;
-    groups_size.x = (in_info.format == V4L2_PIX_FMT_NV12) ?
-        XCAM_ALIGN_UP (std_valid_width, 4) / 4 : XCAM_ALIGN_UP (std_valid_width, 8) / 8;
-    groups_size.y = XCAM_ALIGN_UP (_std_area.height, 8) / 8;
-    groups_size.z = 1;
-    _geomap_shader->set_groups_size (groups_size);
-
-    return XCAM_RETURN_NO_ERROR;
-}
-
 static XCamReturn
 set_output_video_info (
     const SmartPtr<GLGeoMapHandler> &handler, const SmartPtr<ImageHandler::Parameters> &param)
@@ -310,20 +664,6 @@ set_output_video_info (
     return XCAM_RETURN_NO_ERROR;
 }
 
-static SmartPtr<GLImageShader>
-create_shader (ShaderID id, const char *prog_name)
-{
-    SmartPtr<GLImageShader> shader = new GLImageShader (shaders_info[id].name);
-    XCAM_ASSERT (shader.ptr ());
-
-    XCamReturn ret = shader->create_compute_program (shaders_info[id], prog_name);
-    XCAM_FAIL_RETURN (
-        ERROR, ret == XCAM_RETURN_NO_ERROR, NULL,
-        "gl-geomap create compute program for %s failed", shaders_info[id].name);
-
-    return shader;
-}
-
 XCamReturn
 GLGeoMapHandler::configure_resource (const SmartPtr<Parameters> &param)
 {
@@ -338,84 +678,20 @@ GLGeoMapHandler::configure_resource (const SmartPtr<Parameters> &param)
     }
 
     const VideoBufferInfo &info = param->in_buf->get_video_info ();
-    ShaderID id = (info.format == V4L2_PIX_FMT_NV12) ? ShaderComMap : ShaderYUV420ComMap;
+    SmartPtr<GLGeoMapPriv::ComMap> commapper;
+    if (info.format == V4L2_PIX_FMT_NV12) {
+        commapper = new GLGeoMapPriv::ComMapNV12 (this);
+    } else {
+        commapper = new GLGeoMapPriv::ComMapYUV420 (this);
+    }
+    XCAM_ASSERT (commapper.ptr ());
 
-    _geomap_shader = create_shader (id, "commap_program");
-    XCAM_ASSERT (_geomap_shader.ptr ());
+    ret = commapper->configure_resource (param);
+    XCAM_FAIL_RETURN (
+        ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
+        "gl-geomap configure resource failed");
 
-    fix_parameters (param);
-
-    return XCAM_RETURN_NO_ERROR;
-}
-
-XCamReturn
-GLGeoMapHandler::prepare_dump_coords (GLCmdList &cmds)
-{
-    GLBufferDesc desc;
-    desc.width = _std_area.width;
-    desc.height = _std_area.height;
-    desc.size = desc.width * desc.height * sizeof (float);
-
-    SmartPtr<GLBuffer> coordx_buf = GLBuffer::create_buffer (GL_SHADER_STORAGE_BUFFER, NULL, desc.size);
-    SmartPtr<GLBuffer> coordy_buf = GLBuffer::create_buffer (GL_SHADER_STORAGE_BUFFER, NULL, desc.size);
-    XCAM_ASSERT (coordx_buf.ptr () && coordy_buf.ptr ());
-
-    coordx_buf->set_buffer_desc (desc);
-    coordy_buf->set_buffer_desc (desc);
-    _coordx_buf = coordx_buf;
-    _coordy_buf = coordy_buf;
-
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("dump_coords", 1));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("coords_width", desc.width / sizeof (uint32_t)));
-    cmds.push_back (new GLCmdBindBufBase (_coordx_buf, 5));
-    cmds.push_back (new GLCmdBindBufBase (_coordy_buf, 6));
-
-    return XCAM_RETURN_NO_ERROR;
-}
-
-XCamReturn
-GLGeoMapHandler::switch_to_fastmap (const SmartPtr<ImageHandler::Parameters> &param)
-{
-    if (_fastmap_activated)
-        return XCAM_RETURN_NO_ERROR;
-
-    _lut_buf.release ();
-    _geomap_shader.release ();
-
-    const VideoBufferInfo &info = param->in_buf->get_video_info ();
-    ShaderID id = (info.format == V4L2_PIX_FMT_NV12) ? ShaderFastMap : ShaderYUV420FastMap;
-
-    _geomap_shader = create_shader (id, "fastmap_program");
-    XCAM_ASSERT (_geomap_shader.ptr ());
-
-    const VideoBufferInfo &in_info = param->in_buf->get_video_info ();
-    const GLBufferDesc &desc = _coordx_buf->get_buffer_desc ();
-
-    uint32_t width, height;
-    get_output_size (width, height);
-
-    const size_t unit_bytes = sizeof (uint32_t);
-    uint32_t in_img_width = in_info.width / unit_bytes;
-    uint32_t out_img_width = width / unit_bytes;
-    uint32_t extended_offset = _extended_offset / unit_bytes;
-    uint32_t std_valid_width = _std_area.width / unit_bytes;
-
-    GLCmdList cmds;
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_width", in_img_width));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_height", in_info.height));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("out_img_width", out_img_width));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("extended_offset", extended_offset));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("coords_width", desc.width / unit_bytes));
-    _geomap_shader->set_commands (cmds);
-
-    GLGroupsSize groups_size;
-    groups_size.x = (in_info.format == V4L2_PIX_FMT_NV12) ?
-        XCAM_ALIGN_UP (std_valid_width, 4) / 4 : XCAM_ALIGN_UP (std_valid_width, 8) / 8;
-    groups_size.y = XCAM_ALIGN_UP (_std_area.height, 8) / 8;
-    groups_size.z = 1;
-    _geomap_shader->set_groups_size (groups_size);
-
-    _fastmap_activated = true;
+    _commapper = commapper;
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -425,44 +701,32 @@ GLGeoMapHandler::start_work (const SmartPtr<ImageHandler::Parameters> &param)
 {
     XCAM_ASSERT (param.ptr () && param->in_buf.ptr () && param->out_buf.ptr ());
 
-    SmartPtr<GLBuffer> in_buf = get_glbuffer (param->in_buf);
-    SmartPtr<GLBuffer> out_buf = get_glbuffer (param->out_buf);
-    const GLBufferDesc &desc = in_buf->get_buffer_desc ();
-
-    GLCmdList cmds;
-    if (desc.format == V4L2_PIX_FMT_NV12) {
-        cmds.push_back (new GLCmdBindBufRange (in_buf, 0, NV12PlaneYIdx));
-        cmds.push_back (new GLCmdBindBufRange (in_buf, 1, NV12PlaneUVIdx));
-        cmds.push_back (new GLCmdBindBufRange (out_buf, 2, NV12PlaneYIdx));
-        cmds.push_back (new GLCmdBindBufRange (out_buf, 3, NV12PlaneUVIdx));
-        if (_fastmap_activated) {
-            cmds.push_back (new GLCmdBindBufRange (_coordx_buf, 4));
-            cmds.push_back (new GLCmdBindBufRange (_coordy_buf, 5));
-        } else {
-            cmds.push_back (new GLCmdBindBufBase (_lut_buf, 4));
-            cmds.push_back (new GLCmdUniformTVect<float, 4> ("lut_step", _lut_step));
+    if (!_fastmap_activated) {
+        if (_activate_fastmap) {
+            _commapper->prepare_dump_coords ();
         }
-    } else {
-        cmds.push_back (new GLCmdBindBufRange (in_buf, 0, YUV420PlaneYIdx));
-        cmds.push_back (new GLCmdBindBufRange (in_buf, 1, YUV420PlaneUIdx));
-        cmds.push_back (new GLCmdBindBufRange (in_buf, 2, YUV420PlaneVIdx));
-        cmds.push_back (new GLCmdBindBufRange (out_buf, 3, YUV420PlaneYIdx));
-        cmds.push_back (new GLCmdBindBufRange (out_buf, 4, YUV420PlaneUIdx));
-        cmds.push_back (new GLCmdBindBufRange (out_buf, 5, YUV420PlaneVIdx));
-        cmds.push_back (new GLCmdBindBufBase (_lut_buf, 6));
-        cmds.push_back (new GLCmdUniformTVect<float, 4> ("lut_step", _lut_step));
-    }
 
-    if (_activate_fastmap && !_fastmap_activated) {
-        prepare_dump_coords (cmds);
+        _commapper->start (param);
     }
-
-    _geomap_shader->set_commands (cmds);
-    _geomap_shader->work (NULL);
 
     if (_activate_fastmap && !_fastmap_activated) {
         GLSync::finish ();
-        switch_to_fastmap (param);
+
+        _lut_buf.release ();
+        _commapper.release ();
+
+        SmartPtr<GLGeoMapPriv::FastMap> fastmapper = new GLGeoMapPriv::FastMapNV12 (this);
+        XCAM_ASSERT (fastmapper.ptr ());
+
+        fastmapper->configure_resource (param);
+        _fastmapper = fastmapper;
+
+        _fastmap_activated = true;
+        _activate_fastmap = false;
+    }
+
+    if (_fastmap_activated) {
+        _fastmapper->start (param);
     }
 
     param->in_buf.release ();
@@ -491,12 +755,24 @@ GLGeoMapHandler::remap (const SmartPtr<VideoBuffer> &in_buf, SmartPtr<VideoBuffe
 XCamReturn
 GLGeoMapHandler::terminate ()
 {
-    if (_geomap_shader.ptr ()) {
-        _geomap_shader.release ();
-    }
-
     if (_lut_buf.ptr ()) {
         _lut_buf.release ();
+    }
+
+    if (_coordx_y.ptr ()) {
+        _coordx_y.release ();
+    }
+
+    if (_coordy_y.ptr ()) {
+        _coordy_y.release ();
+    }
+
+    if (_commapper.ptr ()) {
+        _lut_buf.release ();
+    }
+
+    if (_fastmapper.ptr ()) {
+        _fastmapper.release ();
     }
 
     return GLImageHandler::terminate ();
