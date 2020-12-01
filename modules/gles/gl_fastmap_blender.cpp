@@ -132,14 +132,14 @@ GLFastmapBlender::init_mask (uint32_t width)
 XCamReturn
 GLFastmapBlender::transfer_buffers ()
 {
-    _left_coordx = _left_mapper->get_coordx_buf ();
-    _left_coordy = _left_mapper->get_coordy_buf ();
+    _left_coordx = _left_mapper->get_coordx_y ();
+    _left_coordy = _left_mapper->get_coordy_y ();
     XCAM_FAIL_RETURN (
         ERROR, _left_coordx.ptr () && _left_coordy.ptr (), XCAM_RETURN_ERROR_MEM,
         "gl-fastmap_blender failed to get left coordinate buffers");
 
-    _right_coordx = _right_mapper->get_coordx_buf ();
-    _right_coordy = _right_mapper->get_coordy_buf ();
+    _right_coordx = _right_mapper->get_coordx_y ();
+    _right_coordy = _right_mapper->get_coordy_y ();
     XCAM_ASSERT (_right_coordx.ptr () && _right_coordy.ptr ());
     XCAM_FAIL_RETURN (
         ERROR, _right_coordx.ptr () && _right_coordy.ptr (), XCAM_RETURN_ERROR_MEM,

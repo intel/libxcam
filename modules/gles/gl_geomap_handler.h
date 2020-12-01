@@ -27,12 +27,17 @@
 
 namespace XCam {
 
+namespace GLGeoMapPriv {
+class ComMap;
+class FastMap;
+}
+
 class GLGeoMapHandler
     : public GLImageHandler, public GeoMapper
 {
 public:
     GLGeoMapHandler (const char *name = "GLGeoMapHandler");
-    ~GLGeoMapHandler () {}
+    ~GLGeoMapHandler ();
 
     bool set_lookup_table (const PointFloat2 *data, uint32_t width, uint32_t height);
     void get_left_factors (float &x, float &y);
@@ -47,8 +52,13 @@ public:
     bool set_lut_buf (const SmartPtr<GLBuffer> &buf);
     const SmartPtr<GLBuffer> &get_lut_buf () const;
 
-    const SmartPtr<GLBuffer> &get_coordx_buf () const;
-    const SmartPtr<GLBuffer> &get_coordy_buf () const;
+    bool set_coordx_y (const SmartPtr<GLBuffer> &coordx_y);
+    const SmartPtr<GLBuffer> &get_coordx_y () const;
+
+    bool set_coordy_y (const SmartPtr<GLBuffer> &coordy_y);
+    const SmartPtr<GLBuffer> &get_coordy_y () const;
+
+    const float *get_lut_step () const;
 
     bool init_factors ();
     virtual bool update_factors (
@@ -64,31 +74,26 @@ protected:
     virtual XCamReturn start_work (const SmartPtr<Parameters> &param);
 
 private:
-    XCamReturn fix_parameters (const SmartPtr<Parameters> &param);
-
-    XCamReturn prepare_dump_coords (GLCmdList &cmds);
-    XCamReturn switch_to_fastmap (const SmartPtr<ImageHandler::Parameters> &param);
-
     XCAM_DEAD_COPY (GLGeoMapHandler);
 
 protected:
-    float                      _lut_step[4];
-    float                      _left_factor_x;
-    float                      _left_factor_y;
-    float                      _right_factor_x;
-    float                      _right_factor_y;
+    SmartPtr<GLBuffer>                 _lut_buf;
+    SmartPtr<GLBuffer>                 _coordx_y;
+    SmartPtr<GLBuffer>                 _coordy_y;
 
-    Rect                       _std_area;
-    uint32_t                   _extended_offset;
+    float                              _lut_step[4];
+    float                              _left_factor_x;
+    float                              _left_factor_y;
+    float                              _right_factor_x;
+    float                              _right_factor_y;
+    Rect                               _std_area;
+    uint32_t                           _extended_offset;
 
-    bool                       _activate_fastmap;
-    bool                       _fastmap_activated;
+    bool                               _activate_fastmap;
+    bool                               _fastmap_activated;
 
-    SmartPtr<GLBuffer>         _lut_buf;
-    SmartPtr<GLBuffer>         _coordx_buf;
-    SmartPtr<GLBuffer>         _coordy_buf;
-
-    SmartPtr<GLImageShader>    _geomap_shader;
+    SmartPtr<GLGeoMapPriv::ComMap>     _commapper;
+    SmartPtr<GLGeoMapPriv::FastMap>    _fastmapper;
 };
 
 class GLDualConstGeoMapHandler
