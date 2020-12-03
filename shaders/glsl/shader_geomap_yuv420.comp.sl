@@ -38,6 +38,14 @@ layout (binding = 8) writeonly buffer CoordY {
     vec4 data[];
 } coordy;
 
+layout (binding = 9) writeonly buffer CoordXUV {
+    vec4 data[];
+} coordx_uv;
+
+layout (binding = 10) writeonly buffer CoordYUV{
+    vec4 data[];
+} coordy_uv;
+
 uniform uint in_img_width;
 uniform uint in_img_height;
 
@@ -104,6 +112,12 @@ void main ()
     vec4 in_uv_y = vec4 (in_img_y0.xz, in_img_y1.xz) * 0.5f;
     in_uv_y = clamp (in_uv_y, 0.0f, float (in_img_height >> 1u) - 1.0f);
     geomap_uv (in_uv_x, in_uv_y);
+
+    if (dump_coords == 1u) {
+        uint coord_uv_pos = (gl_GlobalInvocationID.y * coords_width >> 1u) + gl_GlobalInvocationID.x;
+        coordx_uv.data[coord_uv_pos] = in_uv_x;
+        coordy_uv.data[coord_uv_pos] = in_uv_y;
+    }
 
     lut_y += step.y;
     coord_pos += coords_width;

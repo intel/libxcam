@@ -58,6 +58,12 @@ public:
     bool set_coordy_y (const SmartPtr<GLBuffer> &coordy_y);
     const SmartPtr<GLBuffer> &get_coordy_y () const;
 
+    bool set_coordx_uv (const SmartPtr<GLBuffer> &coordx_uv);
+    const SmartPtr<GLBuffer> &get_coordx_uv () const;
+
+    bool set_coordy_uv (const SmartPtr<GLBuffer> &coordy_uv);
+    const SmartPtr<GLBuffer> &get_coordy_uv () const;
+
     const float *get_lut_step () const;
 
     bool init_factors ();
@@ -80,6 +86,8 @@ protected:
     SmartPtr<GLBuffer>                 _lut_buf;
     SmartPtr<GLBuffer>                 _coordx_y;
     SmartPtr<GLBuffer>                 _coordy_y;
+    SmartPtr<GLBuffer>                 _coordx_uv;
+    SmartPtr<GLBuffer>                 _coordy_uv;
 
     float                              _lut_step[4];
     float                              _left_factor_x;
