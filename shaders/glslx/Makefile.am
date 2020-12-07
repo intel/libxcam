@@ -14,6 +14,8 @@ glslx_sources = \
     shader_reconstruct_pyr_yuv420.comp.slx   \
     shader_geomap_fastmap_y.comp.slx         \
     shader_geomap_fastmap_uv_yuv420.comp.slx \
+    shader_fastmap_blend_y.comp.slx          \
+    shader_fastmap_blend_uv_yuv420.comp.slx  \
     $(NULL)
 
 add_quotation_marks_sh = \
