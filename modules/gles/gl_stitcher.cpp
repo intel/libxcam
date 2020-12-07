@@ -50,16 +50,6 @@ enum GeoMapIdx {
     MapMax
 };
 
-#if DUMP_BUFFER
-static void
-dump_buf (const SmartPtr<VideoBuffer> &buf, uint32_t idx, const char *prefix)
-{
-    char name[256];
-    snprintf (name, 256, "%s-%d", prefix, idx);
-    dump_buf_perfix_path (buf, name);
-}
-#endif
-
 namespace GLStitcherPriv {
 
 struct Factor {
@@ -955,6 +945,15 @@ GLStitcher::stitch_buffers (const VideoBufferList &in_bufs, SmartPtr<VideoBuffer
     if (!out_buf.ptr () && xcam_ret_is_ok (ret)) {
         out_buf = param->out_buf;
     }
+
+#if DUMP_BUFFER
+    char name[256];
+    for (uint32_t i = 0; i < in_bufs.size (); ++i) {
+        snprintf (name, 256, "stitcher-in%d", i);
+        dump_buf_perfix_path (param->in_bufs[i], name);
+    }
+    dump_buf_perfix_path (out_buf, "stitcher-out");
+#endif
 
     return ret;
 }
