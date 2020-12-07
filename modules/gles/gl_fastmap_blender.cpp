@@ -24,11 +24,31 @@
 
 namespace XCam {
 
-static const GLShaderInfo shader_info = {
-    GL_COMPUTE_SHADER,
-    "shader_fastmap_blend",
+enum ShaderID {
+    ShaderFastmapBlend = 0,
+    ShaderFastmapBlendY,
+    ShaderFastmapBlendUVYUV420
+};
+
+static const GLShaderInfo shaders_info[] = {
+    {
+        GL_COMPUTE_SHADER,
+        "shader_fastmap_blend",
 #include "shader_fastmap_blend.comp.slx"
-    , 0
+        , 0
+    },
+    {
+        GL_COMPUTE_SHADER,
+        "shader_fastmap_blend_y",
+#include "shader_fastmap_blend_y.comp.slx"
+        , 0
+    },
+    {
+        GL_COMPUTE_SHADER,
+        "shader_fastmap_blend_uv_yuv420",
+#include "shader_fastmap_blend_uv_yuv420.comp.slx"
+        , 0
+    }
 };
 
 namespace GLFastmapBlendPriv {
@@ -77,6 +97,49 @@ private:
 
 private:
     SmartPtr<GLImageShader>    _shader;
+};
+
+class ImplYUV420
+    : public Impl
+{
+public:
+    ImplYUV420 () {}
+    virtual ~ImplYUV420 ();
+
+    virtual XCamReturn start (const SmartPtr<GLBlender::BlenderParam> &param);
+    virtual XCamReturn configure_resource (
+        const SmartPtr<GLBlender> &blender, const SmartPtr<GLBlender::BlenderParam> &param,
+        const SmartPtr<GLGeoMapHandler> &left_mapper, const SmartPtr<GLGeoMapHandler> &right_mapper);
+
+private:
+    XCamReturn start_y (
+        const SmartPtr<GLBuffer> &in0_buf,
+        const SmartPtr<GLBuffer> &in1_buf,
+        const SmartPtr<GLBuffer> &out_buf);
+    XCamReturn start_uv (
+        const SmartPtr<GLBuffer> &in0_buf,
+        const SmartPtr<GLBuffer> &in1_buf,
+        const SmartPtr<GLBuffer> &out_buf);
+    XCamReturn transfer_buffers (
+        const SmartPtr<GLBlender> &blender,
+        const SmartPtr<GLGeoMapHandler> &left_mapper,
+        const SmartPtr<GLGeoMapHandler> &right_mapper);
+    XCamReturn fix_y_parameters (
+        const SmartPtr<GLBlender> &blender, const SmartPtr<GLBlender::BlenderParam> &param);
+    XCamReturn fix_uv_parameters (
+        const SmartPtr<GLBlender> &blender, const SmartPtr<GLBlender::BlenderParam> &param);
+
+    XCamReturn init_mask_uv ();
+
+private:
+    SmartPtr<GLImageShader>    _shader_y;
+    SmartPtr<GLImageShader>    _shader_uv;
+
+    SmartPtr<GLBuffer>         _mask_uv;
+    SmartPtr<GLBuffer>         _left_coordx_uv;
+    SmartPtr<GLBuffer>         _left_coordy_uv;
+    SmartPtr<GLBuffer>         _right_coordx_uv;
+    SmartPtr<GLBuffer>         _right_coordy_uv;
 };
 
 Impl::~Impl ()
@@ -162,21 +225,29 @@ ImplNV12::start (const SmartPtr<GLBlender::BlenderParam> &param)
     return _shader->work (NULL);
 };
 
+static SmartPtr<GLImageShader>
+create_shader (ShaderID id, const char *prog_name)
+{
+    SmartPtr<GLImageShader> shader = new GLImageShader (shaders_info[id].name);
+    XCAM_ASSERT (shader.ptr ());
+
+    XCamReturn ret = shader->create_compute_program (shaders_info[id], prog_name);
+    XCAM_FAIL_RETURN (
+        ERROR, ret == XCAM_RETURN_NO_ERROR, NULL,
+        "gl-fastmap_blender create compute program for %s failed", shaders_info[id].name);
+
+    return shader;
+}
+
 XCamReturn
 ImplNV12::configure_resource (
     const SmartPtr<GLBlender> &blender, const SmartPtr<GLBlender::BlenderParam> &param,
     const SmartPtr<GLGeoMapHandler> &left_mapper, const SmartPtr<GLGeoMapHandler> &right_mapper)
 {
-    SmartPtr<GLImageShader> shader = new GLImageShader (shader_info.name);
-    XCAM_ASSERT (shader.ptr ());
+    _shader = create_shader (ShaderFastmapBlend, "fastmap_blend_program_nv12");
+    XCAM_ASSERT (_shader.ptr ());
 
-    XCamReturn ret = shader->create_compute_program (shader_info, "fastmap_blend_program_nv12");
-    XCAM_FAIL_RETURN (
-        ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
-        "gl-fastmap_blender create compute program for %s failed", shader_info.name);
-    _shader = shader;
-
-    ret = transfer_buffers (blender, left_mapper, right_mapper);
+    XCamReturn ret = transfer_buffers (blender, left_mapper, right_mapper);
     XCAM_FAIL_RETURN (
         ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
         "gl-fastmap_blender transfer buffers failed");
@@ -252,6 +323,250 @@ ImplNV12::fix_parameters (
     return XCAM_RETURN_NO_ERROR;
 }
 
+ImplYUV420::~ImplYUV420 ()
+{
+    _shader_y.release ();
+    _shader_uv.release ();
+
+    _mask_uv.release ();
+    _left_coordx_uv.release ();
+    _left_coordy_uv.release ();
+    _right_coordx_uv.release ();
+    _right_coordy_uv.release ();
+}
+
+XCamReturn
+ImplYUV420::start (const SmartPtr<GLBlender::BlenderParam> &param)
+{
+    SmartPtr<GLBuffer> in0_buf = get_glbuffer (param->in_buf);
+    SmartPtr<GLBuffer> in1_buf = get_glbuffer (param->in1_buf);
+    SmartPtr<GLBuffer> out_buf = get_glbuffer (param->out_buf);
+
+    XCamReturn ret = start_y (in0_buf, in1_buf, out_buf);
+    XCAM_FAIL_RETURN (
+        ERROR, xcam_ret_is_ok (ret), ret, "gl-fastmap_blender start Y failed");
+
+    ret = start_uv (in0_buf, in1_buf, out_buf);
+    XCAM_FAIL_RETURN (
+        ERROR, xcam_ret_is_ok (ret), ret, "gl-fastmap_blender start UV failed");
+
+    return XCAM_RETURN_NO_ERROR;
+};
+
+XCamReturn
+ImplYUV420::configure_resource (
+    const SmartPtr<GLBlender> &blender, const SmartPtr<GLBlender::BlenderParam> &param,
+    const SmartPtr<GLGeoMapHandler> &left_mapper, const SmartPtr<GLGeoMapHandler> &right_mapper)
+{
+    _shader_y = create_shader (ShaderFastmapBlendY, "fastmap_blend_program_yuv420_y");
+    _shader_uv = create_shader (ShaderFastmapBlendUVYUV420, "fastmap_blend_program_yuv420_uv");
+    XCAM_ASSERT (_shader_y.ptr () && _shader_uv.ptr ());
+
+    XCamReturn ret = transfer_buffers (blender, left_mapper, right_mapper);
+    XCAM_FAIL_RETURN (
+        ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
+        "gl-fastmap_blender transfer buffers failed");
+
+    fix_y_parameters (blender, param);
+    fix_uv_parameters (blender, param);
+
+    if (!_mask_y.ptr ()) {
+        const Rect &area = blender->get_merge_window ();
+        ret = init_mask_y (area.width);
+        XCAM_FAIL_RETURN (
+            ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
+            "gl-fastmap_blender init mask_y failed");
+    }
+
+    if (!_mask_uv.ptr ()) {
+        ret = init_mask_uv ();
+        XCAM_FAIL_RETURN (
+            ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
+            "gl-fastmap_blender init mask_uv failed");
+    }
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
+ImplYUV420::start_y (
+    const SmartPtr<GLBuffer> &in0_buf,
+    const SmartPtr<GLBuffer> &in1_buf,
+    const SmartPtr<GLBuffer> &out_buf)
+{
+    GLCmdList cmds;
+    cmds.push_back (new GLCmdBindBufRange (in0_buf, 0, YUV420PlaneYIdx));
+    cmds.push_back (new GLCmdBindBufRange (_left_coordx_y, 1));
+    cmds.push_back (new GLCmdBindBufRange (_left_coordy_y, 2));
+    cmds.push_back (new GLCmdBindBufRange (in1_buf, 3, YUV420PlaneYIdx));
+    cmds.push_back (new GLCmdBindBufRange (_right_coordx_y, 4));
+    cmds.push_back (new GLCmdBindBufRange (_right_coordy_y, 5));
+    cmds.push_back (new GLCmdBindBufRange (out_buf, 6, YUV420PlaneYIdx));
+    cmds.push_back (new GLCmdBindBufRange (_mask_y, 7));
+    _shader_y->set_commands (cmds);
+
+    return _shader_y->work (NULL);
+};
+
+XCamReturn
+ImplYUV420::start_uv(
+    const SmartPtr<GLBuffer> &in0_buf,
+    const SmartPtr<GLBuffer> &in1_buf,
+    const SmartPtr<GLBuffer> &out_buf)
+{
+    GLCmdList cmds;
+    cmds.push_back (new GLCmdBindBufRange (in0_buf, 0, YUV420PlaneUIdx));
+    cmds.push_back (new GLCmdBindBufRange (in0_buf, 1, YUV420PlaneVIdx));
+    cmds.push_back (new GLCmdBindBufRange (_left_coordx_uv, 2));
+    cmds.push_back (new GLCmdBindBufRange (_left_coordy_uv, 3));
+    cmds.push_back (new GLCmdBindBufRange (in1_buf, 4, YUV420PlaneUIdx));
+    cmds.push_back (new GLCmdBindBufRange (in1_buf, 5, YUV420PlaneVIdx));
+    cmds.push_back (new GLCmdBindBufRange (_right_coordx_uv, 6));
+    cmds.push_back (new GLCmdBindBufRange (_right_coordy_uv, 7));
+    cmds.push_back (new GLCmdBindBufRange (out_buf, 8, YUV420PlaneUIdx));
+    cmds.push_back (new GLCmdBindBufRange (out_buf, 9, YUV420PlaneVIdx));
+    cmds.push_back (new GLCmdBindBufRange (_mask_uv, 10));
+    _shader_uv->set_commands (cmds);
+
+    return _shader_uv->work (NULL);
+};
+
+XCamReturn
+ImplYUV420::transfer_buffers (
+    const SmartPtr<GLBlender> &blender,
+    const SmartPtr<GLGeoMapHandler> &left_mapper,
+    const SmartPtr<GLGeoMapHandler> &right_mapper)
+{
+    _left_coordx_y = left_mapper->get_coordx_y ();
+    _left_coordy_y = left_mapper->get_coordy_y ();
+    XCAM_FAIL_RETURN (
+        ERROR, _left_coordx_y.ptr () && _left_coordy_y.ptr (), XCAM_RETURN_ERROR_MEM,
+        "gl-fastmap_blender failed to get left coordinate Y buffers");
+
+    _right_coordx_y = right_mapper->get_coordx_y ();
+    _right_coordy_y = right_mapper->get_coordy_y ();
+    XCAM_ASSERT (_right_coordx_y.ptr () && _right_coordy_y.ptr ());
+    XCAM_FAIL_RETURN (
+        ERROR, _right_coordx_y.ptr () && _right_coordy_y.ptr (), XCAM_RETURN_ERROR_MEM,
+        "gl-fastmap_blender failed to get right coordinate Y buffers");
+
+    _left_coordx_uv = left_mapper->get_coordx_uv ();
+    _left_coordy_uv = left_mapper->get_coordy_uv ();
+    XCAM_FAIL_RETURN (
+        ERROR, _left_coordx_uv.ptr () && _left_coordy_uv.ptr (), XCAM_RETURN_ERROR_MEM,
+        "gl-fastmap_blender failed to get left coordinate UV buffers");
+
+    _right_coordx_uv = right_mapper->get_coordx_uv ();
+    _right_coordy_uv = right_mapper->get_coordy_uv ();
+    XCAM_ASSERT (_right_coordx_uv.ptr () && _right_coordy_uv.ptr ());
+    XCAM_FAIL_RETURN (
+        ERROR, _right_coordx_uv.ptr () && _right_coordy_uv.ptr (), XCAM_RETURN_ERROR_MEM,
+        "gl-fastmap_blender failed to get right coordinate UV buffers");
+
+    _mask_y = blender->get_layer0_mask ();
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
+ImplYUV420::fix_y_parameters (
+    const SmartPtr<GLBlender> &blender, const SmartPtr<GLBlender::BlenderParam> &param)
+{
+    const VideoBufferInfo &left_info = param->in_buf->get_video_info ();
+    const VideoBufferInfo &right_info = param->in1_buf->get_video_info ();
+    const VideoBufferInfo &out_info = param->out_buf->get_video_info ();
+    const GLBufferDesc &left_coord_desc = _left_coordx_y->get_buffer_desc ();
+    const GLBufferDesc &right_coord_desc = _right_coordx_y->get_buffer_desc ();
+    const Rect &blend_area = blender->get_merge_window ();
+
+    const size_t unit_bytes = sizeof (uint32_t);
+    GLCmdList cmds;
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_width0", left_info.width / unit_bytes));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_width1", right_info.width / unit_bytes));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("out_img_width", out_info.width / unit_bytes));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("out_offset_x", blend_area.pos_x / unit_bytes));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("coords_width0", left_coord_desc.width / unit_bytes));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("coords_width1", right_coord_desc.width / unit_bytes));
+    _shader_y->set_commands (cmds);
+
+    GLGroupsSize groups_size;
+    groups_size.x = XCAM_ALIGN_UP (blend_area.width / unit_bytes, 4) / 4;
+    groups_size.y = XCAM_ALIGN_UP (blend_area.height, 8) / 8;
+    groups_size.z = 1;
+    _shader_y->set_groups_size (groups_size);
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
+ImplYUV420::fix_uv_parameters (
+    const SmartPtr<GLBlender> &blender, const SmartPtr<GLBlender::BlenderParam> &param)
+{
+    const VideoBufferInfo &left_info = param->in_buf->get_video_info ();
+    const VideoBufferInfo &right_info = param->in1_buf->get_video_info ();
+    const VideoBufferInfo &out_info = param->out_buf->get_video_info ();
+    const GLBufferDesc &left_coord_desc = _left_coordx_uv->get_buffer_desc ();
+    const GLBufferDesc &right_coord_desc = _right_coordx_uv->get_buffer_desc ();
+    const Rect &blend_area = blender->get_merge_window ();
+
+    const size_t unit_bytes = sizeof (uint32_t);
+    uint32_t in_img_width0 = (left_info.width / 2) / unit_bytes;
+    uint32_t in_img_width1 = (right_info.width / 2) / unit_bytes;
+    uint32_t out_img_width = (out_info.width / 2) / unit_bytes;
+    uint32_t out_offset_x = (blend_area.pos_x / 2) / unit_bytes;
+    uint32_t blend_width = (blend_area.width / 2) / unit_bytes;
+
+    GLCmdList cmds;
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_width0", in_img_width0));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_width1", in_img_width1));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("out_img_width", out_img_width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("out_offset_x", out_offset_x));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("coords_width0", left_coord_desc.width / unit_bytes));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("coords_width1", right_coord_desc.width / unit_bytes));
+    _shader_uv->set_commands (cmds);
+
+    GLGroupsSize groups_size_uv;
+    groups_size_uv.x = XCAM_ALIGN_UP (blend_width, 4) / 4;
+    groups_size_uv.y = XCAM_ALIGN_UP (blend_area.height / 2, 8) / 8;
+    groups_size_uv.z = 1;
+    _shader_uv->set_groups_size (groups_size_uv);
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
+ImplYUV420::init_mask_uv ()
+{
+    XCAM_ASSERT (_mask_y.ptr ());
+
+    const GLBufferDesc &desc_y = _mask_y->get_buffer_desc ();
+
+    GLBufferDesc desc_uv;
+    desc_uv.width = desc_y.width / 2;
+    desc_uv.height = 1;
+    desc_uv.size = desc_uv.width * sizeof (uint8_t);
+
+    SmartPtr<GLBuffer> mask_uv = GLBuffer::create_buffer (GL_SHADER_STORAGE_BUFFER, NULL, desc_uv.size);
+    XCAM_ASSERT (mask_uv.ptr ());
+    mask_uv->set_buffer_desc (desc_uv);
+
+    uint8_t *uv_ptr = (uint8_t *) mask_uv->map_range (0, desc_uv.size, GL_MAP_WRITE_BIT);
+    XCAM_FAIL_RETURN (ERROR, uv_ptr, XCAM_RETURN_ERROR_PARAM, "map mask_uv range failed");
+
+    uint8_t *y_ptr = (uint8_t *) _mask_y->map_range (0, desc_y.size, GL_MAP_WRITE_BIT);
+    XCAM_FAIL_RETURN (ERROR, y_ptr, XCAM_RETURN_ERROR_PARAM, "map mask_y range failed");
+
+    for (uint32_t i = 0; i < desc_uv.width; ++i) {
+        uv_ptr[i] = y_ptr[i * 2];
+    }
+    _mask_y->unmap ();
+    mask_uv->unmap ();
+
+    _mask_uv = mask_uv;
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
 } // GLFastmapBlendPriv
 
 GLFastmapBlender::GLFastmapBlender (const char *name)
@@ -296,8 +611,13 @@ GLFastmapBlender::configure_resource (const SmartPtr<Parameters> &param)
     SmartPtr<GLBlender::BlenderParam> blend_param = param.dynamic_cast_ptr<GLBlender::BlenderParam> ();
     XCAM_ASSERT (blend_param->in_buf.ptr () && blend_param->in1_buf.ptr () && blend_param->out_buf.ptr ());
 
-    SmartPtr<GLFastmapBlendPriv::Impl> impl = new GLFastmapBlendPriv::ImplNV12 ();
-    XCAM_ASSERT (impl.ptr ());
+    const VideoBufferInfo &info = blend_param->in_buf->get_video_info ();
+    SmartPtr<GLFastmapBlendPriv::Impl> impl;
+    if (info.format == V4L2_PIX_FMT_NV12) {
+        impl = new GLFastmapBlendPriv::ImplNV12 ();
+    } else {
+        impl = new GLFastmapBlendPriv::ImplYUV420 ();
+    }
 
     XCamReturn ret = impl->configure_resource (_blender, blend_param, _left_mapper, _right_mapper);
     XCAM_FAIL_RETURN (
