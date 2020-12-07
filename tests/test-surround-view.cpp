@@ -36,6 +36,8 @@
 
 using namespace XCam;
 
+#define ENABLE_FISHEYE_IMG_ROI 0
+
 enum FrameMode {
     FrameSingle = 0,
     FrameMulti
@@ -851,6 +853,7 @@ int main (int argc, char *argv[])
 #endif
     }
 
+#if ENABLE_FISHEYE_IMG_ROI
     if (module == SVModuleGLES && (cam_model == CamC3C8K || cam_model == CamD3C8K)) {
         StitchInfo info = (module == SVModuleSoft) ?
            soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
@@ -872,6 +875,7 @@ int main (int argc, char *argv[])
         }
         delete [] roi_radius;
     }
+#endif
 
     for (uint32_t i = 0; i < ins.size (); ++i) {
         ins[i]->set_module (module);
