@@ -4,7 +4,6 @@ glslx_sources = \
     shader_gauss_scale_pyr.comp.slx          \
     shader_lap_trans_pyr.comp.slx            \
     shader_blend_pyr.comp.slx                \
-    shader_fastmap_blend.comp.slx            \
     shader_reconstruct_pyr.comp.slx          \
     shader_geomap_yuv420.comp.slx            \
     shader_gauss_scale_pyr_yuv420.comp.slx   \
@@ -15,6 +14,7 @@ glslx_sources = \
     shader_geomap_fastmap_uv_nv12.comp.slx   \
     shader_geomap_fastmap_uv_yuv420.comp.slx \
     shader_fastmap_blend_y.comp.slx          \
+    shader_fastmap_blend_uv_nv12.comp.slx    \
     shader_fastmap_blend_uv_yuv420.comp.slx  \
     $(NULL)
 
