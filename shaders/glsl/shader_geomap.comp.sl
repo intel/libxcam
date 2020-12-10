@@ -30,6 +30,14 @@ layout (binding = 6) writeonly buffer CoordY {
     vec4 data[];
 } coordy;
 
+layout (binding = 7) writeonly buffer CoordXUV {
+    vec2 data[];
+} coordx_uv;
+
+layout (binding = 8) writeonly buffer CoordYUV{
+    vec2 data[];
+} coordy_uv;
+
 uniform uint in_img_width;
 uniform uint in_img_height;
 
@@ -91,16 +99,11 @@ void main ()
     uint out_pos = g_y * out_img_width + out_x;
     geomap_y (lut_x, lut_y, coord_pos, out_pos, in_img_x, in_img_y, out_bound);
 
-    bvec4 out_bound_uv = out_bound.xxzz;
-    if (all (out_bound_uv)) {
-        out_buf_uv.data[(g_y >> 1u) * out_img_width + out_x] = packUnorm4x8 (vec4 (0.5f));
-    } else {
-        vec2 in_uv_x = in_img_x.xz;
-        vec2 in_uv_y = in_img_y.xz * 0.5f;
-        in_uv_y = clamp (in_uv_y, 0.0f, float ((in_img_height >> 1u) - 1u));
-        uint out_pos = (g_y >> 1u) * out_img_width + out_x;
-        geomap_uv (in_uv_x, in_uv_y, out_pos, out_bound_uv);
-    }
+    vec2 in_uv_x = in_img_x.xz;
+    vec2 in_uv_y = in_img_y.xz * 0.5f;
+    in_uv_y = clamp (in_uv_y, 0.0f, float ((in_img_height >> 1u) - 1u));
+    uint out_uv_pos = (g_y >> 1u) * out_img_width + out_x;
+    geomap_uv (in_uv_x, in_uv_y, out_uv_pos, out_bound.xxzz);
 
     lut_y += step.y;
     coord_pos += coords_width;
@@ -210,6 +213,18 @@ void geomap_y (
 
 void geomap_uv (vec2 in_uv_x, vec2 in_uv_y, uint out_pos, bvec4 out_bound_uv)
 {
+    if (dump_coords == 1u) {
+        uint coord_uv_pos = (gl_GlobalInvocationID.y * coords_width) + gl_GlobalInvocationID.x;
+        coordx_uv.data[coord_uv_pos] = in_uv_x;
+        coordy_uv.data[coord_uv_pos] = in_uv_y;
+        return;
+    }
+
+    if (all (out_bound_uv)) {
+        out_buf_uv.data[out_pos] = packUnorm4x8 (vec4 (0.5f));
+        return;
+    }
+
     uvec2 x00 = uvec2 (in_uv_x);
     uvec2 y00 = uvec2 (in_uv_y);
     uvec2 x01 = x00 + 1u;
