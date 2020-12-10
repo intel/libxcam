@@ -27,27 +27,13 @@ layout (binding = 5) readonly buffer CoordY {
 } coordy;
 
 uniform uint in_img_width;
-uniform uint in_img_height;
-
 uniform uint out_img_width;
 uniform uint extended_offset;
 
 uniform uint coords_width;
 
-void geomap_uv (vec4 in_uv_x, vec4 in_uv_y);
-
-void main ()
-{
-    uint coord_pos = gl_GlobalInvocationID.y * coords_width + gl_GlobalInvocationID.x;
-
-    vec4 in_uv_x = coordx.data[coord_pos];
-    vec4 in_uv_y = coordy.data[coord_pos];
-
-    in_uv_y = clamp (in_uv_y, 0.0f, float (in_img_height - 1u));
-    geomap_uv (in_uv_x, in_uv_y);
-}
-
 #define UNIT_SIZE 4u
+
 #define unpack_unorm(buf, index) \
     { \
         vec4 value = unpackUnorm4x8 (buf.data[index00[index]]); \
@@ -60,8 +46,12 @@ void main ()
         out11[index] = value[x11_fract[index]]; \
     }
 
-void geomap_uv (vec4 in_uv_x, vec4 in_uv_y)
+void main ()
 {
+    uint coord_pos = gl_GlobalInvocationID.y * coords_width + gl_GlobalInvocationID.x;
+    vec4 in_uv_x = coordx.data[coord_pos];
+    vec4 in_uv_y = coordy.data[coord_pos];
+
     uvec4 x00 = uvec4 (in_uv_x);
     uvec4 y00 = uvec4 (in_uv_y);
     uvec4 x01 = x00 + 1u;

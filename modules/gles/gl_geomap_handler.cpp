@@ -645,7 +645,6 @@ FastMapYUV420::fix_uv_parameters (const VideoBufferInfo &in_info)
 
     GLCmdList cmds;
     cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_width", in_img_width));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_height", in_info.height / 2));
     cmds.push_back (new GLCmdUniformT<uint32_t> ("out_img_width", out_img_width));
     cmds.push_back (new GLCmdUniformT<uint32_t> ("extended_offset", extended_offset));
     cmds.push_back (new GLCmdUniformT<uint32_t> ("coords_width", desc.width / unit_bytes));
