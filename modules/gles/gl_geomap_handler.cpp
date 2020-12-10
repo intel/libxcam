@@ -30,8 +30,8 @@ namespace XCam {
 enum ShaderID {
     ShaderComMapNV12 = 0,    // NV12 common mapping
     ShaderComMapYUV420,      // YUV420 common mapping
-    ShaderFastMapNV12,       // NV12 fast mapping
     ShaderFastMapY,          // Y planar fast mapping
+    ShaderFastMapUVNV12,     // NV12 UV planar fast mapping
     ShaderFastMapUVYUV420    // YUV420 UV planar fast mapping
 };
 
@@ -50,14 +50,14 @@ static const GLShaderInfo shaders_info[] = {
     },
     {
         GL_COMPUTE_SHADER,
-        "shader_geomap_fastmap",
-#include "shader_geomap_fastmap.comp.slx"
+        "shader_geomap_fastmap_y",
+#include "shader_geomap_fastmap_y.comp.slx"
       , 0
     },
     {
         GL_COMPUTE_SHADER,
-        "shader_geomap_fastmap_y",
-#include "shader_geomap_fastmap_y.comp.slx"
+        "shader_geomap_fastmap_uv_nv12",
+#include "shader_geomap_fastmap_uv_nv12.comp.slx"
       , 0
     },
     {
@@ -113,13 +113,24 @@ class FastMap
 {
 public:
     explicit FastMap (GLGeoMapHandler *mapper);
-    virtual ~FastMap () {}
+    virtual ~FastMap ();
 
-    virtual XCamReturn start (const SmartPtr<ImageHandler::Parameters> &param) = 0;
-    virtual XCamReturn configure_resource (const SmartPtr<ImageHandler::Parameters> &param) = 0;
+    XCamReturn start (const SmartPtr<ImageHandler::Parameters> &param);
+    XCamReturn configure_resource (const SmartPtr<ImageHandler::Parameters> &param);
 
 protected:
-    GLGeoMapHandler   *_mapper;
+    virtual XCamReturn init_shaders () = 0;
+    virtual XCamReturn start_y (const SmartPtr<GLBuffer> &in_buf, const SmartPtr<GLBuffer> &out_buf) = 0;
+    virtual XCamReturn start_uv (const SmartPtr<GLBuffer> &in_buf, const SmartPtr<GLBuffer> &out_buf) = 0;
+    virtual XCamReturn fix_uv_parameters (const VideoBufferInfo &in_info) = 0;
+
+    XCamReturn fix_y_parameters (const VideoBufferInfo &in_info);
+
+protected:
+    GLGeoMapHandler           *_mapper;
+
+    SmartPtr<GLImageShader>    _shader_y;
+    SmartPtr<GLImageShader>    _shader_uv;
 };
 
 class FastMapNV12
@@ -127,13 +138,13 @@ class FastMapNV12
 {
 public:
     explicit FastMapNV12 (GLGeoMapHandler *mapper);
-    virtual ~FastMapNV12 ();
-
-    virtual XCamReturn start (const SmartPtr<ImageHandler::Parameters> &param);
-    virtual XCamReturn configure_resource (const SmartPtr<ImageHandler::Parameters> &param);
+    virtual ~FastMapNV12 () {}
 
 private:
-    SmartPtr<GLImageShader>    _shader;
+    virtual XCamReturn init_shaders ();
+    virtual XCamReturn start_y (const SmartPtr<GLBuffer> &in_buf, const SmartPtr<GLBuffer> &out_buf);
+    virtual XCamReturn start_uv (const SmartPtr<GLBuffer> &in_buf, const SmartPtr<GLBuffer> &out_buf);
+    virtual XCamReturn fix_uv_parameters (const VideoBufferInfo &in_info);
 };
 
 class FastMapYUV420
@@ -141,20 +152,13 @@ class FastMapYUV420
 {
 public:
     explicit FastMapYUV420 (GLGeoMapHandler *mapper);
-    virtual ~FastMapYUV420 ();
-
-    virtual XCamReturn start (const SmartPtr<ImageHandler::Parameters> &param);
-    virtual XCamReturn configure_resource (const SmartPtr<ImageHandler::Parameters> &param);
+    virtual ~FastMapYUV420 () {}
 
 private:
-    XCamReturn fix_y_parameters (const VideoBufferInfo &in_info);
-    XCamReturn fix_uv_parameters (const VideoBufferInfo &in_info);
-    XCamReturn start_y (const SmartPtr<GLBuffer> &in_buf, const SmartPtr<GLBuffer> &out_buf);
-    XCamReturn start_uv (const SmartPtr<GLBuffer> &in_buf, const SmartPtr<GLBuffer> &out_buf);
-
-private:
-    SmartPtr<GLImageShader>    _shader_y;
-    SmartPtr<GLImageShader>    _shader_uv;
+    virtual XCamReturn init_shaders ();
+    virtual XCamReturn start_y (const SmartPtr<GLBuffer> &in_buf, const SmartPtr<GLBuffer> &out_buf);
+    virtual XCamReturn start_uv (const SmartPtr<GLBuffer> &in_buf, const SmartPtr<GLBuffer> &out_buf);
+    virtual XCamReturn fix_uv_parameters (const VideoBufferInfo &in_info);
 };
 
 ComMap::ComMap (GLGeoMapHandler *mapper)
@@ -279,6 +283,23 @@ ComMapNV12::prepare_dump_coords ()
     cmds.push_back (new GLCmdUniformT<uint32_t> ("coords_width", desc.width / sizeof (uint32_t)));
     cmds.push_back (new GLCmdBindBufBase (coordx_y, 5));
     cmds.push_back (new GLCmdBindBufBase (coordy_y, 6));
+
+    desc.width /= 2;
+    desc.height /= 2;
+    desc.size = desc.width * desc.height * sizeof (float);
+
+    SmartPtr<GLBuffer> coordx_uv = GLBuffer::create_buffer (GL_SHADER_STORAGE_BUFFER, NULL, desc.size);
+    SmartPtr<GLBuffer> coordy_uv = GLBuffer::create_buffer (GL_SHADER_STORAGE_BUFFER, NULL, desc.size);
+    XCAM_ASSERT (coordx_uv.ptr () && coordy_uv.ptr ());
+
+    coordx_uv->set_buffer_desc (desc);
+    coordy_uv->set_buffer_desc (desc);
+    _mapper->set_coordx_uv (coordx_uv);
+    _mapper->set_coordy_uv (coordy_uv);
+
+    cmds.push_back (new GLCmdBindBufBase (coordx_uv, 7));
+    cmds.push_back (new GLCmdBindBufBase (coordy_uv, 8));
+
     _shader->set_commands (cmds);
 
     return XCAM_RETURN_NO_ERROR;
@@ -411,88 +432,14 @@ FastMap::FastMap (GLGeoMapHandler *mapper)
 {
 }
 
-FastMapNV12::FastMapNV12 (GLGeoMapHandler *mapper)
-    : FastMap (mapper)
-{
-}
-
-FastMapNV12::~FastMapNV12 ()
-{
-    _shader.release ();
-}
-
-XCamReturn
-FastMapNV12::start (const SmartPtr<ImageHandler::Parameters> &param)
-{
-    SmartPtr<GLBuffer> in_buf = get_glbuffer (param->in_buf);
-    SmartPtr<GLBuffer> out_buf = get_glbuffer (param->out_buf);
-    const SmartPtr<GLBuffer> &coordx_y = _mapper->get_coordx_y ();
-    const SmartPtr<GLBuffer> &coordy_y = _mapper->get_coordy_y ();
-
-    GLCmdList cmds;
-    cmds.push_back (new GLCmdBindBufRange (in_buf, 0, NV12PlaneYIdx));
-    cmds.push_back (new GLCmdBindBufRange (in_buf, 1, NV12PlaneUVIdx));
-    cmds.push_back (new GLCmdBindBufRange (out_buf, 2, NV12PlaneYIdx));
-    cmds.push_back (new GLCmdBindBufRange (out_buf, 3, NV12PlaneUVIdx));
-    cmds.push_back (new GLCmdBindBufRange (coordx_y, 4));
-    cmds.push_back (new GLCmdBindBufRange (coordy_y, 5));
-    _shader->set_commands (cmds);
-
-    return _shader->work (NULL);
-};
-
-XCamReturn
-FastMapNV12::configure_resource (const SmartPtr<ImageHandler::Parameters> &param)
-{
-    _shader = create_shader (ShaderFastMapNV12, "fastmap_program_nv12");
-    XCAM_ASSERT (_shader.ptr ());
-
-    const VideoBufferInfo &in_info = param->in_buf->get_video_info ();
-    const Rect &std_area = _mapper->get_std_area ();
-    uint32_t extended_offset = _mapper->get_extended_offset ();
-
-    const SmartPtr<GLBuffer> &coordx_y = _mapper->get_coordx_y ();
-    const GLBufferDesc &desc = coordx_y->get_buffer_desc ();
-
-    uint32_t width, height;
-    _mapper->get_output_size (width, height);
-
-    const size_t unit_bytes = sizeof (uint32_t);
-    uint32_t in_img_width = in_info.width / unit_bytes;
-    uint32_t out_img_width = width / unit_bytes;
-    extended_offset /= unit_bytes;
-    uint32_t std_valid_width = std_area.width / unit_bytes;
-
-    GLCmdList cmds;
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_width", in_img_width));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_height", in_info.height));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("out_img_width", out_img_width));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("extended_offset", extended_offset));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("coords_width", desc.width / unit_bytes));
-    _shader->set_commands (cmds);
-
-    GLGroupsSize groups_size;
-    groups_size.x = XCAM_ALIGN_UP (std_valid_width, 4) / 4;
-    groups_size.y = XCAM_ALIGN_UP (std_area.height, 8) / 8;
-    groups_size.z = 1;
-    _shader->set_groups_size (groups_size);
-
-    return XCAM_RETURN_NO_ERROR;
-}
-
-FastMapYUV420::FastMapYUV420 (GLGeoMapHandler *mapper)
-    : FastMap (mapper)
-{
-}
-
-FastMapYUV420::~FastMapYUV420 ()
+FastMap::~FastMap ()
 {
     _shader_y.release ();
     _shader_uv.release ();
 }
 
 XCamReturn
-FastMapYUV420::start (const SmartPtr<ImageHandler::Parameters> &param)
+FastMap::start (const SmartPtr<ImageHandler::Parameters> &param)
 {
     SmartPtr<GLBuffer> in_buf = get_glbuffer (param->in_buf);
     SmartPtr<GLBuffer> out_buf = get_glbuffer (param->out_buf);
@@ -509,15 +456,139 @@ FastMapYUV420::start (const SmartPtr<ImageHandler::Parameters> &param)
 };
 
 XCamReturn
-FastMapYUV420::configure_resource (const SmartPtr<ImageHandler::Parameters> &param)
+FastMap::configure_resource (const SmartPtr<ImageHandler::Parameters> &param)
 {
-    _shader_y = create_shader (ShaderFastMapY, "fastmap_program_yuv420_y");
-    _shader_uv = create_shader (ShaderFastMapUVYUV420, "fastmap_program_yuv420_uv");
-    XCAM_ASSERT (_shader_y.ptr () && _shader_uv.ptr ());
+    init_shaders ();
 
     const VideoBufferInfo &in_info = param->in_buf->get_video_info ();
     fix_y_parameters (in_info);
     fix_uv_parameters (in_info);
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
+FastMap::fix_y_parameters (const VideoBufferInfo &in_info)
+{
+    const SmartPtr<GLBuffer> &coordx_y = _mapper->get_coordx_y ();
+    const GLBufferDesc &desc = coordx_y->get_buffer_desc ();
+    const Rect &std_area = _mapper->get_std_area ();
+
+    uint32_t width, height;
+    _mapper->get_output_size (width, height);
+
+    const size_t unit_bytes = sizeof (uint32_t);
+    uint32_t in_img_width = in_info.width / unit_bytes;
+    uint32_t out_img_width = width / unit_bytes;
+    uint32_t extended_offset = _mapper->get_extended_offset () / unit_bytes;
+    uint32_t std_valid_width = std_area.width / unit_bytes;
+
+    GLCmdList cmds;
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_width", in_img_width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("out_img_width", out_img_width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("extended_offset", extended_offset));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("coords_width", desc.width / unit_bytes));
+    _shader_y->set_commands (cmds);
+
+    GLGroupsSize groups_size;
+    groups_size.x = XCAM_ALIGN_UP (std_valid_width, 4) / 4;
+    groups_size.y = XCAM_ALIGN_UP (std_area.height, 8) / 8;
+    groups_size.z = 1;
+    _shader_y->set_groups_size (groups_size);
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+FastMapNV12::FastMapNV12 (GLGeoMapHandler *mapper)
+    : FastMap (mapper)
+{
+}
+
+XCamReturn
+FastMapNV12::init_shaders ()
+{
+    _shader_y = create_shader (ShaderFastMapY, "fastmap_program_nv12_y");
+    _shader_uv = create_shader (ShaderFastMapUVNV12, "fastmap_program_nv12_uv");
+    XCAM_ASSERT (_shader_y.ptr () && _shader_uv.ptr ());
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
+FastMapNV12::start_y (const SmartPtr<GLBuffer> &in_buf, const SmartPtr<GLBuffer> &out_buf)
+{
+    const SmartPtr<GLBuffer> &coordx_y = _mapper->get_coordx_y ();
+    const SmartPtr<GLBuffer> &coordy_y = _mapper->get_coordy_y ();
+
+    GLCmdList cmds;
+    cmds.push_back (new GLCmdBindBufRange (in_buf, 0, NV12PlaneYIdx));
+    cmds.push_back (new GLCmdBindBufRange (out_buf, 1, NV12PlaneYIdx));
+    cmds.push_back (new GLCmdBindBufRange (coordx_y, 2));
+    cmds.push_back (new GLCmdBindBufRange (coordy_y, 3));
+    _shader_y->set_commands (cmds);
+
+    return _shader_y->work (NULL);
+}
+
+XCamReturn
+FastMapNV12::start_uv (const SmartPtr<GLBuffer> &in_buf, const SmartPtr<GLBuffer> &out_buf)
+{
+    const SmartPtr<GLBuffer> &coordx_uv = _mapper->get_coordx_uv ();
+    const SmartPtr<GLBuffer> &coordy_uv = _mapper->get_coordy_uv ();
+
+    GLCmdList cmds;
+    cmds.push_back (new GLCmdBindBufRange (in_buf, 0, NV12PlaneUVIdx));
+    cmds.push_back (new GLCmdBindBufRange (out_buf, 1, NV12PlaneUVIdx));
+    cmds.push_back (new GLCmdBindBufRange (coordx_uv, 2));
+    cmds.push_back (new GLCmdBindBufRange (coordy_uv, 3));
+    _shader_uv->set_commands (cmds);
+
+    return _shader_uv->work (NULL);
+}
+
+XCamReturn
+FastMapNV12::fix_uv_parameters (const VideoBufferInfo &in_info)
+{
+    const SmartPtr<GLBuffer> &coordx_uv = _mapper->get_coordx_uv ();
+    const GLBufferDesc &desc = coordx_uv->get_buffer_desc ();
+    const Rect &std_area = _mapper->get_std_area ();
+
+    uint32_t width, height;
+    _mapper->get_output_size (width, height);
+
+    const size_t unit_bytes = sizeof (uint32_t);
+    uint32_t in_img_width = in_info.width / unit_bytes;
+    uint32_t out_img_width = (width / 2) / unit_bytes;
+    uint32_t extended_offset = (_mapper->get_extended_offset () / 2) / unit_bytes;
+    uint32_t std_valid_width = (std_area.width / 2) / unit_bytes;
+
+    GLCmdList cmds;
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_width", in_img_width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("out_img_width", out_img_width));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("extended_offset", extended_offset));
+    cmds.push_back (new GLCmdUniformT<uint32_t> ("coords_width", desc.width / unit_bytes));
+    _shader_uv->set_commands (cmds);
+
+    GLGroupsSize groups_size;
+    groups_size.x = XCAM_ALIGN_UP (std_valid_width, 4) / 4;
+    groups_size.y = XCAM_ALIGN_UP (std_area.height / 2, 4) / 4;
+    groups_size.z = 1;
+    _shader_uv->set_groups_size (groups_size);
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+FastMapYUV420::FastMapYUV420 (GLGeoMapHandler *mapper)
+    : FastMap (mapper)
+{
+}
+
+XCamReturn
+FastMapYUV420::init_shaders ()
+{
+    _shader_y = create_shader (ShaderFastMapY, "fastmap_program_yuv420_y");
+    _shader_uv = create_shader (ShaderFastMapUVYUV420, "fastmap_program_yuv420_uv");
+    XCAM_ASSERT (_shader_y.ptr () && _shader_uv.ptr ());
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -555,38 +626,6 @@ FastMapYUV420::start_uv (const SmartPtr<GLBuffer> &in_buf, const SmartPtr<GLBuff
 
     return _shader_uv->work (NULL);
 };
-
-XCamReturn
-FastMapYUV420::fix_y_parameters (const VideoBufferInfo &in_info)
-{
-    const SmartPtr<GLBuffer> &coordx_y = _mapper->get_coordx_y ();
-    const GLBufferDesc &desc = coordx_y->get_buffer_desc ();
-    const Rect &std_area = _mapper->get_std_area ();
-
-    uint32_t width, height;
-    _mapper->get_output_size (width, height);
-
-    const size_t unit_bytes = sizeof (uint32_t);
-    uint32_t in_img_width = in_info.width / unit_bytes;
-    uint32_t out_img_width = width / unit_bytes;
-    uint32_t extended_offset = _mapper->get_extended_offset () / unit_bytes;
-    uint32_t std_valid_width = std_area.width / unit_bytes;
-
-    GLCmdList cmds;
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_width", in_img_width));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("out_img_width", out_img_width));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("extended_offset", extended_offset));
-    cmds.push_back (new GLCmdUniformT<uint32_t> ("coords_width", desc.width / unit_bytes));
-    _shader_y->set_commands (cmds);
-
-    GLGroupsSize groups_size;
-    groups_size.x = XCAM_ALIGN_UP (std_valid_width, 4) / 4;
-    groups_size.y = XCAM_ALIGN_UP (std_area.height, 8) / 8;
-    groups_size.z = 1;
-    _shader_y->set_groups_size (groups_size);
-
-    return XCAM_RETURN_NO_ERROR;
-}
 
 XCamReturn
 FastMapYUV420::fix_uv_parameters (const VideoBufferInfo &in_info)
@@ -987,13 +1026,16 @@ GLGeoMapHandler::remap (const SmartPtr<VideoBuffer> &in_buf, SmartPtr<VideoBuffe
 XCamReturn
 GLGeoMapHandler::terminate ()
 {
-    _coordx_y.release ();
-    _coordy_y.release ();
-
     if (_lut_buf.ptr ()) {
         _lut_buf.release ();
     }
 
+    if (_coordx_y.ptr ()) {
+        _coordx_y.release ();
+    }
+    if (_coordy_y.ptr ()) {
+        _coordy_y.release ();
+    }
     if (_coordx_uv.ptr ()) {
         _coordx_uv.release ();
     }
