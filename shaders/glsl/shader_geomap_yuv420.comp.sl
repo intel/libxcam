@@ -113,12 +113,6 @@ void main ()
     in_uv_y = clamp (in_uv_y, 0.0f, float (in_img_height >> 1u) - 1.0f);
     geomap_uv (in_uv_x, in_uv_y);
 
-    if (dump_coords == 1u) {
-        uint coord_uv_pos = (gl_GlobalInvocationID.y * coords_width >> 1u) + gl_GlobalInvocationID.x;
-        coordx_uv.data[coord_uv_pos] = in_uv_x;
-        coordy_uv.data[coord_uv_pos] = in_uv_y;
-    }
-
     lut_y += step.y;
     coord_pos += coords_width;
     out_pos += out_img_width;
@@ -218,6 +212,13 @@ void geomap_y (
 
 void geomap_uv (vec4 in_uv_x, vec4 in_uv_y)
 {
+    if (dump_coords == 1u) {
+        uint coord_uv_pos = (gl_GlobalInvocationID.y * coords_width >> 1u) + gl_GlobalInvocationID.x;
+        coordx_uv.data[coord_uv_pos] = in_uv_x;
+        coordy_uv.data[coord_uv_pos] = in_uv_y;
+        return;
+    }
+
     uvec4 x00 = uvec4 (in_uv_x);
     uvec4 y00 = uvec4 (in_uv_y);
     uvec4 x01 = x00 + 1u;

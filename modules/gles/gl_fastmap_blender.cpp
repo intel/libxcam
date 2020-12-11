@@ -658,7 +658,7 @@ GLFastmapBlender::start_work (const SmartPtr<ImageHandler::Parameters> &base)
     SmartPtr<GLBlender::BlenderParam> param = base.dynamic_cast_ptr<GLBlender::BlenderParam> ();
     XCAM_ASSERT (param.ptr () && param->in_buf.ptr () && param->in1_buf.ptr () && param->out_buf.ptr ());
 
-   return _impl->start (param);
+    return _impl->start (param);
 }
 
 }
