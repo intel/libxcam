@@ -652,7 +652,7 @@ FastMapYUV420::fix_uv_parameters (const VideoBufferInfo &in_info)
 
     GLGroupsSize groups_size;
     groups_size.x = XCAM_ALIGN_UP (std_valid_width, 4) / 4;
-    groups_size.y = XCAM_ALIGN_UP (std_area.height / 2, 8) / 8;
+    groups_size.y = XCAM_ALIGN_UP (std_area.height / 2, 4) / 4;
     groups_size.z = 1;
     _shader_uv->set_groups_size (groups_size);
 
