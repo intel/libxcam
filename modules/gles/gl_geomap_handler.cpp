@@ -373,7 +373,7 @@ ComMapYUV420::configure_resource (const SmartPtr<ImageHandler::Parameters> &para
     _shader->set_commands (cmds);
 
     GLGroupsSize groups_size;
-    groups_size.x = XCAM_ALIGN_UP (std_valid_width, 8) / 8;
+    groups_size.x = XCAM_ALIGN_UP (std_valid_width, 4) / 4;
     groups_size.y = XCAM_ALIGN_UP (std_area.height, 8) / 8;
     groups_size.z = 1;
     _shader->set_groups_size (groups_size);
