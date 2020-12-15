@@ -574,8 +574,8 @@ ImplYUV420::fix_uv_parameters (
     _shader_uv->set_commands (cmds);
 
     GLGroupsSize groups_size_uv;
-    groups_size_uv.x = XCAM_ALIGN_UP (blend_width, 4) / 4;
-    groups_size_uv.y = XCAM_ALIGN_UP (blend_area.height / 2, 8) / 8;
+    groups_size_uv.x = XCAM_ALIGN_UP (blend_width, 2) / 2;
+    groups_size_uv.y = XCAM_ALIGN_UP (blend_area.height / 2, 4) / 4;
     groups_size_uv.z = 1;
     _shader_uv->set_groups_size (groups_size_uv);
 
