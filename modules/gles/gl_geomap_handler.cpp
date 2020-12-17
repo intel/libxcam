@@ -766,9 +766,9 @@ GLGeoMapHandler::set_lut_buf (const SmartPtr<GLBuffer> &buf)
 const SmartPtr<GLBuffer> &
 GLGeoMapHandler::get_lut_buf () const
 {
-    XCAM_FAIL_RETURN (
-        ERROR, _lut_buf.ptr (), NULL,
-        "gl-geomap lut buffer is empty, need set lookup table first");
+    if (!_lut_buf.ptr ()) {
+        XCAM_LOG_ERROR ("gl-geomap lut buffer is empty, need set lookup table first");
+    }
 
     return _lut_buf;
 }
@@ -783,9 +783,9 @@ GLGeoMapHandler::set_coordx_y (const SmartPtr<GLBuffer> &coordx_y)
 const SmartPtr<GLBuffer> &
 GLGeoMapHandler::get_coordx_y () const
 {
-    XCAM_FAIL_RETURN (
-        ERROR, _coordx_y.ptr (), NULL,
-        "gl-geomap coordx buffer is empty");
+    if (!_coordx_y.ptr ()) {
+        XCAM_LOG_ERROR ("gl-geomap coordx buffer is empty");
+    }
 
     return _coordx_y;
 }
@@ -800,9 +800,9 @@ GLGeoMapHandler::set_coordy_y (const SmartPtr<GLBuffer> &coordy_y)
 const SmartPtr<GLBuffer> &
 GLGeoMapHandler::get_coordy_y () const
 {
-    XCAM_FAIL_RETURN (
-        ERROR, _coordy_y.ptr (), NULL,
-        "gl-geomap coordy buffer is empty");
+    if (!_coordy_y.ptr ()) {
+        XCAM_LOG_ERROR ("gl-geomap coordy buffer is empty");
+    }
 
     return _coordy_y;
 }
@@ -817,9 +817,9 @@ GLGeoMapHandler::set_coordx_uv (const SmartPtr<GLBuffer> &coordx_uv)
 const SmartPtr<GLBuffer> &
 GLGeoMapHandler::get_coordx_uv () const
 {
-    XCAM_FAIL_RETURN (
-        ERROR, _coordx_uv.ptr (), NULL,
-        "gl-geomap coordx UV buffer is empty");
+    if (!_coordx_uv.ptr ()) {
+        XCAM_LOG_ERROR ("gl-geomap coordx UV buffer is empty");
+    }
 
     return _coordx_uv;
 }
@@ -834,9 +834,9 @@ GLGeoMapHandler::set_coordy_uv (const SmartPtr<GLBuffer> &coordy_uv)
 const SmartPtr<GLBuffer> &
 GLGeoMapHandler::get_coordy_uv () const
 {
-    XCAM_FAIL_RETURN (
-        ERROR, _coordy_uv.ptr (), NULL,
-        "gl-geomap coordy UV buffer is empty");
+    if (!_coordy_uv.ptr ()) {
+        XCAM_LOG_ERROR ("gl-geomap coordy UV buffer is empty");
+    }
 
     return _coordy_uv;
 }
