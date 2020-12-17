@@ -929,6 +929,34 @@ set_output_video_info (
 }
 
 XCamReturn
+GLGeoMapHandler::ensure_default_params ()
+{
+    uint32_t width, height;
+    get_output_size (width, height);
+    XCAM_FAIL_RETURN (
+        ERROR, width && height, XCAM_RETURN_ERROR_PARAM,
+        "gl-geomap invalid output size %dx%d", width, height);
+
+    if (_std_area.width == 0 || _std_area.height == 0) {
+        Rect area = Rect (0, 0, width, height);
+        set_std_area (area);
+    }
+
+    uint32_t std_width, std_height;
+    get_std_output_size (std_width, std_height);
+    if (std_width == 0 || std_height == 0) {
+        set_std_output_size (width, height);
+    }
+
+    if (_right_factor_x == 0.0f || _right_factor_y == 0.0f ||
+        _left_factor_x == 0.0f  || _left_factor_y == 0.0f ) {
+        init_factors ();
+    }
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
 GLGeoMapHandler::configure_resource (const SmartPtr<Parameters> &param)
 {
     XCAM_ASSERT (param.ptr () && param->in_buf.ptr ());
@@ -940,6 +968,11 @@ GLGeoMapHandler::configure_resource (const SmartPtr<Parameters> &param)
             ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
             "gl-geomap set output video info failed");
     }
+
+    ret = ensure_default_params ();
+    XCAM_FAIL_RETURN (
+        ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
+        "gl-geomap ensure default paramaters failed");
 
     const VideoBufferInfo &info = param->in_buf->get_video_info ();
     SmartPtr<GLGeoMapPriv::ComMap> commapper;
