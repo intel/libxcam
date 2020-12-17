@@ -81,6 +81,7 @@ protected:
 
 private:
     XCAM_DEAD_COPY (GLGeoMapHandler);
+    XCamReturn ensure_default_params ();
 
 protected:
     SmartPtr<GLBuffer>                 _lut_buf;
