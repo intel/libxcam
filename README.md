@@ -16,6 +16,7 @@ OpenCL is used to improve performance in different platforms.
     - Advanced features
       - 360-degree video stitching
         - support ultra-high resolution (8K) video stitching.
+        - support processing NV12 & YUV420 pixel format.
         - support 2/3/4 fish-eye cameras (FoV >180 degree) video stitching.
         - stitching image adopts equirectangular projection (ERP).
         - algorithms are optimized by AVX512 instruction, GLES and Vulkan.

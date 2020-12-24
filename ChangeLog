@@ -1,3 +1,6 @@
+2020/12/24: release libxcam version 1.5.0
+* 360 stitching GLES pipeline supports processing YUV420p pixel format
+
 2020/06/01: release libxcam version 1.4.0
 * 360 stitching supports processing YUV420p pixel format
 
