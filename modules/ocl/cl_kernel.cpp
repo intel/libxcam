@@ -212,7 +212,11 @@ CLKernel::build_kernel (const XCamKernelInfo& info, const char* options)
             if (ret == XCAM_RETURN_NO_ERROR && write_cache_size > 0) {
                 rename (temp_filename, cache_filename);
             } else {
-                remove (temp_filename);
+                if (remove (temp_filename) != 0) {
+                    XCAM_LOG_ERROR (
+                        "build kernel(%s) failed, write cache file failed, and remove %s failed",
+                        key_str, temp_filename);
+                }
             }
         } else {
             XCAM_LOG_ERROR ("open kernel cache file to write failed ret(%d)", ret);
