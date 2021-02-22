@@ -141,7 +141,12 @@ FisheyeImageFile::read_roi (const SmartPtr<VideoBuffer> &buf, uint32_t idx)
             x_min = _x_min[idx][h] / x_step;
             x_max = (_x_max[idx][h] + x_step - 1) / x_step;
 
-            fseek (_fp, fp_offset + x_min, SEEK_CUR);
+            if (fseek (_fp, fp_offset + x_min, SEEK_CUR) != 0) {
+                XCAM_LOG_ERROR (
+                    "pointer movement %s failed, and operate image_file %s failed",
+                    _fp, get_file_name ());
+            }
+
             bytes = (x_max - x_min) * planar.pixel_bytes;
 
             if (fread (start + x_min, 1, bytes, _fp) != bytes) {
@@ -162,7 +167,11 @@ FisheyeImageFile::read_roi (const SmartPtr<VideoBuffer> &buf, uint32_t idx)
             h += y_step;
         }
 
-        fseek (_fp, fp_offset, SEEK_CUR);
+        if (fseek (_fp, fp_offset, SEEK_CUR) != 0) {
+            XCAM_LOG_ERROR (
+                "pointer movement %s failed, and operate image_file %s failed",
+                _fp, get_file_name ());
+        }
     }
     buf->unmap ();
 
