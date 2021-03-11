@@ -526,6 +526,7 @@ int main (int argc, char *argv[])
     CamModel cam_model = CamB4C1080P;
     FrameMode frame_mode = FrameMulti;
     SVModule module = SVModuleNone;
+    const char* device_node = NULL;
     GeoMapScaleMode scale_mode = ScaleSingleConst;
     FeatureMatchMode fm_mode = FMNone;
     FisheyeDewarpMode dewarp_mode = DewarpBowl;
@@ -545,6 +546,7 @@ int main (int argc, char *argv[])
 
     const struct option long_opts[] = {
         {"module", required_argument, NULL, 'm'},
+        {"device-node", required_argument, NULL, 'D'},
         {"input", required_argument, NULL, 'i'},
         {"output", required_argument, NULL, 'o'},
         {"in-w", required_argument, NULL, 'w'},
@@ -591,6 +593,11 @@ int main (int argc, char *argv[])
                 return -1;
             }
             break;
+        case 'D':
+            XCAM_ASSERT (optarg);
+            device_node = optarg;
+            break;
+
         case 'i':
             XCAM_ASSERT (optarg);
             PUSH_STREAM (SVStream, ins, optarg);
@@ -785,6 +792,12 @@ int main (int argc, char *argv[])
     for (uint32_t i = 0; i < ins.size (); ++i) {
         printf ("input%d file:\t\t%s\n", i, ins[i]->get_file_name ());
     }
+    printf ("camera model:\t\t%s\n", cam_model == CamA2C1080P ? "cama2c1080p" :
+            (cam_model == CamB4C1080P ? "camb4c1080p" : (cam_model == CamC3C8K ? "camc3c8k" : "camd3c8k")));
+    printf ("fisheye number:\t\t%d\n", fisheye_num);
+    printf ("stitch module:\t\t%s\n", module == SVModuleGLES ? "GLES" :
+            (module == SVModuleVulkan ? "Vulkan" : (module == SVModuleSoft ? "Soft" : "Unknown")));
+    printf ("device node:\t\t%s\n", device_node != NULL ? device_node : "Not specified, use default model");
     printf ("output file:\t\t%s\n", outs[IdxStitch]->get_file_name ());
     printf ("input width:\t\t%d\n", input_width);
     printf ("input height:\t\t%d\n", input_height);
@@ -793,9 +806,6 @@ int main (int argc, char *argv[])
     printf ("topview width:\t\t%d\n", topview_width);
     printf ("topview height:\t\t%d\n", topview_height);
     printf ("input format:\t\t%s\n", input_format == V4L2_PIX_FMT_YUV420 ? "yuv" : "nv12");
-    printf ("fisheye number:\t\t%d\n", fisheye_num);
-    printf ("camera model:\t\t%s\n", cam_model == CamA2C1080P ? "cama2c1080p" :
-            (cam_model == CamB4C1080P ? "camb4c1080p" : (cam_model == CamC3C8K ? "camc3c8k" : "camd3c8k")));
     printf ("blend pyr levels:\t%d\n", blend_pyr_levels);
     printf ("dewarp mode: \t\t%s\n", dewarp_mode == DewarpSphere ? "sphere" : "bowl");
     printf ("scopic mode:\t\t%s\n", (scopic_mode == ScopicMono) ? "mono" :
@@ -825,7 +835,12 @@ int main (int argc, char *argv[])
 
         egl = new EGLBase ();
         XCAM_ASSERT (egl.ptr ());
-        XCAM_FAIL_RETURN (ERROR, egl->init (), -1, "init EGL failed");
+
+        if (NULL == device_node) {
+            XCAM_FAIL_RETURN (ERROR, egl->init (), -1, "init EGL failed");
+        } else {
+            XCAM_FAIL_RETURN (ERROR, egl->init (device_node), -1, "init EGL failed");
+        }
     }
 #else
     if (module == SVModuleGLES) {
@@ -856,7 +871,7 @@ int main (int argc, char *argv[])
 #if ENABLE_FISHEYE_IMG_ROI
     if (module == SVModuleGLES && (cam_model == CamC3C8K || cam_model == CamD3C8K)) {
         StitchInfo info = (module == SVModuleSoft) ?
-           soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
+                          soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
 
         get_fisheye_info (cam_model, scopic_mode, info.fisheye_info);
 
