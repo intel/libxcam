@@ -26,6 +26,10 @@ EGLBase::EGLBase ()
     : _display (EGL_NO_DISPLAY)
     , _context (EGL_NO_CONTEXT)
     , _surface (EGL_NO_SURFACE)
+#if HAVE_GBM
+    , _node_name (NULL)
+    , _gbm_device (NULL)
+#endif
 {
 }
 
@@ -47,11 +51,19 @@ EGLBase::~EGLBase ()
     }
 }
 
+
 bool
-EGLBase::init ()
+EGLBase::init (const char* node_name)
 {
-    bool ret = get_display (EGL_DEFAULT_DISPLAY, _display);
-    XCAM_FAIL_RETURN (ERROR, ret, false, "EGLInit: get display failed");
+    bool ret = false;
+    if (NULL != node_name) {
+        XCAM_LOG_DEBUG ("EGL init: %s", node_name);
+        ret = get_display (node_name, _display);
+        XCAM_FAIL_RETURN (ERROR, ret, false, "EGLInit: get display failed");
+    } else {
+        ret = get_display (EGL_DEFAULT_DISPLAY, _display);
+        XCAM_FAIL_RETURN (ERROR, ret, false, "EGLInit: get display failed");
+    }
 
     EGLint major, minor;
     ret = initialize (_display, &major, &minor);
@@ -72,6 +84,37 @@ EGLBase::init ()
     XCAM_FAIL_RETURN (ERROR, ret, false, "EGLInit: make current failed");
 
     return true;
+}
+
+bool
+EGLBase::get_display (const char *node_name, EGLDisplay &display)
+{
+#if HAVE_GBM
+    if (!node_name) {
+        XCAM_LOG_ERROR ("get disply device node name is NULL!");
+        return false;
+    }
+    _node_name = strndup (node_name, XCAM_MAX_STR_SIZE);
+
+    int32_t fd = open (_node_name, O_RDWR);
+    XCAM_FAIL_RETURN (ERROR, fd > 0, false, "EGLInit: EGL open device node:%s failed", _node_name);
+
+    _gbm_device = gbm_create_device (fd);
+    XCAM_FAIL_RETURN (ERROR, _gbm_device != NULL, false, "EGLInit: EGL create gbm device failed");
+
+    display = eglGetPlatformDisplay (EGL_PLATFORM_GBM_MESA, _gbm_device, NULL);
+    XCAM_FAIL_RETURN (
+        ERROR, display != EGL_NO_DISPLAY, false,
+        "EGLInit: get display failed");
+    return true;
+#else
+    XCAM_UNUSED (node_name);
+    display = eglGetDisplay (EGL_DEFAULT_DISPLAY);
+    XCAM_FAIL_RETURN (
+        ERROR, display != EGL_NO_DISPLAY, false,
+        "EGLInit: get display failed");
+    return true;
+#endif
 }
 
 bool

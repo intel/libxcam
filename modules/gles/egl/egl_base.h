@@ -23,6 +23,11 @@
 
 #include <gles/egl/egl_utils.h>
 
+#if HAVE_GBM
+#include <gbm.h>
+#include <fcntl.h>
+#endif
+
 namespace XCam {
 
 class EGLBase {
@@ -30,8 +35,9 @@ public:
     explicit EGLBase ();
     ~EGLBase ();
 
-    bool init ();
+    bool init (const char* node_name = NULL);
 
+    bool get_display (const char *node_name, EGLDisplay &display);
     bool get_display (NativeDisplayType native_display, EGLDisplay &display);
     bool initialize (EGLDisplay display, EGLint *major, EGLint *minor);
     bool choose_config (
@@ -54,6 +60,10 @@ private:
     EGLDisplay        _display;
     EGLContext        _context;
     EGLSurface        _surface;
+#if HAVE_GBM
+    char              *_node_name;
+    gbm_device        *_gbm_device;
+#endif
 };
 
 }

@@ -17,6 +17,10 @@ if HAVE_OPENCV
 XCAM_GLES_LIBS += $(top_builddir)/modules/ocv/libxcam_ocv.la
 endif
 
+if HAVE_GBM
+XCAM_GLES_LIBS += $(LIBGL_LIBS) -lgbm
+endif
+
 xcam_gles_sources = \
     gles_std.cpp           \
     gl_buffer.cpp          \
