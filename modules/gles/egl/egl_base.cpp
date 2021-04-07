@@ -29,6 +29,7 @@ EGLBase::EGLBase ()
 #if HAVE_GBM
     , _node_name (NULL)
     , _gbm_device (NULL)
+    , _device (0)
 #endif
 {
 }
@@ -48,9 +49,18 @@ EGLBase::~EGLBase ()
 
         terminate (_display);
         _display = EGL_NO_DISPLAY;
+
+#if HAVE_GBM
+        if (NULL != _gbm_device) {
+            gbm_device_destroy (_gbm_device);
+        }
+        if (NULL != _node_name) {
+            xcam_free (_node_name);
+        }
+        close (_device);
+#endif
     }
 }
-
 
 bool
 EGLBase::init (const char* node_name)
@@ -95,11 +105,12 @@ EGLBase::get_display (const char *node_name, EGLDisplay &display)
         return false;
     }
     _node_name = strndup (node_name, XCAM_MAX_STR_SIZE);
+    XCAM_FAIL_RETURN (ERROR, _node_name != NULL, false, "EGLInit: copy gbm device name failed");
 
-    int32_t fd = open (_node_name, O_RDWR);
-    XCAM_FAIL_RETURN (ERROR, fd > 0, false, "EGLInit: EGL open device node:%s failed", _node_name);
+    _device = open (_node_name, O_RDWR);
+    XCAM_FAIL_RETURN (ERROR, _device > 0, false, "EGLInit: EGL open device node:%s failed", _node_name);
 
-    _gbm_device = gbm_create_device (fd);
+    _gbm_device = gbm_create_device (_device);
     XCAM_FAIL_RETURN (ERROR, _gbm_device != NULL, false, "EGLInit: EGL create gbm device failed");
 
     display = eglGetPlatformDisplay (EGL_PLATFORM_GBM_MESA, _gbm_device, NULL);
