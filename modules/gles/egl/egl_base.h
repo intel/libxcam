@@ -26,6 +26,7 @@
 #if HAVE_GBM
 #include <gbm.h>
 #include <fcntl.h>
+#include <unistd.h>
 #endif
 
 namespace XCam {
@@ -63,6 +64,7 @@ private:
 #if HAVE_GBM
     char              *_node_name;
     gbm_device        *_gbm_device;
+    int32_t           _device;
 #endif
 };
 
