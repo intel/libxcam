@@ -271,7 +271,6 @@ protected:
     SmartPtr<InferenceEngine::Core> _ie;
     InferenceEngine::CNNNetwork _network;
     InferenceEngine::InferRequest _infer_request;
-    std::vector<InferenceEngine::CNNLayerPtr> _layers;
 
     DnnOutputLayerType _output_layer_type;
 };
