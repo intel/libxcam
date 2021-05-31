@@ -124,8 +124,9 @@ CLVideoBufferPool::fixate_video_info (VideoBufferInfo &info)
 }
 
 SmartPtr<BufferData>
-CLVideoBufferPool::allocate_data (const VideoBufferInfo &buffer_info)
+CLVideoBufferPool::allocate_data (const VideoBufferInfo &buffer_info, const void* in_data)
 {
+    XCAM_UNUSED (in_data);
     SmartPtr<CLContext> context = CLDevice::instance ()->get_context ();
 
     SmartPtr<CLBuffer> buf = new CLBuffer (context, buffer_info.size);

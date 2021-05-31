@@ -36,7 +36,7 @@ public:
 
 private:
     //derive from BufferPool
-    virtual SmartPtr<BufferData> allocate_data (const VideoBufferInfo &buffer_info);
+    virtual SmartPtr<BufferData> allocate_data (const VideoBufferInfo &buffer_info, const void* in_data = NULL);
 };
 
 #if 0

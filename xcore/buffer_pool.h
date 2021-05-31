@@ -90,6 +90,9 @@ public:
 
     bool set_video_info (const VideoBufferInfo &info);
     bool reserve (uint32_t max_count = 4);
+
+    SmartPtr<VideoBuffer> create_buffer_from_external_data (const void* data);
+
     SmartPtr<VideoBuffer> get_buffer (const SmartPtr<BufferPool> &self);
     SmartPtr<VideoBuffer> get_buffer ();
 
@@ -109,7 +112,7 @@ public:
 
 protected:
     virtual bool fixate_video_info (VideoBufferInfo &info);
-    virtual SmartPtr<BufferData> allocate_data (const VideoBufferInfo &buffer_info) = 0;
+    virtual SmartPtr<BufferData> allocate_data (const VideoBufferInfo &buffer_info, const void* in_data = NULL) = 0;
     virtual SmartPtr<BufferProxy> create_buffer_from_data (SmartPtr<BufferData> &data);
 
     bool add_data_unsafe (const SmartPtr<BufferData> &data);

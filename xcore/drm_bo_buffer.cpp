@@ -267,8 +267,9 @@ DrmBoBufferPool::init_swap_order (VideoBufferInfo &info)
 }
 
 SmartPtr<BufferData>
-DrmBoBufferPool::allocate_data (const VideoBufferInfo &buffer_info)
+DrmBoBufferPool::allocate_data (const VideoBufferInfo &buffer_info, const void* in_data)
 {
+    XCAM_UNUSED (in_data);
     SmartPtr<DrmBoData> bo = _display->create_drm_bo (_display, buffer_info);
     return bo;
 }

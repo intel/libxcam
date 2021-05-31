@@ -222,9 +222,10 @@ X3aStatisticsQueue::fixate_video_info (VideoBufferInfo &info)
 }
 
 SmartPtr<BufferData>
-X3aStatisticsQueue::allocate_data (const VideoBufferInfo &buffer_info)
+X3aStatisticsQueue::allocate_data (const VideoBufferInfo &buffer_info, const void* in_data)
 {
     XCAM_UNUSED (buffer_info);
+    XCAM_UNUSED (in_data);
 
     XCam3AStats *stats = NULL;
     XCam3AStatsInfo stats_info = get_stats_info ();
