@@ -83,8 +83,9 @@ SoftVideoBufAllocator::~SoftVideoBufAllocator ()
 }
 
 SmartPtr<BufferData>
-SoftVideoBufAllocator::allocate_data (const VideoBufferInfo &buffer_info)
+SoftVideoBufAllocator::allocate_data (const VideoBufferInfo &buffer_info, const void* in_data)
 {
+    XCAM_UNUSED (in_data);
     XCAM_FAIL_RETURN (
         ERROR, buffer_info.size, NULL,
         "SoftVideoBufAllocator allocate data failed. buf_size is zero");

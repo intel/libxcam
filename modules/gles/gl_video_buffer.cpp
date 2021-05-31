@@ -115,10 +115,11 @@ GLVideoBufferPool::~GLVideoBufferPool ()
 }
 
 SmartPtr<BufferData>
-GLVideoBufferPool::allocate_data (const VideoBufferInfo &info)
+GLVideoBufferPool::allocate_data (const VideoBufferInfo &info, const void* in_data)
 {
     SmartPtr<GLBuffer> buf =
-        XCam::GLBuffer::create_buffer (_target, NULL, info.size, GL_STATIC_DRAW);
+        //XCam::GLBuffer::create_buffer (_target, in_data, info.size, GL_STATIC_DRAW);
+        XCam::GLBuffer::create_buffer (_target, in_data, info.size, GL_DYNAMIC_READ);
     XCAM_ASSERT (buf.ptr ());
 
     GLBufferDesc desc;
@@ -132,7 +133,7 @@ GLVideoBufferPool::allocate_data (const VideoBufferInfo &info)
         desc.strides[comp] = info.strides[comp];
         desc.offsets[comp] = info.offsets[comp];
         desc.slice_size[comp] = (comp + 1 < info.components) ?
-            info.offsets[comp + 1] - info.offsets[comp] : info.size - info.offsets[comp];
+                                info.offsets[comp + 1] - info.offsets[comp] : info.size - info.offsets[comp];
     }
 
     buf->set_buffer_desc (desc);

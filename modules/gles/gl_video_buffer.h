@@ -52,7 +52,7 @@ public:
     }
 
 private:
-    virtual SmartPtr<BufferData> allocate_data (const VideoBufferInfo &info);
+    virtual SmartPtr<BufferData> allocate_data (const VideoBufferInfo &info, const void* in_data = NULL);
     virtual SmartPtr<BufferProxy> create_buffer_from_data (SmartPtr<BufferData> &data);
 
 private:
@@ -61,3 +61,4 @@ private:
 
 };
 #endif // XCAM_GL_VIDEO_BUFFER_H
+

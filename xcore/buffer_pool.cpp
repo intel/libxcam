@@ -128,6 +128,20 @@ BufferPool::reserve (uint32_t max_count)
     return true;
 }
 
+SmartPtr<VideoBuffer>
+BufferPool::create_buffer_from_external_data (const void* data)
+{
+    SmartLock lock (_mutex);
+    SmartPtr<BufferProxy> ret_buf;
+
+    SmartPtr<BufferData> new_data = allocate_data (_buffer_info, data);
+    if (new_data.ptr ()) {
+        ret_buf = create_buffer_from_data (new_data);
+    }
+
+    return ret_buf;
+}
+
 bool
 BufferPool::add_data_unsafe (const SmartPtr<BufferData> &data)
 {

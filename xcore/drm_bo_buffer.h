@@ -114,7 +114,7 @@ public:
 protected:
     // derived from BufferPool
     virtual bool fixate_video_info (VideoBufferInfo &info);
-    virtual SmartPtr<BufferData> allocate_data (const VideoBufferInfo &buffer_info);
+    virtual SmartPtr<BufferData> allocate_data (const VideoBufferInfo &buffer_info, const void* in_data = NULL);
     virtual SmartPtr<BufferProxy> create_buffer_from_data (SmartPtr<BufferData> &data);
 
     bool init_swap_order (VideoBufferInfo &info);

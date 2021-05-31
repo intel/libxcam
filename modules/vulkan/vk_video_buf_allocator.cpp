@@ -90,8 +90,9 @@ VKVideoBufAllocator::~VKVideoBufAllocator ()
 }
 
 SmartPtr<BufferData>
-VKVideoBufAllocator::allocate_data (const VideoBufferInfo &buffer_info)
+VKVideoBufAllocator::allocate_data (const VideoBufferInfo &buffer_info, const void* in_data)
 {
+    XCAM_UNUSED (in_data);
     XCAM_FAIL_RETURN (
         ERROR, buffer_info.size, NULL,
         "VKVideoBufAllocator allocate data failed. buf_size is zero");

@@ -203,8 +203,9 @@ CLBoBufferPool::fixate_video_info (VideoBufferInfo &info)
 }
 
 SmartPtr<BufferData>
-CLBoBufferPool::allocate_data (const VideoBufferInfo &buffer_info)
+CLBoBufferPool::allocate_data (const VideoBufferInfo &buffer_info, const void* in_data)
 {
+    XCAM_UNUSED (in_data);
     SmartPtr<CLImageBoData> image_data = create_image_bo (buffer_info);
     return image_data;
 }
