@@ -32,7 +32,7 @@ namespace XCamDNN {
 XCamReturn
 draw_bounding_boxes (
     uint8_t *data,  uint32_t width, uint32_t height, XCam::DnnInferImageFormatType format,
-    std::vector<XCam::Vec4i> rectangles, std::vector<int32_t> classes, int32_t thickness = 1);
+    std::vector<XCam::Vec4i> rectangles, std::vector<int32_t> classes, int32_t thickness = 3);
 
 XCamReturn
 label_pixels (const std::string name, std::vector<std::vector<uint32_t>> map);
@@ -48,6 +48,9 @@ save_bmp_file (const std::string name,
 //std::shared_ptr<uint8_t>
 uint8_t*
 convert_NV12_to_BGR (XCam::SmartPtr<XCam::VideoBuffer>& nv12, float x_ratio, float y_ratio);
+
+uint8_t*
+resize_BGR (XCam::SmartPtr<XCam::VideoBuffer>& bgr, float x_ratio, float y_ratio);
 
 }  // namespace XCamDNN
 

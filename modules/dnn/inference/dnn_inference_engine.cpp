@@ -507,7 +507,7 @@ DnnInferenceEngine::set_inference_data (const VideoBufferList& images)
         if (buf_info.format == V4L2_PIX_FMT_NV12) {
             data = XCamDNN::convert_NV12_to_BGR (buf, x_ratio, y_ratio);
         } else if (buf_info.format == V4L2_PIX_FMT_BGR24) {
-            data = buf->map ();
+            data = XCamDNN::resize_BGR (buf, x_ratio, y_ratio);
         }
 
         if (data != NULL) {

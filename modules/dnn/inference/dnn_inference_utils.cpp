@@ -421,4 +421,28 @@ convert_NV12_to_BGR (SmartPtr<VideoBuffer>& nv12, float x_ratio, float y_ratio)
 #endif
 }
 
+uint8_t*
+resize_BGR (SmartPtr<VideoBuffer>& bgr, float x_ratio, float y_ratio)
+{
+    XCAM_ASSERT (x_ratio > 0 && y_ratio);
+
+    VideoBufferInfo bgr_buf_info = bgr->get_video_info ();
+
+#if HAVE_OPENCV
+    const auto src = bgr->map ();
+    cv::Mat temp_image (bgr_buf_info.height, bgr_buf_info.width, CV_8UC3, src);
+    bgr->unmap ();
+
+    cv::Mat bgr_image;
+    cv::Size image_size (round (x_ratio * bgr_buf_info.width), round (y_ratio * bgr_buf_info.height));
+    cv::resize (temp_image, bgr_image, image_size);
+
+    //std::shared_ptr<uint8_t> bgr_ptr (bgr_image.data);
+    //return bgr_ptr;
+    return bgr_image.data;
+#else
+    return NULL;
+#endif
+}
+
 }  // namespace XCam

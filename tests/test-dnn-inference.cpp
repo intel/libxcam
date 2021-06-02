@@ -377,7 +377,7 @@ int main (int argc, char *argv[])
                 CHECK (
                     XCamDNN::draw_bounding_boxes (detect_image,
                                                   image_width, image_height, DnnInferImageFormatRGBPacked,
-                                                  boxes, classes, 2),
+                                                  boxes, classes),
                     "Draw bounding boxes failed!" );
 
                 outs[0]->get_buf ()->unmap ();
