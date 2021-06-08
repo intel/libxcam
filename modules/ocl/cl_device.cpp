@@ -99,7 +99,7 @@ CLDevice::init ()
     cl_device_id   device_id = NULL;
     cl_uint num_platform = 0;
     cl_uint num_device = 0;
-    CLDevieInfo device_info;
+    CLDeviceInfo device_info;
 
     if (clGetPlatformIDs (1, &platform_id, &num_platform) != CL_SUCCESS)
     {
@@ -161,7 +161,7 @@ CLDevice::init ()
 }
 
 bool
-CLDevice::query_device_info (cl_device_id device_id, CLDevieInfo &info)
+CLDevice::query_device_info (cl_device_id device_id, CLDeviceInfo &info)
 {
 #undef XCAM_CL_GET_DEVICE_INFO
 #define XCAM_CL_GET_DEVICE_INFO(name, val)                            \
