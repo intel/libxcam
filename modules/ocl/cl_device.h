@@ -29,14 +29,14 @@ namespace XCam {
 
 class CLContext;
 
-struct CLDevieInfo {
+struct CLDeviceInfo {
     uint32_t  max_compute_unit;
     uint32_t  max_work_item_dims;
     size_t    max_work_item_sizes [3];
     size_t    max_work_group_size;
     uint32_t  image_pitch_alignment;
 
-    CLDevieInfo ()
+    CLDeviceInfo ()
         : max_compute_unit (0)
         , max_work_item_dims (0)
         , max_work_group_size (0)
@@ -56,7 +56,7 @@ public:
     bool is_inited () const {
         return _inited;
     }
-    const CLDevieInfo &get_device_info () {
+    const CLDeviceInfo &get_device_info () {
         return _device_info;
     }
     cl_device_id get_device_id () {
@@ -76,7 +76,7 @@ public:
 private:
     CLDevice ();
     bool init ();
-    bool query_device_info (cl_device_id device_id, CLDevieInfo &info);
+    bool query_device_info (cl_device_id device_id, CLDeviceInfo &info);
     bool create_default_context ();
 
     XCAM_DEAD_COPY (CLDevice);
@@ -87,7 +87,7 @@ private:
     char                       _platform_name[XCAM_CL_MAX_STR_SIZE];
     cl_platform_id             _platform_id;
     cl_device_id               _device_id;
-    CLDevieInfo                _device_info;
+    CLDeviceInfo                _device_info;
     bool                       _inited;
 
     //Mutex                      _context_mutex;

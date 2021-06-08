@@ -382,7 +382,7 @@ CLKernel::set_work_size (const CLWorkSize &work_size)
 {
     uint32_t i = 0;
     uint32_t work_group_size = 1;
-    const CLDevieInfo &dev_info = CLDevice::instance ()->get_device_info ();
+    const CLDeviceInfo &dev_info = CLDevice::instance ()->get_device_info ();
 
     XCAM_FAIL_RETURN (
         WARNING,
