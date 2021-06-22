@@ -130,7 +130,7 @@ AC_DEFUN([XCAM_CHECK_AVX512],
     AS_IF([test "x$1" = "xyes"],
         [
             count=`grep -c avx512 /proc/cpuinfo`
-            AS_IF([test $count -gt 0], [$2], [AC_MSG_ERROR(the processor does not support AVX512 instructions)])
+            AS_IF([test $count -gt 0], [$2], [AC_MSG_WARN(the processor does not support AVX512 instructions)])
         ],
         [$3])
 ])
