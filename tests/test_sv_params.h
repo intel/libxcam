@@ -57,7 +57,7 @@ static const char *extrinsic_names[] = {
 static const char *camera_calibration_json_names[] = {
     "",
     "",
-    "",
+    "camera_calibration_IP2E13CNNHH4S4.json",
     "k_camera_calibration.json"
 };
 #endif
@@ -349,21 +349,21 @@ soft_stitch_info (CamModel model, StitchScopicMode scopic_mode)
             info.merge_width[1] = 256;
             info.merge_width[2] = 256;
 
-            info.fisheye_info[0].intrinsic.cx = 1907.0f;
-            info.fisheye_info[0].intrinsic.cy = 1440.0f;
+            info.fisheye_info[0].intrinsic.cx = 1900.0f;
+            info.fisheye_info[0].intrinsic.cy = 1410.0f;
             info.fisheye_info[0].intrinsic.fov = 200.0f;
-            info.fisheye_info[0].radius = 1984.0f;
-            info.fisheye_info[0].extrinsic.roll = 90.3f;
-            info.fisheye_info[1].intrinsic.cx = 1920.0f;
-            info.fisheye_info[1].intrinsic.cy = 1440.0f;
+            info.fisheye_info[0].radius = 2040.0f;
+            info.fisheye_info[0].extrinsic.roll = 92.3f;
+            info.fisheye_info[1].intrinsic.cx = 1860.0f;
+            info.fisheye_info[1].intrinsic.cy = 1480.0f;
             info.fisheye_info[1].intrinsic.fov = 200.0f;
             info.fisheye_info[1].radius = 1984.0f;
-            info.fisheye_info[1].extrinsic.roll = 90.2f;
-            info.fisheye_info[2].intrinsic.cx = 1920.0f;
-            info.fisheye_info[2].intrinsic.cy = 1440.0f;
+            info.fisheye_info[1].extrinsic.roll = 89.3f;
+            info.fisheye_info[2].intrinsic.cx = 1910.0f;
+            info.fisheye_info[2].intrinsic.cy = 1420.0f;
             info.fisheye_info[2].intrinsic.fov = 200.0f;
             info.fisheye_info[2].radius = 1984.0f;
-            info.fisheye_info[2].extrinsic.roll = 91.2f;
+            info.fisheye_info[2].extrinsic.roll = 90.5f;
             break;
         }
         case ScopicStereoRight: {
@@ -375,17 +375,17 @@ soft_stitch_info (CamModel model, StitchScopicMode scopic_mode)
             info.fisheye_info[0].intrinsic.cy = 1440.0f;
             info.fisheye_info[0].intrinsic.fov = 200.0f;
             info.fisheye_info[0].radius = 1984.0f;
-            info.fisheye_info[0].extrinsic.roll = 90.0f;
-            info.fisheye_info[1].intrinsic.cx = 1920.0f;
-            info.fisheye_info[1].intrinsic.cy = 1440.0f;
+            info.fisheye_info[0].extrinsic.roll = 90.2f;
+            info.fisheye_info[1].intrinsic.cx = 1944.0f;
+            info.fisheye_info[1].intrinsic.cy = 1460.0f;
             info.fisheye_info[1].intrinsic.fov = 200.0f;
             info.fisheye_info[1].radius = 1984.0f;
-            info.fisheye_info[1].extrinsic.roll = 90.0f;
-            info.fisheye_info[2].intrinsic.cx = 1914.0f;
+            info.fisheye_info[1].extrinsic.roll = 90.8f;
+            info.fisheye_info[2].intrinsic.cx = 1928.0f;
             info.fisheye_info[2].intrinsic.cy = 1440.0f;
             info.fisheye_info[2].intrinsic.fov = 200.0f;
             info.fisheye_info[2].radius = 1984.0f;
-            info.fisheye_info[2].extrinsic.roll = 90.1f;
+            info.fisheye_info[2].extrinsic.roll = 89.7f;
             break;
         }
         default:
