@@ -360,6 +360,21 @@ private:
     float             _max_topview_length_mm;
 };
 
+class CubeMapModel {
+public:
+    typedef std::vector<PointFloat2> PointMap;
+
+public:
+    CubeMapModel (const uint32_t image_width, const uint32_t image_height);
+    bool get_cubemap_rect_map(
+        PointMap &texture_points,
+        uint32_t res_width,
+        uint32_t res_height);
+
+private:
+    uint32_t _erp_img_width, _erp_img_height;
+};
+
 }
 
 #endif //XCAM_INTERFACE_STITCHER_H
