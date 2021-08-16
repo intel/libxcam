@@ -315,7 +315,7 @@ create_topview_mapper (
 }
 
 static XCamReturn
-remap_topview_buf (const SmartPtr<SVStream> &stitch, const SmartPtr<SVStream> &topview)
+remap_buf (const SmartPtr<SVStream> &stitch, const SmartPtr<SVStream> &topview)
 {
     const SmartPtr<GeoMapper> mapper = topview->get_mapper();
     XCAM_ASSERT (mapper.ptr ());
@@ -375,12 +375,12 @@ write_image (
         write_out_image (outs[out_config.stitch_index], frame_num);
 
     if (out_config.save_topview) {
-        remap_topview_buf (outs[out_config.stitch_index], outs[out_config.topview_index]);
+        remap_buf (outs[out_config.stitch_index], outs[out_config.topview_index]);
         write_out_image (outs[out_config.topview_index], frame_num);
     }
 
     if (out_config.save_cubemap) {
-        remap_topview_buf (outs[out_config.stitch_index], outs[out_config.cubemap_index]);
+        remap_buf (outs[out_config.stitch_index], outs[out_config.cubemap_index]);
         write_out_image (outs[out_config.cubemap_index], frame_num);
     }
 
