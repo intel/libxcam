@@ -365,7 +365,7 @@ public:
     typedef std::vector<PointFloat2> PointMap;
 
 public:
-    CubeMapModel (const uint32_t image_width, const uint32_t image_height);
+    CubeMapModel (uint32_t image_width, uint32_t image_height);
     bool get_cubemap_rect_map(
         PointMap &texture_points,
         uint32_t res_width,
