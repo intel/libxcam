@@ -193,10 +193,10 @@ Stitcher::ensure_stitch_path ()
         return true;
 
     _complete_stitch = (
-        _fm_mode == FMNone || _fm_status != FMStatusFMFirst || _fm_frame_count > _fm_frames);
+                           _fm_mode == FMNone || _fm_status != FMStatusFMFirst || _fm_frame_count > _fm_frames);
 
     _need_fm = (
-        _fm_mode != FMNone && (_fm_status == FMStatusWholeWay || _fm_frame_count <= _fm_frames));
+                   _fm_mode != FMNone && (_fm_status == FMStatusWholeWay || _fm_frame_count <= _fm_frames));
 
     _fm_frame_count++;
 
@@ -869,6 +869,8 @@ get_cubemap_world_pos(
     case CubeSideFront:
         return {side_u, 1.f, side_v};
     case CubeSideBack:
+        return {-side_u, -1.f, side_v};
+    default:
         return {-side_u, -1.f, side_v};
     }
 }
