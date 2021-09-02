@@ -70,17 +70,6 @@ struct ImageMergeInfo {
 
 class Stitcher;
 
-struct CalibrationInfo {
-    ExtrinsicParameter extrinsic;
-    IntrinsicParameter intrinsic;
-};
-
-struct CameraInfo {
-    CalibrationInfo   calibration;
-    float             round_angle_start;
-    float             angle_range;;
-};
-
 class VKDevice;
 
 class Stitcher

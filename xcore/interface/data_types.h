@@ -117,10 +117,28 @@ struct ExtrinsicParameter {
     {}
 };
 
-struct FisheyeInfo {
-    IntrinsicParameter intrinsic;
+struct CalibrationInfo {
+    uint32_t camera_id;
     ExtrinsicParameter extrinsic;
+    IntrinsicParameter intrinsic;
 
+    CalibrationInfo ()
+        : camera_id (0)
+    {}
+};
+
+struct CameraInfo {
+    float             round_angle_start;
+    float             angle_range;
+    CalibrationInfo   calibration;
+
+    CameraInfo ()
+        : round_angle_start (0.0f)
+        , angle_range (0.0f)
+    {}
+};
+
+struct FisheyeInfo : CalibrationInfo {
     float radius;
     float distort_coeff[4];
     float c_coeff[4];
