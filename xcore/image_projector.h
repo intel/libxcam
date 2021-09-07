@@ -98,7 +98,7 @@ public:
 
     virtual ~ImageProjector () {};
 
-    XCamReturn set_sensor_calibration (CalibrationParams &params);
+    XCamReturn set_camera_calibration (CalibrationParams &params);
     XCamReturn set_camera_intrinsics (
         double focal_x,
         double focal_y,
@@ -109,6 +109,17 @@ public:
     Mat3d get_camera_intrinsics () {
         return _intrinsics;
     }
+
+    Mat3d calc_camera_intrinsics (
+        double focal_x,
+        double focal_y,
+        double offset_x,
+        double offset_y,
+        double skew);
+
+    Mat3d calc_camera_extrinsics (
+        const Vec3d &euler_angles,
+        const Vec3d &translation);
 
     Mat3d calc_camera_extrinsics (
         const int64_t frame_ts,
@@ -155,3 +166,4 @@ private:
 }
 
 #endif //XCAM_IMAGE_PROJECTIVE_2D_H
+

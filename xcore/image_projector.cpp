@@ -205,7 +205,7 @@ ImageProjector::align_coordinate_system (
 }
 
 XCamReturn
-ImageProjector::set_sensor_calibration (CalibrationParams &params)
+ImageProjector::set_camera_calibration (CalibrationParams &params)
 {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
@@ -240,6 +240,48 @@ ImageProjector::set_camera_intrinsics (
                    _intrinsics(1, 0), _intrinsics(1, 1), _intrinsics(1, 2),
                    _intrinsics(2, 0), _intrinsics(2, 1), _intrinsics(2, 2));
     return ret;
+}
+
+Mat3d
+ImageProjector::calc_camera_intrinsics (
+    double focal_x,
+    double focal_y,
+    double offset_x,
+    double offset_y,
+    double skew)
+{
+    Mat3d intrinsics = Mat3d (Vec3d (focal_x, skew, offset_x),
+                              Vec3d (0, focal_y, offset_y),
+                              Vec3d (0, 0, 1));
+
+    XCAM_LOG_DEBUG("Intrinsic Matrix(3x3) \n");
+    XCAM_LOG_DEBUG("intrinsic = [ %lf, %lf, %lf ; %lf, %lf, %lf ; %lf, %lf, %lf ] \n",
+                   intrinsics(0, 0), intrinsics(0, 1), intrinsics(0, 2),
+                   intrinsics(1, 0), intrinsics(1, 1), intrinsics(1, 2),
+                   intrinsics(2, 0), intrinsics(2, 1), intrinsics(2, 2));
+    return intrinsics;
+}
+
+Mat3d
+ImageProjector::calc_camera_extrinsics (
+    const Vec3d &euler_angles,
+    const Vec3d &translation)
+{
+    //Pitch->X axis, Yaw->Y axis, Roll->Z axis
+    //Measured in radians
+    Quaternd quat = create_quaternion (Vec3d(DEGREE_2_RADIANS (euler_angles[0]),
+                                       DEGREE_2_RADIANS (euler_angles[1]),
+                                       DEGREE_2_RADIANS (euler_angles[2])));
+
+    Mat3d extrinsics = quat.rotation_matrix ();
+
+    XCAM_LOG_DEBUG("Extrinsic Matrix(3x3) \n");
+    XCAM_LOG_DEBUG("extrinsic = [ %lf, %lf, %lf; %lf, %lf, %lf; %lf, %lf, %lf ] \n",
+                   extrinsics(0, 0), extrinsics(0, 1), extrinsics(0, 2),
+                   extrinsics(1, 0), extrinsics(1, 1), extrinsics(1, 2),
+                   extrinsics(2, 0), extrinsics(2, 1), extrinsics(2, 2));
+
+    return extrinsics;
 }
 
 Mat3d

@@ -366,13 +366,13 @@ CalibrationParser::parse_calib_param (char *file_body, std::vector<CalibrationIn
                 i++;
             }
             Quaternion<float> quat = create_quaternion (rotation);
-            Vec3f euler_angles = quat.euler_angles ();
-            calib_info[index].extrinsic.yaw = RADIANS_2_DEGREE (euler_angles[0]);
-            calib_info[index].extrinsic.pitch = RADIANS_2_DEGREE (euler_angles[1]);
-            calib_info[index].extrinsic.roll = RADIANS_2_DEGREE (euler_angles[2]);
-            XCAM_LOG_DEBUG ("   Yaw: %f", calib_info[index].extrinsic.yaw);
-            XCAM_LOG_DEBUG ("   Pitch: %f", calib_info[index].extrinsic.pitch);
-            XCAM_LOG_DEBUG ("   Roll: %f", calib_info[index].extrinsic.roll);
+
+            //Pitch->X axis, Yaw->Y axis, Roll->Z axis
+            //Measured in radians
+            Vec3f euler = quat.euler_angles ();
+            calib_info[index].extrinsic.pitch = RADIANS_2_DEGREE (euler[0]);
+            calib_info[index].extrinsic.yaw = RADIANS_2_DEGREE (euler[1]);
+            calib_info[index].extrinsic.roll = RADIANS_2_DEGREE (euler[2]);
         }
         CHECK_PARAM (tok_str);
 
@@ -538,10 +538,12 @@ CalibrationParser::parse_fisheye_camera_param (const char *file_path, FisheyeInf
                     rotation (i / 3, i % 3) = r_mat->get<float>();
                 }
                 Quaternion<float> quat = create_quaternion (rotation);
-                Vec3f euler_angles = quat.euler_angles ();
-                fisheye_info[cam_id].extrinsic.yaw = RADIANS_2_DEGREE (euler_angles[0]);
-                fisheye_info[cam_id].extrinsic.pitch = RADIANS_2_DEGREE (euler_angles[1]);
-                fisheye_info[cam_id].extrinsic.roll = RADIANS_2_DEGREE (euler_angles[2]);
+                //Pitch->X axis, Yaw->Y axis, Roll->Z axis
+                //Measured in radians
+                Vec3f euler = quat.euler_angles ();
+                fisheye_info[cam_id].extrinsic.pitch = RADIANS_2_DEGREE (euler[0]);
+                fisheye_info[cam_id].extrinsic.yaw = RADIANS_2_DEGREE (euler[1]);
+                fisheye_info[cam_id].extrinsic.roll = RADIANS_2_DEGREE (euler[2]);
             }
 
             auto const cam_t = cam->find ("t");
