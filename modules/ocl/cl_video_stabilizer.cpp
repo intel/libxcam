@@ -181,12 +181,12 @@ CLVideoStabilizer::prepare_parameters (SmartPtr<VideoBuffer> &input, SmartPtr<Vi
 }
 
 XCamReturn
-CLVideoStabilizer::set_sensor_calibration (CalibrationParams &params)
+CLVideoStabilizer::set_camera_calibration (CalibrationParams &params)
 {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
     if (_projector.ptr ()) {
-        _projector->set_sensor_calibration (params);
+        _projector->set_camera_calibration (params);
     } else {
         ret = XCAM_RETURN_ERROR_PARAM;
     }
@@ -421,3 +421,4 @@ MotionFilter::stabilize (int32_t index,
 }
 
 }
+

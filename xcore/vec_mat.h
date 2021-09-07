@@ -1078,6 +1078,7 @@ public:
     }
 
     /*
+     *  the calculation of euler angles are expressed in radians in RADIANS
         psi=atan2(2.*(Q(:,1).*Q(:,4)-Q(:,2).*Q(:,3)),(Q(:,4).^2-Q(:,1).^2-Q(:,2).^2+Q(:,3).^2));
         theta=asin(2.*(Q(:,1).*Q(:,3)+Q(:,2).*Q(:,4)));
         phi=atan2(2.*(Q(:,3).*Q(:,4)-Q(:,1).*Q(:,2)),(Q(:,4).^2+Q(:,1).^2-Q(:,2).^2-Q(:,3).^2));
@@ -1142,6 +1143,8 @@ template<class T>
 Quaternion<T>
 create_quaternion (VectorN<T, 3> euler)
 {
+    //Pitch->X axis, Yaw->Y axis, Roll->Z axis
+    //Measured in radians
     return create_quaternion(VectorN<T, 3>(1, 0, 0), euler[0]) *
            create_quaternion(VectorN<T, 3>(0, 1, 0), euler[1]) *
            create_quaternion(VectorN<T, 3>(0, 0, 1), euler[2]);
@@ -1198,3 +1201,4 @@ typedef Quaternion<double> Quaternd;
 }
 
 #endif //XCAM_VECTOR_MATRIX_H
+
