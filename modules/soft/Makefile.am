@@ -31,7 +31,7 @@ xcam_soft_sources = \
     soft_geo_tasks_priv.cpp      \
     soft_copy_task.cpp           \
     soft_stitcher.cpp            \
-   $(NULL)
+    $(NULL)
 
 libxcam_soft_la_SOURCES = \
     $(xcam_soft_sources) \

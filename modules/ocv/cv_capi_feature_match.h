@@ -31,6 +31,7 @@
 #include <cv.h>
 #else
 #include <opencv2/imgproc/imgproc_c.h>
+#if OPENCV_VERSION3
 #include <opencv2/video/tracking_c.h>
 #endif
 
@@ -72,3 +73,4 @@ private:
 }
 
 #endif // CV_CAPI_FEATURE_MATCH_H
+#endif
