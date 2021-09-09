@@ -746,15 +746,19 @@ StitcherImpl::create_feature_match (SmartPtr<FeatureMatch> &matcher)
     case FMCluster:
         matcher = FeatureMatch::create_cluster_feature_match ();
         break;
+#if OPENCV_VERSION3
     case FMCapi:
         matcher = FeatureMatch::create_capi_feature_match ();
         break;
+#endif
     default:
         XCAM_LOG_ERROR ("gl-stitcher unsupported feature match mode: %d", fm_mode);
         return XCAM_RETURN_ERROR_PARAM;
     }
 #else
+#if OPENCV_VERSION3
     matcher = FeatureMatch::create_capi_feature_match ();
+#endif
 #endif
     XCAM_ASSERT (matcher.ptr ());
 

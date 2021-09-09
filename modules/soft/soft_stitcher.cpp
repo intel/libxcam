@@ -470,8 +470,10 @@ StitcherImpl::init_feature_match (uint32_t idx)
         _overlaps[idx].matcher = FeatureMatch::create_default_feature_match ();
     else if (fm_mode == FMCluster)
         _overlaps[idx].matcher = FeatureMatch::create_cluster_feature_match ();
+#if OPENCV_VERSION3
     else if (fm_mode == FMCapi)
         _overlaps[idx].matcher = FeatureMatch::create_capi_feature_match ();
+#endif
     else {
         XCAM_LOG_ERROR ("unsupported FeatureMatchMode: %d", fm_mode);
         XCAM_ASSERT (false);

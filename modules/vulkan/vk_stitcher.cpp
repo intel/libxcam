@@ -423,15 +423,19 @@ StitcherImpl::init_feature_matchers ()
             matcher = FeatureMatch::create_default_feature_match ();
         else if (fm_mode == FMCluster)
             matcher = FeatureMatch::create_cluster_feature_match ();
+#if OPENCV_VERSION3
         else if (fm_mode == FMCapi)
             matcher = FeatureMatch::create_capi_feature_match ();
+#endif
         else {
             XCAM_LOG_ERROR (
                 "vk-stitcher(%s) unsupported FeatureMatchMode: %d",
                 XCAM_STR (_stitcher->get_name ()), fm_mode);
         }
 #else
+#if OPENCV_VERSION3
         matcher = FeatureMatch::create_capi_feature_match ();
+#endif
 #endif
         XCAM_ASSERT (matcher.ptr ());
 

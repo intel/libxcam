@@ -336,7 +336,7 @@ Stitcher::estimate_round_slices ()
         return XCAM_RETURN_NO_ERROR;
 
     XCAM_FAIL_RETURN (
-        ERROR, _camera_num && _camera_num < XCAM_STITCH_MAX_CAMERAS, XCAM_RETURN_ERROR_PARAM,
+        ERROR, _camera_num && _camera_num <= XCAM_STITCH_MAX_CAMERAS, XCAM_RETURN_ERROR_PARAM,
         "stitcher: camera num was not set, or camera num(%d) exceed max camera value(%d)",
         _camera_num, XCAM_STITCH_MAX_CAMERAS);
 

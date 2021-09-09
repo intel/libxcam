@@ -55,7 +55,7 @@ AC_DEFUN([XCAM_CHECK_DOXYGEN],
         [$3])
 ])
 
-# XCAM_CHECK_OPENCV([$1:value], [$2:ocv-min], [$3:ocv-max], [$4:if-found], [$5:if-not-found])
+# XCAM_CHECK_OPENCV([$1:value], [$2:ocv-min], [$3:ocv-max], [$4:if-found], [$5:if-not-found]， [$6:if-opencv3.x], [$7:if-not-opencv3.x])
 AC_DEFUN([XCAM_CHECK_OPENCV],
 [
     AS_IF([test "x$1" = "xyes"],
@@ -72,6 +72,8 @@ AC_DEFUN([XCAM_CHECK_OPENCV],
                 [AC_MSG_ERROR(OpenCV required version: >= $2 && < $3)])
         ],
         [$5])
+    AS_IF([test $ocv_major_version == 3], [$6], [$7])
+    AC_MSG_NOTICE(OPENCV_major_version: $ocv_major_version)
 ])
 
 # XCAM_CHECK_OCV_VIDEOSTAB([$1:value], [$2:if-found], [$3:if-not-found])
