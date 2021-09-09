@@ -30,6 +30,7 @@ enum CamModel {
     CamA2C1080P = 0,
     CamB4C1080P,
     CamC3C8K,
+    CamC6C8K,
     CamD3C8K
 };
 
@@ -57,6 +58,7 @@ static const char *extrinsic_names[] = {
 static const char *camera_calibration_json_names[] = {
     "",
     "",
+    "camera_calibration_insta.json",
     "",
     "k_camera_calibration.json"
 };
@@ -92,6 +94,15 @@ get_fisheye_img_roi_radius (
             XCAM_LOG_ERROR ("unsupported scopic mode (%d)", scopic_mode);
             break;
         }
+        break;
+    }
+    case CamC6C8K: {
+        roi_radius[0] = 1787;
+        roi_radius[1] = 1787;
+        roi_radius[2] = 1787;
+        roi_radius[3] = 1787;
+        roi_radius[4] = 1787;
+        roi_radius[5] = 1787;
         break;
     }
     case CamD3C8K: {
@@ -169,6 +180,15 @@ viewpoints_range (CamModel model, float *range)
         range[2] = 144.0f;
         break;
     }
+    case CamC6C8K: {
+        range[0] = 72.0f;
+        range[1] = 72.0f;
+        range[2] = 72.0f;
+        range[3] = 72.0f;
+        range[4] = 72.0f;
+        range[5] = 72.0f;
+        break;
+    }
     case CamD3C8K: {
         range[0] = 132.0f;
         range[1] = 132.0f;
@@ -197,6 +217,13 @@ fm_region_ratio (CamModel model)
         break;
     }
     case CamC3C8K: {
+        ratio.pos_x = 0.0f;
+        ratio.width = 1.0f;
+        ratio.pos_y = 1.0f / 3.0f;
+        ratio.height = 1.0f / 3.0f;
+        break;
+    }
+    case CamC6C8K: {
         ratio.pos_x = 0.0f;
         ratio.width = 1.0f;
         ratio.pos_y = 1.0f / 3.0f;
@@ -250,6 +277,17 @@ soft_fm_config (CamModel model)
         break;
     }
     case CamC3C8K: {
+        cfg.stitch_min_width = 136;
+        cfg.min_corners = 4;
+        cfg.offset_factor = 0.95f;
+        cfg.delta_mean_offset = 256.0f;
+        cfg.recur_offset_error = 4.0f;
+        cfg.max_adjusted_offset = 24.0f;
+        cfg.max_valid_offset_y = 20.0f;
+        cfg.max_track_error = 6.0f;
+        break;
+    }
+    case CamC6C8K: {
         cfg.stitch_min_width = 136;
         cfg.min_corners = 4;
         cfg.offset_factor = 0.95f;
@@ -394,6 +432,46 @@ soft_stitch_info (CamModel model, StitchScopicMode scopic_mode)
         }
         break;
     }
+    case CamC6C8K: {
+        info.merge_width[0] = 256;
+        info.merge_width[1] = 256;
+        info.merge_width[2] = 256;
+        info.merge_width[3] = 256;
+        info.merge_width[4] = 256;
+        info.merge_width[5] = 256;
+
+        info.fisheye_info[0].intrinsic.cx = 1907.0f;
+        info.fisheye_info[0].intrinsic.cy = 1440.0f;
+        info.fisheye_info[0].intrinsic.fov = 200.0f;
+        info.fisheye_info[0].radius = 1984.0f;
+        info.fisheye_info[0].extrinsic.roll = 90.3f;
+        info.fisheye_info[1].intrinsic.cx = 1920.0f;
+        info.fisheye_info[1].intrinsic.cy = 1440.0f;
+        info.fisheye_info[1].intrinsic.fov = 200.0f;
+        info.fisheye_info[1].radius = 1984.0f;
+        info.fisheye_info[1].extrinsic.roll = 90.0f;
+        info.fisheye_info[2].intrinsic.cx = 1920.0f;
+        info.fisheye_info[2].intrinsic.cy = 1440.0f;
+        info.fisheye_info[2].intrinsic.fov = 200.0f;
+        info.fisheye_info[2].radius = 1984.0f;
+        info.fisheye_info[2].extrinsic.roll = 90.2f;
+        info.fisheye_info[3].intrinsic.cx = 1920.0f;
+        info.fisheye_info[3].intrinsic.cy = 1440.0f;
+        info.fisheye_info[3].intrinsic.fov = 200.0f;
+        info.fisheye_info[3].radius = 1984.0f;
+        info.fisheye_info[3].extrinsic.roll = 90.0f;
+        info.fisheye_info[4].intrinsic.cx = 1920.0f;
+        info.fisheye_info[4].intrinsic.cy = 1440.0f;
+        info.fisheye_info[4].intrinsic.fov = 200.0f;
+        info.fisheye_info[4].radius = 1984.0f;
+        info.fisheye_info[4].extrinsic.roll = 91.2f;
+        info.fisheye_info[5].intrinsic.cx = 1914.0f;
+        info.fisheye_info[5].intrinsic.cy = 1440.0f;
+        info.fisheye_info[5].intrinsic.fov = 200.0f;
+        info.fisheye_info[5].radius = 1984.0f;
+        info.fisheye_info[5].extrinsic.roll = 90.1f;
+        break;
+    }
     case CamD3C8K: {
         switch (scopic_mode) {
         case ScopicStereoLeft: {
@@ -494,6 +572,17 @@ gl_fm_config (CamModel model)
         cfg.max_track_error = 6.0f;
         break;
     }
+    case CamC6C8K: {
+        cfg.stitch_min_width = 136;
+        cfg.min_corners = 4;
+        cfg.offset_factor = 0.95f;
+        cfg.delta_mean_offset = 256.0f;
+        cfg.recur_offset_error = 4.0f;
+        cfg.max_adjusted_offset = 24.0f;
+        cfg.max_valid_offset_y = 20.0f;
+        cfg.max_track_error = 6.0f;
+        break;
+    }
     case CamD3C8K: {
         cfg.stitch_min_width = 256;
         cfg.min_corners = 4;
@@ -582,6 +671,46 @@ gl_stitch_info (CamModel model, StitchScopicMode scopic_mode)
             XCAM_LOG_ERROR ("unsupported scopic mode (%d)", scopic_mode);
             break;
         }
+        break;
+    }
+    case CamC6C8K: {
+        info.merge_width[0] = 256;
+        info.merge_width[1] = 256;
+        info.merge_width[2] = 256;
+        info.merge_width[3] = 256;
+        info.merge_width[4] = 256;
+        info.merge_width[5] = 256;
+
+        info.fisheye_info[0].intrinsic.cx = 1907.0f;
+        info.fisheye_info[0].intrinsic.cy = 1440.0f;
+        info.fisheye_info[0].intrinsic.fov = 200.0f;
+        info.fisheye_info[0].radius = 1984.0f;
+        info.fisheye_info[0].extrinsic.roll = 90.3f;
+        info.fisheye_info[1].intrinsic.cx = 1920.0f;
+        info.fisheye_info[1].intrinsic.cy = 1440.0f;
+        info.fisheye_info[1].intrinsic.fov = 200.0f;
+        info.fisheye_info[1].radius = 1984.0f;
+        info.fisheye_info[1].extrinsic.roll = 90.0f;
+        info.fisheye_info[2].intrinsic.cx = 1920.0f;
+        info.fisheye_info[2].intrinsic.cy = 1440.0f;
+        info.fisheye_info[2].intrinsic.fov = 200.0f;
+        info.fisheye_info[2].radius = 1984.0f;
+        info.fisheye_info[2].extrinsic.roll = 90.2f;
+        info.fisheye_info[3].intrinsic.cx = 1920.0f;
+        info.fisheye_info[3].intrinsic.cy = 1440.0f;
+        info.fisheye_info[3].intrinsic.fov = 200.0f;
+        info.fisheye_info[3].radius = 1984.0f;
+        info.fisheye_info[3].extrinsic.roll = 90.0f;
+        info.fisheye_info[4].intrinsic.cx = 1920.0f;
+        info.fisheye_info[4].intrinsic.cy = 1440.0f;
+        info.fisheye_info[4].intrinsic.fov = 200.0f;
+        info.fisheye_info[4].radius = 1984.0f;
+        info.fisheye_info[4].extrinsic.roll = 91.2f;
+        info.fisheye_info[5].intrinsic.cx = 1914.0f;
+        info.fisheye_info[5].intrinsic.cy = 1440.0f;
+        info.fisheye_info[5].intrinsic.fov = 200.0f;
+        info.fisheye_info[5].radius = 1984.0f;
+        info.fisheye_info[5].extrinsic.roll = 90.1f;
         break;
     }
     case CamD3C8K: {

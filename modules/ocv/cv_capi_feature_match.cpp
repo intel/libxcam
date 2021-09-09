@@ -22,6 +22,7 @@
 
 #include "cv_capi_feature_match.h"
 
+#if OPENCV_VERSION3
 #define XCAM_CV_CAPI_FM_DEBUG 0
 
 namespace XCam {
@@ -249,3 +250,4 @@ FeatureMatch::create_capi_feature_match ()
 }
 
 }
+#endif
