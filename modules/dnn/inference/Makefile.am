@@ -23,6 +23,7 @@ XCAM_DNN_LIBS = \
     $(NULL)
 
 if HAVE_OPENCV
+XCAM_DNN_CXXFLAGS += $(OPENCV_CFLAGS)
 XCAM_DNN_LIBS += $(top_builddir)/modules/ocv/libxcam_ocv.la
 endif
 
