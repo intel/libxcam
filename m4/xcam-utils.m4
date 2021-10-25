@@ -61,6 +61,7 @@ AC_DEFUN([XCAM_CHECK_OPENCV],
     AS_IF([test "x$1" = "xyes"],
         [
             ocv_version=`opencv_version`
+            AS_IF([test -z $ocv_version], [ocv_version=`$PKG_CONFIG --modversion opencv4`])
             AS_IF([test -z $ocv_version], [ocv_version=`$PKG_CONFIG --modversion opencv`])
             AC_MSG_NOTICE(OpenCV version: $ocv_version)
 
