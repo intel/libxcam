@@ -263,7 +263,7 @@ FisheyeMap::set_map_table (
     } else {
         float max_dst_latitude = (fisheye_info.intrinsic.fov > 180.0f) ? 180.0f : fisheye_info.intrinsic.fov;
         float max_dst_longitude;
-        if (0 != fisheye_info.intrinsic.width && 0 != fisheye_info.intrinsic.height) {
+        if (0 != fisheye_info.intrinsic.width && 0 != fisheye_info.intrinsic.height && fisheye_info.intrinsic.cam_model != 3) {
             if (abs (abs (fisheye_info.extrinsic.roll) - 90) < 10) {
                 max_dst_longitude = fisheye_info.intrinsic.fov * fisheye_info.intrinsic.height / fisheye_info.intrinsic.width;
             } else {
