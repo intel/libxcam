@@ -26,14 +26,6 @@
 
 namespace XCam {
 
-enum CamModel {
-    CamA2C1080P = 0,
-    CamB4C1080P,
-    CamC3C8K,
-    CamC6C8K,
-    CamD3C8K
-};
-
 enum StitchScopicMode {
     ScopicMono,
     ScopicStereoLeft,
@@ -58,8 +50,8 @@ static const char *extrinsic_names[] = {
 static const char *camera_calibration_json_names[] = {
     "",
     "",
-    "camera_calibration_insta.json",
-    "",
+    "camera_calibration_CamC3C8K.json",
+    "camera_calibration_CamC6C8K.json",
     "k_camera_calibration.json"
 };
 #endif
@@ -332,6 +324,17 @@ get_fisheye_info (CamModel model, StitchScopicMode scopic_mode, FisheyeInfo* fis
     }
 
     switch (scopic_mode) {
+    case ScopicMono: {
+        for (uint32_t i = 0; i < 6; i++) {
+            fisheye_info[i].intrinsic = info.fisheye_info[i].intrinsic;
+            fisheye_info[i].extrinsic = info.fisheye_info[i].extrinsic;
+            fisheye_info[i].cam_model = info.fisheye_info[i].cam_model;
+            for (uint32_t j = 0; j < sizeof (FisheyeInfo::distort_coeff) / sizeof(float); j++) {
+                fisheye_info[i].distort_coeff[j] = info.fisheye_info[i].distort_coeff[j];
+            }
+        }
+        break;
+    }
     case ScopicStereoLeft: {
         for (uint32_t i = 0; i < 3; i++) {
             fisheye_info[i].intrinsic = info.fisheye_info[2 * i].intrinsic;
@@ -440,36 +443,36 @@ soft_stitch_info (CamModel model, StitchScopicMode scopic_mode)
         info.merge_width[4] = 256;
         info.merge_width[5] = 256;
 
-        info.fisheye_info[0].intrinsic.cx = 1907.0f;
-        info.fisheye_info[0].intrinsic.cy = 1440.0f;
+        info.fisheye_info[0].intrinsic.cx = 1960.0f;
+        info.fisheye_info[0].intrinsic.cy = 1460.0f;
         info.fisheye_info[0].intrinsic.fov = 200.0f;
-        info.fisheye_info[0].radius = 1984.0f;
-        info.fisheye_info[0].extrinsic.roll = 90.3f;
-        info.fisheye_info[1].intrinsic.cx = 1920.0f;
-        info.fisheye_info[1].intrinsic.cy = 1440.0f;
+        info.fisheye_info[0].radius = 2040.0f;
+        info.fisheye_info[0].extrinsic.roll = 89.4f;
+        info.fisheye_info[1].intrinsic.cx = 1930.0f;
+        info.fisheye_info[1].intrinsic.cy = 1450.0f;
         info.fisheye_info[1].intrinsic.fov = 200.0f;
-        info.fisheye_info[1].radius = 1984.0f;
-        info.fisheye_info[1].extrinsic.roll = 90.0f;
-        info.fisheye_info[2].intrinsic.cx = 1920.0f;
-        info.fisheye_info[2].intrinsic.cy = 1440.0f;
+        info.fisheye_info[1].radius = 2040.0f;
+        info.fisheye_info[1].extrinsic.roll = 90.2f;
+        info.fisheye_info[2].intrinsic.cx = 1965.0f;
+        info.fisheye_info[2].intrinsic.cy = 1465.0f;
         info.fisheye_info[2].intrinsic.fov = 200.0f;
-        info.fisheye_info[2].radius = 1984.0f;
-        info.fisheye_info[2].extrinsic.roll = 90.2f;
-        info.fisheye_info[3].intrinsic.cx = 1920.0f;
-        info.fisheye_info[3].intrinsic.cy = 1440.0f;
+        info.fisheye_info[2].radius = 2040.0f;
+        info.fisheye_info[2].extrinsic.roll = 90.5f;
+        info.fisheye_info[3].intrinsic.cx = 1940.0f;
+        info.fisheye_info[3].intrinsic.cy = 1425.0f;
         info.fisheye_info[3].intrinsic.fov = 200.0f;
-        info.fisheye_info[3].radius = 1984.0f;
-        info.fisheye_info[3].extrinsic.roll = 90.0f;
-        info.fisheye_info[4].intrinsic.cx = 1920.0f;
-        info.fisheye_info[4].intrinsic.cy = 1440.0f;
+        info.fisheye_info[3].radius = 2040.0f;
+        info.fisheye_info[3].extrinsic.roll = 89.7f;
+        info.fisheye_info[4].intrinsic.cx = 1940.0f;
+        info.fisheye_info[4].intrinsic.cy = 1420.0f;
         info.fisheye_info[4].intrinsic.fov = 200.0f;
-        info.fisheye_info[4].radius = 1984.0f;
-        info.fisheye_info[4].extrinsic.roll = 91.2f;
-        info.fisheye_info[5].intrinsic.cx = 1914.0f;
-        info.fisheye_info[5].intrinsic.cy = 1440.0f;
+        info.fisheye_info[4].radius = 2040.0f;
+        info.fisheye_info[4].extrinsic.roll = 91.4f;
+        info.fisheye_info[5].intrinsic.cx = 1945.0f;
+        info.fisheye_info[5].intrinsic.cy = 1380.0f;
         info.fisheye_info[5].intrinsic.fov = 200.0f;
-        info.fisheye_info[5].radius = 1984.0f;
-        info.fisheye_info[5].extrinsic.roll = 90.1f;
+        info.fisheye_info[5].radius = 2040.0f;
+        info.fisheye_info[5].extrinsic.roll = 91.4f;
         break;
     }
     case CamD3C8K: {

@@ -549,6 +549,7 @@ static void usage(const char* arg0)
             "\t--frame-mode        optional, times of buffer reading, select from [single/multi], default: multi\n"
             "\t--save              optional, save file or not, select from [true/false], default: true\n"
             "\t--save-topview      optional, save top view video, select from [true/false], default: false\n"
+            "\t--save-cubemap      optional, save cubemap video, select from [true/false], default: false\n"
             "\t--loop              optional, how many loops need to run, default: 1\n"
             "\t--help              usage\n",
             arg0);
