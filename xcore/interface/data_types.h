@@ -28,6 +28,14 @@
 
 namespace XCam {
 
+enum CamModel {
+    CamA2C1080P = 0,
+    CamB4C1080P,
+    CamC3C8K,
+    CamC6C8K,
+    CamD3C8K
+};
+
 enum FisheyeDewarpMode {
     DewarpSphere = 0,
     DewarpBowl
@@ -75,7 +83,6 @@ struct ImageCropInfo {
 struct IntrinsicParameter {
     uint32_t width;
     uint32_t height;
-    uint32_t cam_model;
     float cx;
     float cy;
     float fx;
@@ -143,6 +150,7 @@ struct FisheyeInfo : CalibrationInfo {
     float radius;
     float distort_coeff[4];
     float c_coeff[4];
+    uint32_t cam_model;
 
     FisheyeInfo ()
         : radius (0.0f)

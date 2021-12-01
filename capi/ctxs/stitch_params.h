@@ -26,13 +26,6 @@
 
 namespace XCam {
 
-enum CamModel {
-    CamA2C1080P = 0,
-    CamB4C1080P,
-    CamC3C8K,
-    CamD3C8K
-};
-
 enum StitchScopicMode {
     ScopicMono,
     ScopicStereoLeft,
