@@ -194,22 +194,23 @@ CVFeatureMatch::detect_and_match (cv::Mat img_left, cv::Mat img_right)
 {
     std::vector<float> err;
     std::vector<uchar> status;
-    std::vector<cv::Point2f> corner_left, corner_right;
     cv::Ptr<cv::Feature2D> fast_detector;
     cv::Size win_size = cv::Size (5, 5);
 
+    _left_corner.clear ();
+    _right_corner.clear ();
     fast_detector = cv::FastFeatureDetector::create (20, true);
-    add_detected_data (img_left, fast_detector, corner_left);
+    add_detected_data (img_left, fast_detector, _left_corner);
 
-    if (corner_left.empty ()) {
+    if (_left_corner.empty ()) {
         return;
     }
 
     cv::calcOpticalFlowPyrLK (
-        img_left, img_right, corner_left, corner_right, status, err, win_size, 3,
+        img_left, img_right, _left_corner, _right_corner, status, err, win_size, 3,
         cv::TermCriteria (cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 10, 0.01f));
 
-    calc_of_match (img_left, img_right, corner_left, corner_right, status, err);
+    calc_of_match (img_left, img_right, _left_corner, _right_corner, status, err);
 
     if (_need_adjust)
         adjust_crop_area ();
@@ -242,6 +243,22 @@ CVFeatureMatch::feature_match (
     debug_write_image (left_buf, right_buf, _left_rect, _right_rect, _frame_num, _fm_idx);
     _frame_num++;
 #endif
+}
+
+void
+CVFeatureMatch::get_correspondence (std::vector<PointFloat2> &left_match, std::vector<PointFloat2>&right_match)
+{
+    XCAM_ASSERT (_left_corner.size() == _right_corner.size());
+
+    left_match.resize (_left_corner.size());
+    right_match.resize (_right_corner.size());
+
+    for (auto & left : _left_corner) {
+        left_match.push_back (PointFloat2 (left.x, left.y));
+    }
+    for (auto & right : _right_corner) {
+        right_match.push_back (PointFloat2 (right.x, right.y));
+    }
 }
 
 void

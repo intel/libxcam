@@ -45,6 +45,8 @@ public:
     virtual void feature_match (
         const SmartPtr<VideoBuffer> &left_buf, const SmartPtr<VideoBuffer> &right_buf);
 
+    virtual void get_correspondence (std::vector<PointFloat2> &left_match, std::vector<PointFloat2> &right_match);
+
 protected:
     void add_detected_data (cv::Mat image, cv::Ptr<cv::Feature2D> detector, std::vector<cv::Point2f> &corners);
 
@@ -71,6 +73,10 @@ private:
 
 private:
     XCAM_DEAD_COPY (CVFeatureMatch);
+
+protected:
+    std::vector<cv::Point2f> _left_corner;
+    std::vector<cv::Point2f> _right_corner;
 
 private:
     int         _dst_width;

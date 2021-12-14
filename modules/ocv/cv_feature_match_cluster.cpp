@@ -248,22 +248,22 @@ CVFeatureMatchCluster::detect_and_match (cv::Mat img_left, cv::Mat img_right)
 {
     std::vector<float> err;
     std::vector<uchar> status;
-    std::vector<cv::Point2f> corner_left, corner_right;
     cv::Ptr<cv::Feature2D> fast_detector;
     cv::Size win_size = cv::Size (21, 21);
 
+    _left_corner.clear ();
+    _right_corner.clear ();
     fast_detector = cv::FastFeatureDetector::create (20, true);
-    add_detected_data (img_left, fast_detector, corner_left);
+    add_detected_data (img_left, fast_detector, _left_corner);
 
-    if (corner_left.empty ()) {
+    if (_left_corner.empty ()) {
         return;
     }
-
     cv::calcOpticalFlowPyrLK (
-        img_left, img_right, corner_left, corner_right, status, err, win_size, 3,
+        img_left, img_right, _left_corner, _right_corner, status, err, win_size, 3,
         cv::TermCriteria (cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 30, 0.01f));
 
-    calc_of_match (img_left, img_right, corner_left, corner_right, status, err);
+    calc_of_match (img_left, img_right, _left_corner, _right_corner, status, err);
 
 #if XCAM_CV_FM_DEBUG
     XCAM_LOG_INFO ("x_offset:%0.2f", _x_offset);
