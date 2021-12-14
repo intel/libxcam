@@ -76,6 +76,8 @@ public:
     virtual void set_dst_width (int width);
     virtual void enable_adjust_crop_area ();
 
+    virtual void get_correspondence (std::vector<PointFloat2> &left_points, std::vector<PointFloat2> &right_points);
+
 protected:
     bool get_mean_offset (const std::vector<float> &offsets, float sum, int &count, float &mean_offset);
 

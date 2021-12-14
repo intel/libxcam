@@ -156,4 +156,15 @@ FeatureMatch::get_mean_offset (
     return ret;
 }
 
+void
+FeatureMatch::get_correspondence (std::vector<PointFloat2> &points_left, std::vector<PointFloat2> &points_right)
+{
+    XCAM_UNUSED (points_left);
+    XCAM_UNUSED (points_right);
+
+    XCAM_LOG_ERROR ("get correspondence is not supported");
+    XCAM_ASSERT (false);
+
+}
+
 }
