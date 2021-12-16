@@ -41,14 +41,16 @@ CVFeatureMatchCluster::calc_mean_offset (
     std::vector<std::vector<uint32_t>> clusters;
     std::vector<std::vector<cv::Point2f>> clusters_offsets;
     std::vector<uint32_t> valid_seeds (status.size ());
-    std::vector<uint32_t> valid_corners (status.size ());
+    _valid_corners.clear ();
+    _valid_corners.reserve (corner0.size ());
+    _valid_corners.insert (_valid_corners.begin (), corner0.size (), false);
 
     for (uint32_t i = 0; i < status.size (); ++i) {
         if (!status[i] || (error[i] > _config.max_track_error) || corner1[i].x < 0.0f || corner1[i].x > img0_size.width) {
-            valid_corners[i] = 0;
+            _valid_corners[i] = 0;
             valid_seeds[i] = 0;
         } else {
-            valid_corners[i] = 1;
+            _valid_corners[i] = 1;
             valid_seeds[i] = 1;
         }
     }
@@ -70,7 +72,7 @@ CVFeatureMatchCluster::calc_mean_offset (
                 seed_y_offset = corner1[i].y - corner0[i].y;
                 cluster.push_back (i);
                 cluster_offset.push_back (cv::Point2f(seed_x_offset, seed_y_offset));
-                valid_corners[i] = 0;
+                _valid_corners[i] = 0;
                 valid_seeds[i] = 0;
                 break;
             }
@@ -78,7 +80,7 @@ CVFeatureMatchCluster::calc_mean_offset (
 
         if (cluster.size() > 0) {
             for (uint32_t i = 0; i < status.size (); ++i) {
-                if (!valid_corners[i])
+                if (!_valid_corners[i])
                     continue;
 
                 float x_offset = corner1[i].x - corner0[i].x;
@@ -176,6 +178,15 @@ CVFeatureMatchCluster::calc_mean_offset (
     XCAM_UNUSED (img0_size);
     XCAM_UNUSED (img1_size);
 
+    _valid_corners.clear ();
+    _valid_corners.insert (_valid_corners.begin (), corner1.size (), false);
+
+    if (clusters.size () != 0)
+        cluster = clusters[max_index];
+    for (uint32_t i = 0; i < cluster.size (); ++i) {
+        _valid_corners[i] = true;
+    }
+
     clusters.clear ();
     clusters_offsets.clear ();
 
@@ -251,19 +262,19 @@ CVFeatureMatchCluster::detect_and_match (cv::Mat img_left, cv::Mat img_right)
     cv::Ptr<cv::Feature2D> fast_detector;
     cv::Size win_size = cv::Size (21, 21);
 
-    _left_corner.clear ();
-    _right_corner.clear ();
+    _left_corners.clear ();
+    _right_corners.clear ();
     fast_detector = cv::FastFeatureDetector::create (20, true);
-    add_detected_data (img_left, fast_detector, _left_corner);
+    add_detected_data (img_left, fast_detector, _left_corners);
 
-    if (_left_corner.empty ()) {
+    if (_left_corners.empty ()) {
         return;
     }
     cv::calcOpticalFlowPyrLK (
-        img_left, img_right, _left_corner, _right_corner, status, err, win_size, 3,
+        img_left, img_right, _left_corners, _right_corners, status, err, win_size, 3,
         cv::TermCriteria (cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 30, 0.01f));
 
-    calc_of_match (img_left, img_right, _left_corner, _right_corner, status, err);
+    calc_of_match (img_left, img_right, _left_corners, _right_corners, status, err);
 
 #if XCAM_CV_FM_DEBUG
     XCAM_LOG_INFO ("x_offset:%0.2f", _x_offset);

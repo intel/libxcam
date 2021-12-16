@@ -75,8 +75,9 @@ private:
     XCAM_DEAD_COPY (CVFeatureMatch);
 
 protected:
-    std::vector<cv::Point2f> _left_corner;
-    std::vector<cv::Point2f> _right_corner;
+    std::vector<cv::Point2f> _left_corners;
+    std::vector<cv::Point2f> _right_corners;
+    std::vector<bool> _valid_corners;
 
 private:
     int         _dst_width;
