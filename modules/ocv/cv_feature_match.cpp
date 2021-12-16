@@ -76,6 +76,9 @@ CVFeatureMatch::get_valid_offsets (
 {
     count = 0;
     sum = 0.0f;
+    _valid_corners.clear ();
+    _valid_corners.reserve (corner0.size ());
+    _valid_corners.insert (_valid_corners.begin (), corner0.size (), false);
     for (uint32_t i = 0; i < status.size (); ++i) {
         if (!status[i])
             continue;
@@ -95,6 +98,7 @@ CVFeatureMatch::get_valid_offsets (
         sum += offset;
         ++count;
         offsets.push_back (offset);
+        _valid_corners[i] = true;
 
 #if XCAM_CV_FM_DEBUG
         cv::Point end = (cv::Point(corner1[i]) + cv::Point (img0_size.width, 0)) * XCAM_CV_OF_DRAW_SCALE;
@@ -197,20 +201,20 @@ CVFeatureMatch::detect_and_match (cv::Mat img_left, cv::Mat img_right)
     cv::Ptr<cv::Feature2D> fast_detector;
     cv::Size win_size = cv::Size (5, 5);
 
-    _left_corner.clear ();
-    _right_corner.clear ();
+    _left_corners.clear ();
+    _right_corners.clear ();
     fast_detector = cv::FastFeatureDetector::create (20, true);
-    add_detected_data (img_left, fast_detector, _left_corner);
+    add_detected_data (img_left, fast_detector, _left_corners);
 
-    if (_left_corner.empty ()) {
+    if (_left_corners.empty ()) {
         return;
     }
 
     cv::calcOpticalFlowPyrLK (
-        img_left, img_right, _left_corner, _right_corner, status, err, win_size, 3,
+        img_left, img_right, _left_corners, _right_corners, status, err, win_size, 3,
         cv::TermCriteria (cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 10, 0.01f));
 
-    calc_of_match (img_left, img_right, _left_corner, _right_corner, status, err);
+    calc_of_match (img_left, img_right, _left_corners, _right_corners, status, err);
 
     if (_need_adjust)
         adjust_crop_area ();
@@ -248,16 +252,16 @@ CVFeatureMatch::feature_match (
 void
 CVFeatureMatch::get_correspondence (std::vector<PointFloat2> &left_match, std::vector<PointFloat2>&right_match)
 {
-    XCAM_ASSERT (_left_corner.size() == _right_corner.size());
+    XCAM_ASSERT (_left_corners.size () == _valid_corners.size ());
+    XCAM_ASSERT (_left_corners.size () == _valid_corners.size ());
 
-    left_match.resize (_left_corner.size());
-    right_match.resize (_right_corner.size());
-
-    for (auto & left : _left_corner) {
-        left_match.push_back (PointFloat2 (left.x, left.y));
-    }
-    for (auto & right : _right_corner) {
-        right_match.push_back (PointFloat2 (right.x, right.y));
+    left_match.clear ();
+    right_match.clear ();
+    for (uint32_t idx = 0; idx < _left_corners.size (); idx++) {
+        if (_valid_corners[idx]) {
+            left_match.push_back (PointFloat2 (_left_corners[idx].x, _left_corners[idx].y));
+            right_match.push_back (PointFloat2 (_right_corners[idx].x, _right_corners[idx].y));
+        }
     }
 }
 
