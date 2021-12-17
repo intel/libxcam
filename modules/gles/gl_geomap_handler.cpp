@@ -27,14 +27,6 @@
 
 namespace XCam {
 
-enum ShaderID {
-    ShaderComMapNV12 = 0,    // NV12 common mapping
-    ShaderComMapYUV420,      // YUV420 common mapping
-    ShaderFastMapY,          // Y planar fast mapping
-    ShaderFastMapUVNV12,     // NV12 UV planar fast mapping
-    ShaderFastMapUVYUV420    // YUV420 UV planar fast mapping
-};
-
 static const GLShaderInfo shaders_info[] = {
     {
         GL_COMPUTE_SHADER,
@@ -69,6 +61,14 @@ static const GLShaderInfo shaders_info[] = {
 };
 
 namespace GLGeoMapPriv {
+
+enum ShaderID {
+    ShaderComMapNV12 = 0,    // NV12 common mapping
+    ShaderComMapYUV420,      // YUV420 common mapping
+    ShaderFastMapY,          // Y planar fast mapping
+    ShaderFastMapUVNV12,     // NV12 UV planar fast mapping
+    ShaderFastMapUVYUV420    // YUV420 UV planar fast mapping
+};
 
 class ComMap
 {

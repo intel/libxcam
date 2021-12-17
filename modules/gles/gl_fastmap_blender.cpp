@@ -24,12 +24,6 @@
 
 namespace XCam {
 
-enum ShaderID {
-    ShaderFastmapBlendY = 0,
-    ShaderFastmapBlendUVNV12,
-    ShaderFastmapBlendUVYUV420
-};
-
 static const GLShaderInfo shaders_info[] = {
     {
         GL_COMPUTE_SHADER,
@@ -52,6 +46,12 @@ static const GLShaderInfo shaders_info[] = {
 };
 
 namespace GLFastmapBlendPriv {
+
+enum ShaderID {
+    ShaderFastmapBlendY = 0,
+    ShaderFastmapBlendUVNV12,
+    ShaderFastmapBlendUVYUV420
+};
 
 class Impl
 {
