@@ -676,7 +676,6 @@ XCamReturn
 StitcherImpl::start_geomap_works (const SmartPtr<SoftStitcher::StitcherParam> &param)
 {
     uint32_t camera_num = _stitcher->get_camera_num ();
-    Factor cur_left, cur_right;
 
     for (uint32_t i = 0; i < camera_num; ++i) {
         SmartPtr<VideoBuffer> out_buf = _fisheye[i].buf_pool->get_buffer ();
