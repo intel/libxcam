@@ -263,15 +263,8 @@ FisheyeMap::set_map_table (
     } else {
         float max_dst_latitude = (fisheye_info.intrinsic.fov > 180.0f) ? 180.0f : fisheye_info.intrinsic.fov;
         float max_dst_longitude;
-        if (fisheye_info.cam_model == CamD3C8K) {
-            if (abs (abs (fisheye_info.extrinsic.roll) - 90) < 10) {
-                max_dst_longitude = fisheye_info.intrinsic.fov * fisheye_info.intrinsic.height / fisheye_info.intrinsic.width;
-            } else {
-                max_dst_longitude = fisheye_info.intrinsic.fov * fisheye_info.intrinsic.width / fisheye_info.intrinsic.height;
-            }
-        } else {
-            max_dst_longitude = max_dst_latitude * view_slice.width / view_slice.height;
-        }
+
+        max_dst_longitude = max_dst_latitude * view_slice.width / view_slice.height;
 
         SmartPtr<SphereFisheyeDewarp> fd = new SphereFisheyeDewarp ();
         fd->set_fisheye_info (fisheye_info);

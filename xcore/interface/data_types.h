@@ -31,9 +31,11 @@ namespace XCam {
 enum CamModel {
     CamA2C1080P = 0,
     CamB4C1080P,
+    CamC3C4K,
     CamC3C8K,
     CamC6C8K,
-    CamD3C8K
+    CamD3C8K,
+    CamD6C8K
 };
 
 enum FisheyeDewarpMode {

@@ -284,7 +284,7 @@ set_map_table (SmartPtr<GeoMapper> mapper, uint32_t stitch_width, uint32_t stitc
     viewpoints_range (cam_model, vp_range);
 
     StitchScopicMode scopic_mode = ScopicStereoRight;
-    StitchInfo info = soft_stitch_info (cam_model, scopic_mode);
+    StitchInfo info = stitch_info (cam_model, scopic_mode);
     dewarper->set_fisheye_info (info.fisheye_info[0]);
 
     Stitcher::RoundViewSlice view_slice;
