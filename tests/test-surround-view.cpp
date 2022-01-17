@@ -528,7 +528,7 @@ static void usage(const char* arg0)
             "\t--in-format         optional, pixel format, select from [nv12/yuv], default: nv12\n"
             "\t--fisheye-num       optional, the number of fisheye lens, default: 4\n"
             "\t--cam-model         optional, camera model\n"
-            "\t                    select from [cama2c1080p/camb4c1080p/camc3c8k/camc6c8k/camd3c8k], default: camb4c1080p\n"
+            "\t                    select from [cama2c1080p/camb4c1080p/camc3c4k/camc3c8k/camc6c8k/camd3c8k/camd6c8k], default: camb4c1080p\n"
             "\t--blend-pyr-levels  optional, the pyramid levels of blender, default: 2\n"
             "\t--dewarp-mode       optional, fisheye dewarp mode, select from [sphere/bowl], default: bowl\n"
             "\t--scopic-mode       optional, scopic mode, select from [mono/stereoleft/stereoright], default: mono\n"
@@ -704,12 +704,16 @@ int main (int argc, char *argv[])
                 cam_model = CamA2C1080P;
             else if (!strcasecmp (optarg, "camb4c1080p"))
                 cam_model = CamB4C1080P;
+            else if (!strcasecmp(optarg, "camc3c4k"))
+                cam_model = CamC3C4K;
             else if (!strcasecmp (optarg, "camc3c8k"))
                 cam_model = CamC3C8K;
             else if (!strcasecmp (optarg, "camc6c8k"))
                 cam_model = CamC6C8K;
             else if (!strcasecmp (optarg, "camd3c8k"))
                 cam_model = CamD3C8K;
+            else if (!strcasecmp (optarg, "camd6c8k"))
+                cam_model = CamD6C8K;
             else {
                 XCAM_LOG_ERROR ("incorrect camera model: %s", optarg);
                 usage (argv[0]);
@@ -855,7 +859,8 @@ int main (int argc, char *argv[])
         printf ("input%d file:\t\t%s\n", i, ins[i]->get_file_name ());
     }
     printf ("camera model:\t\t%s\n", cam_model == CamA2C1080P ? "cama2c1080p" :
-            (cam_model == CamB4C1080P ? "camb4c1080p" : (cam_model == CamC3C8K ? "camc3c8k" : (cam_model == CamC6C8K ? "camc6c8k" : "camd3c8k"))));
+            (cam_model == CamB4C1080P ? "camb4c1080p" : (cam_model == CamC3C4K ? "camc3c4k" : (cam_model == CamC3C8K ? "camc3c8k" :
+                    (cam_model == CamC6C8K ? "camc6c8k" : (cam_model == CamD3C8K ? "camd3c8k" : "camd6c8k"))))));
     printf ("fisheye number:\t\t%d\n", fisheye_num);
     printf ("stitch module:\t\t%s\n", module == SVModuleGLES ? "GLES" :
             (module == SVModuleVulkan ? "Vulkan" : (module == SVModuleSoft ? "Soft" : "Unknown")));
@@ -934,9 +939,9 @@ int main (int argc, char *argv[])
     }
 
 #if ENABLE_FISHEYE_IMG_ROI
-    if (module == SVModuleGLES && (cam_model == CamC3C8K || cam_model == CamC6C8K || cam_model == CamD3C8K)) {
-        StitchInfo info = (module == SVModuleSoft) ?
-                          soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
+    if (module == SVModuleGLES && (cam_model == CamC3C4K || cam_model == CamC3C8K || cam_model == CamC6C8K ||
+                                   cam_model == CamD3C8K || cam_model == CamD6C8K)) {
+        StitchInfo info = stitch_info (cam_model, scopic_mode);
 
         get_fisheye_info (cam_model, scopic_mode, info.fisheye_info);
 
@@ -987,8 +992,7 @@ int main (int argc, char *argv[])
 #if HAVE_OPENCV
         stitcher->set_fm_frames (fm_frames);
         stitcher->set_fm_status (fm_status);
-        FMConfig cfg = (module == SVModuleSoft) ? soft_fm_config (cam_model) :
-                       ((module == SVModuleGLES) ? gl_fm_config (cam_model) : vk_fm_config (cam_model));
+        FMConfig cfg = fm_config (cam_model);
         stitcher->set_fm_config (cfg);
         if (dewarp_mode == DewarpSphere) {
             stitcher->set_fm_region_ratio (fm_region_ratio (cam_model));
@@ -1000,8 +1004,7 @@ int main (int argc, char *argv[])
         delete [] vp_range;
 
         if (dewarp_mode == DewarpSphere) {
-            StitchInfo info = (module == SVModuleSoft) ?
-                              soft_stitch_info (cam_model, scopic_mode) : gl_stitch_info (cam_model, scopic_mode);
+            StitchInfo info = stitch_info (cam_model, scopic_mode);
 
             get_fisheye_info (cam_model, scopic_mode, info.fisheye_info);
 
