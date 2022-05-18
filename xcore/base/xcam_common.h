@@ -75,7 +75,7 @@ void xcam_free (void *ptr);
   * return, 0 successfully
   *            else, check errno
   */
-int xcam_device_ioctl (int fd, int cmd, void *arg);
+int xcam_device_ioctl (int fd, uint32_t cmd, void *arg);
 const char *xcam_fourcc_to_string (uint32_t fourcc);
 
 void xcam_set_log (const char* file_name);

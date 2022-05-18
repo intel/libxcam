@@ -53,7 +53,7 @@ void xcam_free(void *ptr)
         free (ptr);
 }
 
-int xcam_device_ioctl (int fd, int cmd, void *arg)
+int xcam_device_ioctl (int fd, uint32_t cmd, void *arg)
 {
     int ret = 0;
     int tried_time = 0;

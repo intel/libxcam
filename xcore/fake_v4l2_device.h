@@ -33,7 +33,7 @@ public:
         : V4l2Device ("/dev/null")
     {}
 
-    int io_control (int cmd, void *arg)
+    int io_control (uint32_t cmd, void *arg)
     {
         XCAM_UNUSED (arg);
 
