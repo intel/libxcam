@@ -24,6 +24,7 @@ endif
 xcam_gles_sources = \
     gles_std.cpp           \
     gl_buffer.cpp          \
+    gl_texture.cpp         \
     gl_program.cpp         \
     gl_sync.cpp            \
     gl_shader.cpp          \
@@ -34,6 +35,7 @@ xcam_gles_sources = \
     gl_image_shader.cpp    \
     gl_image_handler.cpp   \
     gl_copy_handler.cpp    \
+    gl_dma_buffer_handler.cpp \
     gl_geomap_handler.cpp  \
     gl_blender.cpp         \
     gl_fastmap_blender.cpp \

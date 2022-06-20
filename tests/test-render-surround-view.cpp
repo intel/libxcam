@@ -685,8 +685,7 @@ int main (int argc, char *argv[])
             XCAM_LOG_WARNING ("GLES module does not support Dual Curve scale mode currently, change to Single Const scale mode");
             scale_mode = ScaleSingleConst;
         }
-        SmartPtr<EGLBase> egl;
-        egl = new EGLBase ();
+        SmartPtr<EGLBase> egl = EGLBase::instance ();
         XCAM_ASSERT (egl.ptr ());
         XCAM_FAIL_RETURN (ERROR, egl->init (), -1, "init EGL failed");
 #else

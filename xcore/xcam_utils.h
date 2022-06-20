@@ -60,7 +60,7 @@ void get_gauss_table (
     uint32_t radius, float sigma, std::vector<float> &table, bool normalize = true);
 
 class VideoBuffer;
-void dump_buf_perfix_path (const SmartPtr<VideoBuffer> buf, const char *prefix_name);
+void dump_buf_perfix_path (const SmartPtr<VideoBuffer> buf, const char *prefix_name, const uint32_t idx = 0);
 bool dump_video_buf (const SmartPtr<VideoBuffer> buf, const char *file_name);
 bool dump_data_buf (const void *buf, const size_t &size, const char *file_name);
 

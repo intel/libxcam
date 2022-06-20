@@ -168,6 +168,7 @@ private:
 };
 
 class GLBuffer;
+class GLTexture;
 
 class GLCmdBindBufBase
     : public GLCommand
@@ -201,6 +202,23 @@ private:
     uint32_t                  _size;
 };
 
+class GLCmdBindTexture
+    : public GLCommand
+{
+public:
+    GLCmdBindTexture (const SmartPtr<GLTexture> &texture, uint32_t index);
+    virtual ~GLCmdBindTexture ();
+
+    virtual XCamReturn run (GLuint program);
+
+private:
+    SmartPtr<GLTexture>       _texture;
+    uint32_t                  _index;
+    uint32_t                  _offset;
+    uint32_t                  _size;
+};
+
 }
 
 #endif // XCAM_GL_COMMAND_H
+

@@ -29,14 +29,20 @@
 #include <unistd.h>
 #endif
 
+#include <xcam_mutex.h>
+
 namespace XCam {
+
+class GLTexture;
+class VideoBuffer;
 
 class EGLBase {
 public:
-    explicit EGLBase ();
     ~EGLBase ();
+    static SmartPtr<EGLBase> instance ();
 
     bool init (const char* node_name = NULL);
+    bool is_inited () const;
 
     bool get_display (const char *node_name, EGLDisplay &display);
     bool get_display (NativeDisplayType native_display, EGLDisplay &display);
@@ -57,7 +63,24 @@ public:
     bool destroy_surface (EGLDisplay display, EGLSurface &surface);
     bool terminate (EGLDisplay display);
 
+    EGLImage create_image (int dmabuf_fd,
+                           EGLuint64KHR modifiers,
+                           uint32_t width,
+                           uint32_t height,
+                           EGLint stride,
+                           EGLint offset,
+                           int fourcc);
+
+    bool destroy_image (EGLImage image);
+
+    SmartPtr<VideoBuffer> export_dma_buffer (const SmartPtr<GLTexture>& gl_texture);
+
 private:
+    EGLBase ();
+
+private:
+    static SmartPtr<EGLBase>  _instance;
+    static Mutex      _instance_mutex;
     EGLDisplay        _display;
     EGLContext        _context;
     EGLSurface        _surface;
@@ -66,6 +89,8 @@ private:
     gbm_device        *_gbm_device;
     int32_t           _device;
 #endif
+    bool              _inited;
+
 };
 
 }
