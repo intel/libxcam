@@ -40,8 +40,10 @@ VideoBufferInfo::VideoBufferInfo ()
     aligned_height = 0;
     size = 0;
     components  = 0;
+    fourcc = 0;
     xcam_mem_clear (strides);
     xcam_mem_clear (offsets);
+    xcam_mem_clear (modifiers);
 }
 
 bool
@@ -69,9 +71,11 @@ VideoBufferInfo::fill (const XCamVideoBufferInfo &info)
     aligned_height = info.aligned_height;
     size = info.size;
     components = info.components;
+    fourcc = info.fourcc;
     for (int i = 0; i < XCAM_VIDEO_MAX_COMPONENTS; i++) {
         strides[i] = info.strides[i];
         offsets[i] = info.offsets[i];
+        modifiers[i] = info.modifiers[i];
     }
 
     return true;

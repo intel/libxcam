@@ -20,6 +20,7 @@
 
 #include "gl_command.h"
 #include "gl_buffer.h"
+#include "gl_texture.h"
 
 namespace XCam {
 
@@ -258,6 +259,31 @@ GLCmdBindBufRange::run (GLuint program)
     XCAM_FAIL_RETURN (
         ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
         "GLCmdBindBufRange failed, idx:%d", _index);
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+GLCmdBindTexture::GLCmdBindTexture (
+    const SmartPtr<GLTexture> &texture, uint32_t index)
+    : _index (index)
+{
+    XCAM_ASSERT (texture.ptr ());
+    _texture = texture;
+}
+
+GLCmdBindTexture::~GLCmdBindTexture ()
+{
+}
+
+XCamReturn
+GLCmdBindTexture::run (GLuint program)
+{
+    XCAM_UNUSED (program);
+
+    XCamReturn ret = _texture->bind_image (_index);
+    XCAM_FAIL_RETURN (
+        ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
+        "GLCmdBindTexture failed, idx:%d", _index);
 
     return XCAM_RETURN_NO_ERROR;
 }

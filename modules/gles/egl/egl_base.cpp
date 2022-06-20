@@ -16,11 +16,31 @@
  * limitations under the License.
  *
  * Author: Yinhang Liu <yinhangx.liu@intel.com>
+ * Author: Wei Zong <wei.zong@intel.com>
  */
 
 #include "egl_base.h"
 
+#include "gl_texture.h"
+
+#include <dma_video_buffer.h>
+
 namespace XCam {
+
+SmartPtr<EGLBase> EGLBase::_instance;
+Mutex EGLBase::_instance_mutex;
+
+SmartPtr<EGLBase>
+EGLBase::instance ()
+{
+    SmartLock locker(_instance_mutex);
+    if (_instance.ptr())
+        return _instance;
+
+    _instance = new EGLBase ();
+
+    return _instance;
+}
 
 EGLBase::EGLBase ()
     : _display (EGL_NO_DISPLAY)
@@ -31,12 +51,15 @@ EGLBase::EGLBase ()
     , _gbm_device (NULL)
     , _device (0)
 #endif
+    , _inited (false)
 {
 }
 
 EGLBase::~EGLBase ()
 {
     if (_display != EGL_NO_DISPLAY) {
+        XCAM_LOG_DEBUG ("EGLBase::~EGLBase distroy display:%d\n", _display);
+
         if (_context != EGL_NO_CONTEXT) {
             destroy_context (_display, _context);
             _context = EGL_NO_CONTEXT;
@@ -65,6 +88,11 @@ EGLBase::~EGLBase ()
 bool
 EGLBase::init (const char* node_name)
 {
+    if (_inited) {
+        XCAM_LOG_WARNING ("EGLBase::init already inited! \n");
+        return true;
+    }
+
     bool ret = false;
     if (NULL != node_name) {
         XCAM_LOG_DEBUG ("EGL init: %s", node_name);
@@ -93,7 +121,15 @@ EGLBase::init (const char* node_name)
     ret = make_current (_display, _surface, _surface, _context);
     XCAM_FAIL_RETURN (ERROR, ret, false, "EGLInit: make current failed");
 
+    _inited = true;
+
     return true;
+}
+
+bool
+EGLBase::is_inited () const
+{
+    return _inited;
 }
 
 bool
@@ -219,6 +255,7 @@ EGLBase::destroy_context (EGLDisplay display, EGLContext &context)
         "EGLInit: destroy context failed, error flag: %s",
         EGL::error_string (EGL::get_error ()));
     XCAM_FAIL_RETURN (ERROR, ret == EGL_TRUE, false, "EGLInit: destroy context failed");
+
     return true;
 }
 
@@ -231,6 +268,7 @@ EGLBase::destroy_surface (EGLDisplay display, EGLSurface &surface)
         "EGLInit: destroy surface failed, error flag: %s",
         EGL::error_string (EGL::get_error ()));
     XCAM_FAIL_RETURN (ERROR, ret == EGL_TRUE, false, "EGLInit: destroy surface failed");
+
     return true;
 }
 
@@ -244,6 +282,117 @@ EGLBase::terminate (EGLDisplay display)
         EGL::error_string (EGL::get_error ()));
     XCAM_FAIL_RETURN (ERROR, ret == EGL_TRUE, false, "EGLInit: terminate failed");
     return true;
+}
+
+EGLImage
+EGLBase::create_image (
+    int dmabuf_fd,
+    EGLuint64KHR modifiers,
+    uint32_t width,
+    uint32_t height,
+    EGLint stride,
+    EGLint offset,
+    int fourcc)
+{
+    EGLAttrib const attribute_list[] = {
+        EGL_WIDTH, width,
+        EGL_HEIGHT, height,
+        EGL_LINUX_DRM_FOURCC_EXT, fourcc,
+        EGL_DMA_BUF_PLANE0_FD_EXT, dmabuf_fd,
+        EGL_DMA_BUF_PLANE0_OFFSET_EXT, offset,
+        EGL_DMA_BUF_PLANE0_PITCH_EXT, stride,
+        EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT, (uint32_t)(modifiers & ((((uint64_t)1) << 33) - 1)),
+        EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT, (uint32_t)((modifiers >> 32) & ((((uint64_t)1) << 33) - 1)),
+        EGL_NONE
+    };
+
+    EGLImage egl_image = eglCreateImage (_display,
+                                         NULL,
+                                         EGL_LINUX_DMA_BUF_EXT,
+                                         (EGLClientBuffer)NULL,
+                                         attribute_list);
+
+    XCAM_ASSERT (egl_image != EGL_NO_IMAGE);
+
+    return egl_image;
+}
+
+bool
+EGLBase::destroy_image (EGLImage image)
+{
+    EGLBoolean ret = eglDestroyImage (_display, image);
+
+    return ret;
+}
+
+SmartPtr<VideoBuffer>
+EGLBase::export_dma_buffer (const SmartPtr<GLTexture>& gl_texture)
+{
+    int dmabuf_fd;
+    int fourcc;
+    int num_planes;
+    EGLuint64KHR modifiers;
+    EGLint stride;
+    EGLint offset;
+
+    GLuint tex_id = gl_texture->get_texture_id ();
+    uint32_t width = gl_texture->get_width ();
+    uint32_t height = gl_texture->get_height ();
+    uint32_t format = gl_texture->get_format ();
+
+    // EGL: Create EGL image from the GL texture
+    EGLImage egl_image = eglCreateImage (_display,
+                                         _context,
+                                         EGL_GL_TEXTURE_2D,
+                                         (EGLClientBuffer)(uint64_t)tex_id,
+                                         NULL);
+
+    XCAM_ASSERT (egl_image != EGL_NO_IMAGE);
+
+    PFNEGLEXPORTDMABUFIMAGEQUERYMESAPROC eglExportDMABUFImageQueryMESA =
+        (PFNEGLEXPORTDMABUFIMAGEQUERYMESAPROC)eglGetProcAddress ("eglExportDMABUFImageQueryMESA");
+
+    EGLBoolean queried = eglExportDMABUFImageQueryMESA (_display,
+                         egl_image,
+                         &fourcc,
+                         &num_planes,
+                         &modifiers);
+
+    if (!queried) {
+        XCAM_LOG_ERROR ("egl query export DMA buffer image MESA failed!");
+        return NULL;
+    }
+
+    PFNEGLEXPORTDMABUFIMAGEMESAPROC eglExportDMABUFImageMESA =
+        (PFNEGLEXPORTDMABUFIMAGEMESAPROC)eglGetProcAddress ("eglExportDMABUFImageMESA");
+
+    EGLBoolean exported = eglExportDMABUFImageMESA (_display,
+                          egl_image,
+                          &dmabuf_fd,
+                          &stride,
+                          &offset);
+
+    if (!exported) {
+        XCAM_LOG_ERROR ("egl export DMA buffer image MESA failed!");
+        return NULL;
+    }
+
+    VideoBufferInfo info;
+    info.init (format, width, height);
+    info.strides[0] = stride;
+    info.offsets[0] = offset;
+    info.modifiers[0] = modifiers;
+    info.fourcc = fourcc;
+
+    XCAM_LOG_DEBUG ("DMA buffer width:%d, height:%d, stride:%d, offset:%d", info.width, info.height, info.strides[0], info.offsets[0]);
+    XCAM_LOG_DEBUG ("  modifiers:%lu, fd:%d, fourcc:%s", info.modifiers[0], dmabuf_fd, xcam_fourcc_to_string(info.fourcc));
+    XCAM_LOG_DEBUG ("  foucc:%s", xcam_fourcc_to_string (fourcc));
+
+
+    SmartPtr<DmaVideoBuffer> dma_buf = new DmaVideoBuffer (info, dmabuf_fd);
+    XCAM_ASSERT (dma_buf.ptr ());
+
+    return dma_buf;
 }
 
 }

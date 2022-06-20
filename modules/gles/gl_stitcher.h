@@ -42,10 +42,15 @@ public:
         : ImageHandler::Parameters
     {
         SmartPtr<VideoBuffer> in_bufs[XCAM_STITCH_MAX_CAMERAS];
+        SmartPtr<VideoBuffer> in_dmabufs[XCAM_STITCH_MAX_CAMERAS];
+        SmartPtr<VideoBuffer> out_dmabuf;
+        bool enable_dmabuf;
 
         StitcherParam ()
             : Parameters (NULL, NULL)
-        {}
+        {
+            enable_dmabuf = false;
+        }
     };
 
 public:

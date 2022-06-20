@@ -903,7 +903,7 @@ int main (int argc, char *argv[])
             return -1;
         }
 
-        egl = new EGLBase ();
+        egl = EGLBase::instance ();
         XCAM_ASSERT (egl.ptr ());
 
         if (NULL == device_node) {

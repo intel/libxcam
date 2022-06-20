@@ -16,6 +16,8 @@ glslx_sources = \
     shader_fastmap_blend_y.comp.slx          \
     shader_fastmap_blend_uv_nv12.comp.slx    \
     shader_fastmap_blend_uv_yuv420.comp.slx  \
+    shader_copy_tex_to_ssbo.comp.slx         \
+    shader_copy_ssbo_to_tex.comp.slx         \
     $(NULL)
 
 add_quotation_marks_sh = \

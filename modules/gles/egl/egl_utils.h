@@ -21,8 +21,13 @@
 #ifndef XCAM_EGL_UTILS_H
 #define XCAM_EGL_UTILS_H
 
+#define EGL_EGLEXT_PROTOTYPES
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+
+#define GL_GLEXT_PROTOTYPES
+#include <GL/gl.h>
+
 #include <xcam_std.h>
 
 namespace XCam {

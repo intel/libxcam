@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  * Author: Yinhang Liu <yinhangx.liu@intel.com>
+ * Author: Wei Zong <wei.zong@intel.com>
  */
 
 #include "test_common.h"
@@ -25,6 +26,8 @@
 #include <gles/egl/egl_base.h>
 #include <gles/gl_copy_handler.h>
 #include <gles/gl_geomap_handler.h>
+#include <gles/gl_dma_buffer_handler.h>
+
 #include <interface/blender.h>
 
 using namespace XCam;
@@ -33,7 +36,9 @@ enum GLType {
     GLTypeNone    = 0,
     GLTypeCopy,
     GLTypeRemap,
-    GLTypeBlender
+    GLTypeBlender,
+    GLTypeDmaReader,
+    GLTypeDmaWriter,
 };
 
 class GLStream
@@ -87,11 +92,54 @@ calc_hor_flip_table (uint32_t width, uint32_t height, PointFloat2 *&map_table)
     }
 }
 
+static SmartPtr<DmaVideoBuffer>
+convert_to_dma_buffer (SmartPtr<VideoBuffer>& in_buf)
+{
+    const VideoBufferInfo &in_info = in_buf->get_video_info ();
+    XCAM_LOG_DEBUG ("Input VideoBuffer width:%d, height:%d, stride:%d, offset:%d", in_info.width, in_info.height, in_info.strides[0], in_info.offsets[0]);
+    XCAM_LOG_DEBUG ("Input VideoBuffer: modifiers:%lu, fd:%d, format:%s", in_info.modifiers[0], in_buf->get_fd (), xcam_fourcc_to_string(in_info.format));
+
+    uint8_t* buf_data = in_buf->map ();
+    static SmartPtr<GLTexture> tex = GLTexture::create_texture (buf_data, in_info.width, in_info.height, in_info.format);
+    in_buf->unmap ();
+    XCAM_FAIL_RETURN (
+        ERROR, tex.ptr () != NULL, NULL,
+        "gl-dmabuf create texture from buffer failed");
+
+    SmartPtr<DmaVideoBuffer> dma_buf = EGLBase::instance ()->export_dma_buffer (tex).dynamic_cast_ptr<DmaVideoBuffer>();
+    XCAM_FAIL_RETURN (
+        ERROR, dma_buf.ptr () != NULL, NULL,
+        "gl-dmabuf export dma buffer failed");
+
+    const VideoBufferInfo &info = dma_buf->get_video_info ();
+    XCAM_LOG_DEBUG ("DMA fd:%d", dma_buf->get_fd ());
+    XCAM_LOG_DEBUG ("DmaVideoBuffer width:%d, height:%d, stride:%d, offset:%d, format:%s", info.width, info.height, info.strides[0], info.offsets[0], xcam_fourcc_to_string (info.format));
+    XCAM_LOG_DEBUG ("DmaVideoBuffer: modifiers:%lu, dmabuf fd:%d, fourcc:%s", info.modifiers[0], dma_buf->get_fd (), xcam_fourcc_to_string(info.fourcc));
+    return dma_buf;
+}
+
+static void dump_dma_video_buf (SmartPtr<VideoBuffer> buf, const char *prefix_name, uint32_t idx)
+{
+    char file_name[256];
+    XCAM_ASSERT (prefix_name);
+    XCAM_ASSERT (buf.ptr ());
+
+    const VideoBufferInfo &info = buf->get_video_info ();
+    snprintf (
+        file_name, 256, "%s-%dx%d.%d.%s.yuv",
+        prefix_name, info.width, info.height, idx, xcam_fourcc_to_string (info.format));
+
+    SmartPtr<GLTexture> tex = GLTexture::create_texture (buf);
+
+    tex->dump_texture_image (file_name);
+}
+
+
 static void usage (const char *arg0)
 {
     printf ("Usage:\n"
             "%s --type TYPE --input0 input.nv12 --input1 input1.nv12 --output output.nv12 ...\n"
-            "\t--type              processing type, selected from: copy, remap, blend\n"
+            "\t--type              processing type, selected from: copy, remap, blend, dmar, dmaw\n"
             "\t--input0            input image(NV12)\n"
             "\t--input1            input image(NV12)\n"
             "\t--output            output image(NV12/MP4)\n"
@@ -148,6 +196,10 @@ int main (int argc, char **argv)
                 type = GLTypeRemap;
             else if (!strcasecmp (optarg, "blend"))
                 type = GLTypeBlender;
+            else if (!strcasecmp (optarg, "dmar"))
+                type = GLTypeDmaReader;
+            else if (!strcasecmp (optarg, "dmaw"))
+                type = GLTypeDmaWriter;
             else {
                 XCAM_LOG_ERROR ("unknown type:%s", optarg);
                 usage (argv[0]);
@@ -229,7 +281,7 @@ int main (int argc, char **argv)
     printf ("save output:\t\t%s\n", save_output ? "true" : "false");
     printf ("loop count:\t\t%d\n", loop);
 
-    SmartPtr<EGLBase> egl = new EGLBase ();
+    SmartPtr<EGLBase> egl = EGLBase::instance ();
     XCAM_FAIL_RETURN (ERROR, egl->init (), -1, "init EGL failed");
 
     for (uint32_t i = 0; i < ins.size (); ++i) {
@@ -324,6 +376,56 @@ int main (int argc, char **argv)
             if (save_output)
                 outs[0]->write_buf ();
             FPS_CALCULATION (gl_blend, XCAM_OBJ_DUR_FRAME_NUM);
+        }
+        break;
+    }
+    case GLTypeDmaReader: {
+        SmartPtr<GLDmaBufferHandler> dma_handler = new GLDmaBufferHandler ("GLDmaBufferReader");
+        XCAM_ASSERT (dma_handler.ptr ());
+
+        CHECK (ins[0]->read_buf(), "read buffer from file(%s) failed.", ins[0]->get_file_name ());
+
+        outs[0]->set_buf_size (input_width, input_height);
+        CHECK (outs[0]->create_buf_pool (XCAM_GL_RESERVED_BUF_COUNT, pix_fmt), "create buffer pool failed");
+
+        while (loop--) {
+
+            SmartPtr<DmaVideoBuffer> dma_buf = convert_to_dma_buffer (ins[0]->get_buf ());
+
+            CHECK (dma_handler->read_dma_buffer (dma_buf, outs[0]->get_buf ()), "read from dma buffer failed");
+#if DUM_DMA_BUF
+            dump_dma_video_buf (dma_buf, "test-dma-reader-input-dma-buffer", loop);
+            dump_buf_perfix_path (outs[0]->get_buf (), "test-dma-reader-output-gl-buffer", loop);
+#endif
+
+            if (save_output)
+                outs[0]->write_buf ();
+            FPS_CALCULATION (gl_dmabuf, XCAM_OBJ_DUR_FRAME_NUM);
+        }
+        break;
+    }
+    case GLTypeDmaWriter: {
+        SmartPtr<GLDmaBufferHandler> dma_handler = new GLDmaBufferHandler ("GLDmaBufferWriter");
+        XCAM_ASSERT (dma_handler.ptr ());
+
+        CHECK (ins[0]->read_buf(), "read buffer from file(%s) failed.", ins[0]->get_file_name ());
+
+        outs[0]->set_buf_size (input_width, input_height);
+        CHECK (outs[0]->create_buf_pool (XCAM_GL_RESERVED_BUF_COUNT, pix_fmt), "create buffer pool failed");
+
+        while (loop--) {
+
+            SmartPtr<DmaVideoBuffer> dma_buf = convert_to_dma_buffer (outs[0]->get_buf ());
+
+            CHECK (dma_handler->write_dma_buffer (ins[0]->get_buf (), dma_buf), "write to dma buffer failed");
+#if DUM_DMA_BUF
+            dump_buf_perfix_path (ins[0]->get_buf (), "test-dma-writer-input-gl-buffer", loop);
+            dump_dma_video_buf (dma_buf, "test-dma-writer-output-dma-buffer", loop);
+#endif
+            if (save_output) {
+                outs[0]->write_buf ();
+            }
+            FPS_CALCULATION (gl_dmabuf, XCAM_OBJ_DUR_FRAME_NUM);
         }
         break;
     }

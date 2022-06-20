@@ -16,9 +16,11 @@
  * limitations under the License.
  *
  * Author: Yinhang Liu <yinhangx.liu@intel.com>
+ * Author: Wei Zong <wei.zong@intel.com>
  */
 
 #include "fisheye_dewarp.h"
+#include "gl_dma_buffer_handler.h"
 #include "gl_blender.h"
 #include "gl_fastmap_blender.h"
 #include "gl_copy_handler.h"
@@ -62,6 +64,11 @@ struct Factor {
     }
 };
 
+enum DmaBufferOpt {
+    ReadDmaBuffer = 0,
+    WriteDmaBuffer,
+};
+
 class StitcherImpl {
     friend class XCam::GLStitcher;
 
@@ -69,6 +76,8 @@ public:
     explicit StitcherImpl (GLStitcher *handler);
 
     XCamReturn init_config (const SmartPtr<GLStitcher::StitcherParam> &param);
+    XCamReturn import_dma_buffer (const SmartPtr<GLStitcher::StitcherParam> &param);
+    XCamReturn export_dma_buffer (const SmartPtr<GLStitcher::StitcherParam> &param);
     XCamReturn start_geomappers (const SmartPtr<GLStitcher::StitcherParam> &param);
     XCamReturn start_blenders (const SmartPtr<GLStitcher::StitcherParam> &param);
     XCamReturn start_feature_matches ();
@@ -118,6 +127,9 @@ private:
     uint32_t                      _pix_fmt;
     FisheyeDewarpMode             _dewarp_mode;
 
+    SmartPtr<BufferPool>          _inbuf_pool;
+
+    SmartPtr<GLDmaBufferHandler>  _dmabuf_handler[XCAM_STITCH_MAX_CAMERAS + 1];
     SmartPtr<GLGeoMapHandler>     _geomapper[XCAM_STITCH_MAX_CAMERAS][MapMax];
     SmartPtr<FeatureMatch>        _matcher[XCAM_STITCH_MAX_CAMERAS];
     SmartPtr<GLBlender>           _blender[XCAM_STITCH_MAX_CAMERAS];
@@ -152,13 +164,32 @@ StitcherImpl::StitcherImpl (GLStitcher *handler)
 XCamReturn
 StitcherImpl::init_config (const SmartPtr<GLStitcher::StitcherParam> &param)
 {
-    const VideoBufferInfo &info = param->in_bufs[0]->get_video_info ();
-    _pix_fmt = info.format;
-
     _camera_num = _stitcher->get_camera_num ();
     _dewarp_mode = _stitcher->get_dewarp_mode ();
-    if (_dewarp_mode == DewarpSphere)
+    if (_dewarp_mode == DewarpSphere) {
         _stitch_info = _stitcher->get_stitch_info ();
+    }
+
+    if (param->enable_dmabuf == true && param->in_dmabufs[0].ptr ()) {
+        const VideoBufferInfo& info = param->in_dmabufs[0]->get_video_info ();
+        _pix_fmt = V4L2_PIX_FMT_NV12;
+
+        if (!_inbuf_pool.ptr ()) {
+            create_buffer_pool (_inbuf_pool, Rect (0, 0, info.width, info.height));
+        }
+
+        for (uint32_t idx = 0; idx < _camera_num; ++idx) {
+            param->in_bufs[idx] = _inbuf_pool->get_buffer ();
+            // input dma buffer
+            _dmabuf_handler[idx] = new GLDmaBufferHandler ();
+        }
+        // output dma buffer
+        _dmabuf_handler[_camera_num] = new GLDmaBufferHandler ();
+
+    } else if (NULL != param->in_bufs[0].ptr ()) {
+        const VideoBufferInfo& info = param->in_bufs[0]->get_video_info ();
+        _pix_fmt = info.format;
+    }
 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     for (uint32_t idx = 0; idx < _camera_num; ++idx) {
@@ -274,6 +305,48 @@ StitcherImpl::activate_fastmap ()
     }
 
     _fastmap_activated = true;
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
+StitcherImpl::import_dma_buffer (const SmartPtr<GLStitcher::StitcherParam> &param)
+{
+    XCAM_LOG_DEBUG ("StitcherImpl::import_dma_buffer");
+
+    for (uint32_t idx = 0; idx < _camera_num; ++idx) {
+        SmartPtr<ImageHandler::Parameters> dma_param;
+        dma_param->in_buf = param->in_dmabufs[idx];
+        dma_param->out_buf = param->in_bufs[idx];
+
+        _dmabuf_handler[idx]->set_opt_type (CopyTex2SSBO);
+
+        XCamReturn ret = _dmabuf_handler[idx]->execute_buffer (dma_param, false);
+        XCAM_FAIL_RETURN (
+            ERROR, xcam_ret_is_ok (ret), ret, "gl-stitcher execute dmabuf read failed");
+    }
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
+StitcherImpl::export_dma_buffer (const SmartPtr<GLStitcher::StitcherParam> &param)
+{
+    XCAM_LOG_DEBUG ("StitcherImpl::export_dma_buffer");
+
+    if (!_dmabuf_handler[_camera_num].ptr ()) {
+        return XCAM_RETURN_ERROR_PARAM;
+    }
+
+    SmartPtr<ImageHandler::Parameters> dma_param;
+    dma_param->in_buf = param->out_buf;
+    dma_param->out_buf = param->out_dmabuf;
+
+    _dmabuf_handler[_camera_num]->set_opt_type (CopySSBO2Tex);
+
+    XCamReturn ret = _dmabuf_handler[_camera_num]->execute_buffer (dma_param, false);
+    XCAM_FAIL_RETURN (
+        ERROR, xcam_ret_is_ok (ret), ret, "gl-stitcher execute dmabuf write failed");
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -930,24 +1003,43 @@ GLStitcher::stitch_buffers (const VideoBufferList &in_bufs, SmartPtr<VideoBuffer
     ensure_stitch_path ();
 
     SmartPtr<StitcherParam> param = new StitcherParam;
-    param->out_buf = out_buf;
+
+    if (out_buf.ptr ()) {
+        if (-1 != out_buf->get_fd ()) {
+            param->out_dmabuf = out_buf;
+            param->enable_dmabuf = true;
+        } else {
+            param->out_buf = out_buf;
+            param->enable_dmabuf = false;
+        }
+    }
 
     uint32_t count = 0;
     for (VideoBufferList::const_iterator i = in_bufs.begin (); i != in_bufs.end (); ++i) {
         SmartPtr<VideoBuffer> buf = *i;
         XCAM_ASSERT (buf.ptr ());
-        param->in_bufs[count++] = buf;
+        if (-1 != buf->get_fd ()) {
+            param->in_dmabufs[count++] = buf;
+        } else {
+            param->in_bufs[count++] = buf;
+        }
     }
+
     if (in_bufs.size () == 1) {
         for (uint32_t i = 1; i < get_camera_num (); ++i) {
             param->in_bufs[i] = param->in_bufs[0];
+            param->in_dmabufs[i] = param->in_dmabufs[0];
         }
     }
 
     XCamReturn ret = execute_buffer (param, true);
 
     if (!out_buf.ptr () && xcam_ret_is_ok (ret)) {
-        out_buf = param->out_buf;
+        if (param->out_dmabuf.ptr()) {
+            out_buf = param->out_dmabuf;
+        } else {
+            out_buf = param->out_buf;
+        }
     }
 
 #if DUMP_BUFFER
@@ -1043,13 +1135,21 @@ XCamReturn
 GLStitcher::start_work (const SmartPtr<Parameters> &base)
 {
     XCAM_ASSERT (base.ptr ());
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
     SmartPtr<StitcherParam> param = base.dynamic_cast_ptr<StitcherParam> ();
     XCAM_FAIL_RETURN (
         ERROR, param.ptr () && param->in_bufs[0].ptr (), XCAM_RETURN_ERROR_MEM,
         "gl-stitcher execute failed, invalid parameters");
 
-    XCamReturn ret = _impl->start_geomappers (param);
+    if (param->enable_dmabuf) {
+        ret = _impl->import_dma_buffer (param);
+        XCAM_FAIL_RETURN (
+            ERROR, xcam_ret_is_ok (ret), ret,
+            "gl_stitcher execute read dma buffer failed");
+    }
+
+    ret = _impl->start_geomappers (param);
     XCAM_FAIL_RETURN (
         ERROR, xcam_ret_is_ok (ret), ret,
         "gl_stitcher execute geomappers failed");
@@ -1059,6 +1159,13 @@ GLStitcher::start_work (const SmartPtr<Parameters> &base)
         XCAM_FAIL_RETURN (
             ERROR, xcam_ret_is_ok (ret), ret,
             "gl_stitcher execute blenders failed");
+    }
+
+    if (param->enable_dmabuf) {
+        ret = _impl->export_dma_buffer (param);
+        XCAM_FAIL_RETURN (
+            ERROR, xcam_ret_is_ok (ret), ret,
+            "gl_stitcher execute write dma buffer failed");
     }
 
     GLSync::flush ();

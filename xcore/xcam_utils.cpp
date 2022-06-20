@@ -281,7 +281,7 @@ get_gauss_table (uint32_t radius, float sigma, std::vector<float> &table, bool n
 }
 
 void
-dump_buf_perfix_path (const SmartPtr<VideoBuffer> buf, const char *prefix_name)
+dump_buf_perfix_path (const SmartPtr<VideoBuffer> buf, const char *prefix_name, const uint32_t idx)
 {
     char file_name[256];
     XCAM_ASSERT (prefix_name);
@@ -289,8 +289,8 @@ dump_buf_perfix_path (const SmartPtr<VideoBuffer> buf, const char *prefix_name)
 
     const VideoBufferInfo &info = buf->get_video_info ();
     snprintf (
-        file_name, 256, "%s-%dx%d.%s.yuv",
-        prefix_name, info.width, info.height, xcam_fourcc_to_string (info.format));
+        file_name, 256, "%s-%dx%d.%d.%s.yuv",
+        prefix_name, info.width, info.height, idx, xcam_fourcc_to_string (info.format));
 
     dump_video_buf (buf, file_name);
 }

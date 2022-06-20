@@ -248,7 +248,7 @@ StitchContext::create_buf_pool (StitchModule module)
         pool = new SoftVideoBufAllocator ();
     } else if (module == StitchGLES) {
 #if HAVE_GLES
-        SmartPtr<EGLBase> egl = new EGLBase ();
+        SmartPtr<EGLBase> egl = EGLBase::instance ();
         XCAM_ASSERT (egl.ptr ());
 
         XCAM_FAIL_RETURN (ERROR, egl->init (), XCAM_RETURN_ERROR_MEM, "init EGL failed");
