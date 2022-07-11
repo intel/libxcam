@@ -126,7 +126,7 @@ static void dump_dma_video_buf (SmartPtr<VideoBuffer> buf, const char *prefix_na
 
     const VideoBufferInfo &info = buf->get_video_info ();
     snprintf (
-        file_name, 256, "%s-%dx%d.%d.%s.yuv",
+        file_name, 256, "%s-%dx%d.%05d.%s.yuv",
         prefix_name, info.width, info.height, idx, xcam_fourcc_to_string (info.format));
 
     SmartPtr<GLTexture> tex = GLTexture::create_texture (buf);
@@ -388,16 +388,14 @@ int main (int argc, char **argv)
         outs[0]->set_buf_size (input_width, input_height);
         CHECK (outs[0]->create_buf_pool (XCAM_GL_RESERVED_BUF_COUNT, pix_fmt), "create buffer pool failed");
 
+        SmartPtr<DmaVideoBuffer> dma_buf = convert_to_dma_buffer (ins[0]->get_buf ());
         while (loop--) {
-
-            SmartPtr<DmaVideoBuffer> dma_buf = convert_to_dma_buffer (ins[0]->get_buf ());
 
             CHECK (dma_handler->read_dma_buffer (dma_buf, outs[0]->get_buf ()), "read from dma buffer failed");
 #if DUM_DMA_BUF
             dump_dma_video_buf (dma_buf, "test-dma-reader-input-dma-buffer", loop);
             dump_buf_perfix_path (outs[0]->get_buf (), "test-dma-reader-output-gl-buffer", loop);
 #endif
-
             if (save_output)
                 outs[0]->write_buf ();
             FPS_CALCULATION (gl_dmabuf, XCAM_OBJ_DUR_FRAME_NUM);
@@ -413,17 +411,16 @@ int main (int argc, char **argv)
         outs[0]->set_buf_size (input_width, input_height);
         CHECK (outs[0]->create_buf_pool (XCAM_GL_RESERVED_BUF_COUNT, pix_fmt), "create buffer pool failed");
 
+        SmartPtr<DmaVideoBuffer> dma_buf = convert_to_dma_buffer (outs[0]->get_buf ());
         while (loop--) {
-
-            SmartPtr<DmaVideoBuffer> dma_buf = convert_to_dma_buffer (outs[0]->get_buf ());
 
             CHECK (dma_handler->write_dma_buffer (ins[0]->get_buf (), dma_buf), "write to dma buffer failed");
 #if DUM_DMA_BUF
             dump_buf_perfix_path (ins[0]->get_buf (), "test-dma-writer-input-gl-buffer", loop);
-            dump_dma_video_buf (dma_buf, "test-dma-writer-output-dma-buffer", loop);
 #endif
             if (save_output) {
-                outs[0]->write_buf ();
+                dump_dma_video_buf (dma_buf, "test-dma-writer-output-dma-buffer", loop);
+                //outs[0]->write_buf ();
             }
             FPS_CALCULATION (gl_dmabuf, XCAM_OBJ_DUR_FRAME_NUM);
         }
