@@ -147,7 +147,7 @@ GLTexture::create_texture (
     SmartPtr<DmaVideoBuffer> dma_buf = buf.dynamic_cast_ptr<DmaVideoBuffer> ();
     const VideoBufferInfo &info = dma_buf->get_video_info ();
 
-    XCAM_LOG_DEBUG ("GLTexture::create_texture DmaVideoBuffer width:%d, height:%d, stride:%d, offset:%d, format:%s", info.width, info.height, info.strides[0], info.offsets[0], xcam_fourcc_to_string (info.format));
+    XCAM_LOG_DEBUG ("GLTexture::create_texture DmaVideoBuffer width:%d, height:%d, stride:%d, offset:%ld, format:%s", info.width, info.height, info.strides[0], info.offsets[0], xcam_fourcc_to_string (info.format));
     XCAM_LOG_DEBUG ("modifiers:%lu, dmabuf fd:%d, fourcc:%s", info.modifiers[0], dma_buf->get_fd (), xcam_fourcc_to_string(info.fourcc));
 
     SmartPtr<EGLBase> egl_base = EGLBase::instance ();
@@ -246,6 +246,10 @@ GLTexture::dump_texture_image (const char *file_name)
     if (V4L2_PIX_FMT_NV12 == format) {
         texture_data = new uint8_t [width * height * 3 / 2];
     }
+    if (NULL == texture_data) {
+        XCAM_LOG_ERROR ("allocate texture buffer failed!");
+        return;
+    }
     XCAM_LOG_DEBUG ("image width:%d, height:%d, format:%s", width, height, xcam_fourcc_to_string (format));
 
     glActiveTexture (GL_TEXTURE0);
@@ -286,8 +290,11 @@ GLTexture::dump_texture_image (const char *file_name)
     }
 
     FILE* fbo_file = fopen (file_name, "wb");
-    fwrite (texture_data, height * width * 3 / 2, 1, fbo_file);
-    fclose (fbo_file);
+    if (fbo_file != NULL) {
+        fwrite (texture_data, height * width * 3 / 2, 1, fbo_file);
+        fclose (fbo_file);
+    }
+
     delete [] texture_data;
 }
 

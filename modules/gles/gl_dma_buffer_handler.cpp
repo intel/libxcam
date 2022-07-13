@@ -135,13 +135,6 @@ DmaBufferReader::configure_resource (const SmartPtr<ImageHandler::Parameters> &p
         ERROR, out_info.width > 0, XCAM_RETURN_ERROR_PARAM,
         "gl-dmabuf invalid output width: %d", out_info.width);
 
-    XCAM_LOG_DEBUG ("DmaBufferReader input width:%d, height:%d, stride:%d, offset:%d", in_info.width, in_info.height, in_info.strides[0], in_info.offsets[0]);
-    XCAM_LOG_DEBUG ("DmaBufferReader input aligned width:%d, aligned height:%d", in_info.aligned_width, in_info.aligned_height);
-    XCAM_LOG_DEBUG ("DmaBufferReader: modifiers:%lu, dmabuf fd:%d, fourcc:%s", in_info.modifiers[0], param->in_buf->get_fd (), xcam_fourcc_to_string(in_info.fourcc));
-
-    XCAM_LOG_DEBUG ("DmaBufferReader output width:%d, height:%d, stride:%d, offset:%d", out_info.width, out_info.height, out_info.strides[0], in_info.offsets[0]);
-    XCAM_LOG_DEBUG ("DmaBufferReader output aligned width:%d, aligned height:%d", out_info.aligned_width, out_info.aligned_height);
-
     const size_t uint_bytes = sizeof (uint32_t);
     uint32_t in_img_width = in_info.aligned_width / uint_bytes;
     uint32_t in_img_height = in_info.aligned_height * 3 / 2;
@@ -156,7 +149,6 @@ DmaBufferReader::configure_resource (const SmartPtr<ImageHandler::Parameters> &p
     groups_size.x = XCAM_ALIGN_UP (out_img_width, 8);
     groups_size.y = XCAM_ALIGN_UP (out_img_height, 8);
     groups_size.z = 1;
-    XCAM_LOG_DEBUG ("DmaBufferReader set group size: x:%d, y:%d, z:%d", groups_size.x, groups_size.y, groups_size.z);
 
     _shader->set_groups_size (groups_size);
 
@@ -207,9 +199,6 @@ DmaBufferWriter::configure_resource (const SmartPtr<ImageHandler::Parameters> &p
     uint32_t in_img_height = in_info.aligned_height * 3 / 2;
     uint32_t out_img_width = out_info.aligned_width / uint_bytes;
     uint32_t out_img_height = out_info.aligned_height * 3 / 2;
-
-    XCAM_LOG_DEBUG ("DmaBufferWriter shader input width:%d, height:%d", in_img_width, in_img_height);
-    XCAM_LOG_DEBUG ("DmaBufferWriter shader output width:%d, height:%d", out_img_width, out_img_height);
 
     GLCmdList cmds;
     cmds.push_back (new GLCmdUniformT<uint32_t> ("in_img_width", in_img_width));

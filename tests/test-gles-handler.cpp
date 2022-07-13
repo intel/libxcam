@@ -96,8 +96,6 @@ static SmartPtr<DmaVideoBuffer>
 convert_to_dma_buffer (SmartPtr<VideoBuffer>& in_buf)
 {
     const VideoBufferInfo &in_info = in_buf->get_video_info ();
-    XCAM_LOG_DEBUG ("Input VideoBuffer width:%d, height:%d, stride:%d, offset:%d", in_info.width, in_info.height, in_info.strides[0], in_info.offsets[0]);
-    XCAM_LOG_DEBUG ("Input VideoBuffer: modifiers:%lu, fd:%d, format:%s", in_info.modifiers[0], in_buf->get_fd (), xcam_fourcc_to_string(in_info.format));
 
     uint8_t* buf_data = in_buf->map ();
     static SmartPtr<GLTexture> tex = GLTexture::create_texture (buf_data, in_info.width, in_info.height, in_info.format);
@@ -113,7 +111,7 @@ convert_to_dma_buffer (SmartPtr<VideoBuffer>& in_buf)
 
     const VideoBufferInfo &info = dma_buf->get_video_info ();
     XCAM_LOG_DEBUG ("DMA fd:%d", dma_buf->get_fd ());
-    XCAM_LOG_DEBUG ("DmaVideoBuffer width:%d, height:%d, stride:%d, offset:%d, format:%s", info.width, info.height, info.strides[0], info.offsets[0], xcam_fourcc_to_string (info.format));
+    XCAM_LOG_DEBUG ("DmaVideoBuffer width:%d, height:%d, stride:%d, offset:%ld, format:%s", info.width, info.height, info.strides[0], info.offsets[0], xcam_fourcc_to_string (info.format));
     XCAM_LOG_DEBUG ("DmaVideoBuffer: modifiers:%lu, dmabuf fd:%d, fourcc:%s", info.modifiers[0], dma_buf->get_fd (), xcam_fourcc_to_string(info.fourcc));
     return dma_buf;
 }

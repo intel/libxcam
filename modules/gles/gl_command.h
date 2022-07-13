@@ -214,8 +214,6 @@ public:
 private:
     SmartPtr<GLTexture>       _texture;
     uint32_t                  _index;
-    uint32_t                  _offset;
-    uint32_t                  _size;
 };
 
 }
