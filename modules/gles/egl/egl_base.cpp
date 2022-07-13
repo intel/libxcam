@@ -58,7 +58,7 @@ EGLBase::EGLBase ()
 EGLBase::~EGLBase ()
 {
     if (_display != EGL_NO_DISPLAY) {
-        XCAM_LOG_DEBUG ("EGLBase::~EGLBase distroy display:%d\n", _display);
+        XCAM_LOG_DEBUG ("EGLBase::~EGLBase distroy display:%p\n", _display);
 
         if (_context != EGL_NO_CONTEXT) {
             destroy_context (_display, _context);
@@ -383,11 +383,6 @@ EGLBase::export_dma_buffer (const SmartPtr<GLTexture>& gl_texture)
     info.offsets[0] = offset;
     info.modifiers[0] = modifiers;
     info.fourcc = fourcc;
-
-    XCAM_LOG_DEBUG ("DMA buffer width:%d, height:%d, stride:%d, offset:%d", info.width, info.height, info.strides[0], info.offsets[0]);
-    XCAM_LOG_DEBUG ("  modifiers:%lu, fd:%d, fourcc:%s", info.modifiers[0], dmabuf_fd, xcam_fourcc_to_string(info.fourcc));
-    XCAM_LOG_DEBUG ("  foucc:%s", xcam_fourcc_to_string (fourcc));
-
 
     SmartPtr<DmaVideoBuffer> dma_buf = new DmaVideoBuffer (info, dmabuf_fd);
     XCAM_ASSERT (dma_buf.ptr ());
