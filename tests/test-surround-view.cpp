@@ -26,9 +26,11 @@
 #include <calibration_parser.h>
 #include <fisheye_image_file.h>
 #include <soft/soft_video_buf_allocator.h>
+#include <dma_video_buffer.h>
 #if HAVE_GLES
 #include <gles/gl_video_buffer.h>
 #include <gles/egl/egl_base.h>
+#include <gles/gl_texture.h>
 #endif
 #if HAVE_VULKAN
 #include <vulkan/vk_device.h>
@@ -64,6 +66,61 @@ struct SVOutConfig {
         return save_output || save_topview || save_cubemap;
     }
 };
+
+#if HAVE_GLES
+
+static void dump_dma_video_buf (SmartPtr<VideoBuffer> buf, const char *prefix_name, uint32_t idx)
+{
+    char file_name[256];
+    XCAM_ASSERT (prefix_name);
+    XCAM_ASSERT (buf.ptr ());
+
+    const VideoBufferInfo &info = buf->get_video_info ();
+    snprintf (
+        file_name, 256, "%s-%dx%d.%05d.%s.yuv",
+        prefix_name, info.width, info.height, idx, xcam_fourcc_to_string (info.format));
+
+    SmartPtr<GLTexture> tex = GLTexture::create_texture (buf);
+
+    tex->dump_texture_image (file_name);
+}
+
+static SmartPtr<DmaVideoBuffer>
+convert_to_dma_buffer (SmartPtr<VideoBuffer>& in_buf)
+{
+    const VideoBufferInfo &in_info = in_buf->get_video_info ();
+
+    uint8_t* buf_data = in_buf->map ();
+
+    SmartPtr<GLTexture> tex = GLTexture::create_texture (buf_data, in_info.width, in_info.height, in_info.format);
+    in_buf->unmap ();
+    XCAM_FAIL_RETURN (
+        ERROR, tex.ptr () != NULL, NULL,
+        "gl-dmabuf create texture from buffer failed");
+
+    SmartPtr<DmaVideoBuffer> dma_buf = EGLBase::instance ()->export_dma_buffer (tex).dynamic_cast_ptr<DmaVideoBuffer>();
+    XCAM_FAIL_RETURN (
+        ERROR, dma_buf.ptr () != NULL, NULL,
+        "gl-dmabuf export dma buffer failed");
+
+    const VideoBufferInfo &info = dma_buf->get_video_info ();
+    XCAM_LOG_DEBUG ("DMA fd:%d", dma_buf->get_fd ());
+    XCAM_LOG_DEBUG ("DmaVideoBuffer width:%d, height:%d, stride:%d, offset:%ld, format:%s", info.width, info.height, info.strides[0], info.offsets[0], xcam_fourcc_to_string (info.format));
+    XCAM_LOG_DEBUG ("DmaVideoBuffer: modifiers:%lu, dmabuf fd:%d, fourcc:%s", info.modifiers[0], dma_buf->get_fd (), xcam_fourcc_to_string(info.fourcc));
+
+#ifdef DUMP_TEXTURE
+    static uint32_t idx = 0;
+    char file_name[256];
+    snprintf (file_name, 256, "%s-%dx%d.%05d.%s.yuv",
+              "dump_texture", info.width, info.height, idx, xcam_fourcc_to_string (info.format));
+
+    tex->dump_texture_image (file_name);
+    dump_dma_video_buf (dma_buf, "dump_dmabuf", idx++);
+#endif
+    return dma_buf;
+}
+
+#endif
 
 class SVStream
     : public Stream
@@ -402,7 +459,7 @@ static int
 single_frame (
     const SmartPtr<Stitcher> &stitcher,
     const SVStreams &ins, const SVStreams &outs,
-    const SVOutConfig &out_config, int loop)
+    const SVOutConfig &out_config, int loop, bool enable_dmabuf = false)
 {
     for (uint32_t i = 0; i < ins.size (); ++i) {
         CHECK (ins[i]->rewind (), "rewind buffer from file(%s) failed", ins[i]->get_file_name ());
@@ -414,19 +471,43 @@ single_frame (
         CHECK_EXP (ret == XCAM_RETURN_NO_ERROR, "read buffer from file(%s) failed.", ins[i]->get_file_name ());
 
         XCAM_ASSERT (ins[i]->get_buf ().ptr ());
-        in_buffers.push_back (ins[i]->get_buf ());
+
+        if (enable_dmabuf) {
+#if HAVE_GLES
+            SmartPtr<DmaVideoBuffer> dma_buf = convert_to_dma_buffer (ins[i]->get_buf ());
+            in_buffers.push_back (dma_buf);
+#else
+            XCAM_LOG_ERROR ("GLES module is unsupported");
+#endif
+        } else {
+            in_buffers.push_back (ins[i]->get_buf ());
+        }
     }
 
     while (loop--) {
         XCAM_OBJ_PROFILING_START;
 
-        CHECK (stitcher->stitch_buffers (in_buffers, outs[out_config.stitch_index]->get_buf ()), "stitch buffer failed.");
+        SmartPtr<VideoBuffer> out_dma_buf;
+        if (enable_dmabuf) {
+#if HAVE_GLES
+            out_dma_buf = convert_to_dma_buffer (outs[out_config.stitch_index]->get_buf ());
+            CHECK (stitcher->stitch_buffers (in_buffers, out_dma_buf), "stitch buffer failed.");
+#else
+            XCAM_LOG_ERROR ("GLES module is unsupported");
+#endif
+        } else {
+            CHECK (stitcher->stitch_buffers (in_buffers, outs[out_config.stitch_index]->get_buf ()), "stitch buffer failed.");
+        }
 
         XCAM_OBJ_PROFILING_END ("stitch-buffers", XCAM_OBJ_DUR_FRAME_NUM);
 
         if (out_config.is_save()) {
             if (stitcher->complete_stitch ()) {
-                write_image (stitcher, ins, outs, out_config);
+                if (enable_dmabuf) {
+                    dump_dma_video_buf (out_dma_buf, "test-surround-view-output-dma-buffer", loop);
+                } else {
+                    write_image (stitcher, ins, outs, out_config);
+                }
             }
         }
 
@@ -493,7 +574,7 @@ static int
 run_stitcher (
     const SmartPtr<Stitcher> &stitcher,
     const SVStreams &ins, const SVStreams &outs,
-    FrameMode frame_mode, const SVOutConfig &out_config, int loop)
+    FrameMode frame_mode, const SVOutConfig &out_config, int loop, bool enable_dmabuf = false)
 {
     XCAM_OBJ_PROFILING_INIT;
 
@@ -502,7 +583,7 @@ run_stitcher (
 
     int ret = -1;
     if (frame_mode == FrameSingle)
-        ret = single_frame (stitcher, ins, outs, out_config, loop);
+        ret = single_frame (stitcher, ins, outs, out_config, loop, enable_dmabuf);
     else if (frame_mode == FrameMulti)
         ret = multi_frame (stitcher, ins, outs, out_config, loop);
     else
@@ -516,6 +597,7 @@ static void usage(const char* arg0)
     printf ("Usage:\n"
             "%s --module MODULE --input input0.nv12 --input input1.nv12 --input input2.nv12 ...\n"
             "\t--module            processing module, selected from: soft, gles, vulkan\n"
+            "\t--dma               enable input/output dmabuf\n"
             "\t                    read calibration files from exported path $FISHEYE_CONFIG_PATH\n"
             "\t--input             input image(NV12)\n"
             "\t--output            output image(NV12/MP4)\n"
@@ -583,6 +665,8 @@ int main (int argc, char *argv[])
 
     uint32_t blend_pyr_levels = 2;
 
+    bool enable_dmabuf = false;
+
 #if HAVE_OPENCV
     uint32_t fm_frames = 100;
     FeatureMatchStatus fm_status = FMStatusWholeWay;
@@ -594,6 +678,7 @@ int main (int argc, char *argv[])
 
     const struct option long_opts[] = {
         {"module", required_argument, NULL, 'm'},
+        {"dma", required_argument, NULL, 'M'},
         {"device-node", required_argument, NULL, 'D'},
         {"input", required_argument, NULL, 'i'},
         {"output", required_argument, NULL, 'o'},
@@ -643,6 +728,9 @@ int main (int argc, char *argv[])
                 usage (argv[0]);
                 return -1;
             }
+            break;
+        case 'M':
+            enable_dmabuf = (strcasecmp (optarg, "false") == 0 ? false : true);
             break;
         case 'D':
             XCAM_ASSERT (optarg);
@@ -864,6 +952,7 @@ int main (int argc, char *argv[])
     printf ("fisheye number:\t\t%d\n", fisheye_num);
     printf ("stitch module:\t\t%s\n", module == SVModuleGLES ? "GLES" :
             (module == SVModuleVulkan ? "Vulkan" : (module == SVModuleSoft ? "Soft" : "Unknown")));
+    printf ("enable DMA buffer input/output:\t\t%s\n", enable_dmabuf ? "true" : "false");
     printf ("device node:\t\t%s\n", device_node != NULL ? device_node : "Not specified, use default model");
     printf ("output file:\t\t%s\n", outs[out_config.stitch_index]->get_file_name ());
     printf ("input width:\t\t%d\n", input_width);
@@ -970,6 +1059,11 @@ int main (int argc, char *argv[])
     }
 
     outs[out_config.stitch_index]->set_buf_size (output_width, output_height);
+    if (enable_dmabuf) {
+        outs[out_config.stitch_index]->set_module (module);
+        CHECK (outs[out_config.stitch_index]->create_buf_pool (XCAM_GL_RESERVED_BUF_COUNT, input_format), "create buffer pool failed");
+    }
+
     if (out_config.save_output) {
         CHECK (outs[out_config.stitch_index]->estimate_file_format (),
                "%s: estimate file format failed", outs[out_config.stitch_index]->get_file_name ());
@@ -1059,7 +1153,7 @@ int main (int argc, char *argv[])
             create_cubemap_mapper (stitcher, outs[out_config.stitch_index], outs[out_config.cubemap_index], module);
         }
         CHECK_EXP (
-            run_stitcher (stitcher, ins, outs, frame_mode, out_config, loop) == 0,
+            run_stitcher (stitcher, ins, outs, frame_mode, out_config, loop, enable_dmabuf) == 0,
             "run stitcher failed");
     }
 

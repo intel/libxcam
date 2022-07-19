@@ -182,10 +182,17 @@ StitcherImpl::init_config (const SmartPtr<GLStitcher::StitcherParam> &param)
             param->in_bufs[idx] = _inbuf_pool->get_buffer ();
             // input dma buffer
             _dmabuf_handler[idx] = new GLDmaBufferHandler ();
+            if (!_dmabuf_handler[idx].ptr ()) {
+                XCAM_LOG_ERROR ("create dmabuffer reader failed!");
+            }
+            _dmabuf_handler[idx]->enable_allocator (false);
         }
         // output dma buffer
         _dmabuf_handler[_camera_num] = new GLDmaBufferHandler ();
-
+        if (!_dmabuf_handler[_camera_num].ptr ()) {
+            XCAM_LOG_ERROR ("create dmabuffer writer failed!");
+        }
+        _dmabuf_handler[_camera_num]->enable_allocator (false);
     } else if (NULL != param->in_bufs[0].ptr ()) {
         const VideoBufferInfo& info = param->in_bufs[0]->get_video_info ();
         _pix_fmt = info.format;
@@ -315,9 +322,7 @@ StitcherImpl::import_dma_buffer (const SmartPtr<GLStitcher::StitcherParam> &para
     XCAM_LOG_DEBUG ("StitcherImpl::import_dma_buffer");
 
     for (uint32_t idx = 0; idx < _camera_num; ++idx) {
-        SmartPtr<ImageHandler::Parameters> dma_param;
-        dma_param->in_buf = param->in_dmabufs[idx];
-        dma_param->out_buf = param->in_bufs[idx];
+        SmartPtr<ImageHandler::Parameters> dma_param = new ImageHandler::Parameters (param->in_dmabufs[idx], param->in_bufs[idx]);
 
         _dmabuf_handler[idx]->set_opt_type (CopyTex2SSBO);
 
@@ -338,9 +343,7 @@ StitcherImpl::export_dma_buffer (const SmartPtr<GLStitcher::StitcherParam> &para
         return XCAM_RETURN_ERROR_PARAM;
     }
 
-    SmartPtr<ImageHandler::Parameters> dma_param;
-    dma_param->in_buf = param->out_buf;
-    dma_param->out_buf = param->out_dmabuf;
+    SmartPtr<ImageHandler::Parameters> dma_param = new ImageHandler::Parameters (param->out_buf, param->out_dmabuf);
 
     _dmabuf_handler[_camera_num]->set_opt_type (CopySSBO2Tex);
 
@@ -1048,7 +1051,9 @@ GLStitcher::stitch_buffers (const VideoBufferList &in_bufs, SmartPtr<VideoBuffer
         snprintf (name, 256, "stitcher-in%d", i);
         dump_buf_perfix_path (param->in_bufs[i], name);
     }
-    dump_buf_perfix_path (out_buf, "stitcher-out");
+    if (!param->enable_dmabuf) {
+        dump_buf_perfix_path (out_buf, "stitcher-out");
+    }
 #endif
 
     return ret;
@@ -1115,7 +1120,7 @@ GLStitcher::configure_resource (const SmartPtr<Parameters> &param)
 
     SmartPtr<StitcherParam> stitch_param = param.dynamic_cast_ptr<StitcherParam> ();
     XCAM_FAIL_RETURN (
-        ERROR, stitch_param.ptr () && stitch_param->in_bufs[0].ptr (), XCAM_RETURN_ERROR_MEM,
+        ERROR, stitch_param.ptr () && (stitch_param->in_bufs[0].ptr () || stitch_param->in_dmabufs[0].ptr ()), XCAM_RETURN_ERROR_MEM,
         "gl-stitcher configure resource failed, invalid parameters");
 
     ret = _impl->init_config (stitch_param);

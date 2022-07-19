@@ -98,7 +98,7 @@ convert_to_dma_buffer (SmartPtr<VideoBuffer>& in_buf)
     const VideoBufferInfo &in_info = in_buf->get_video_info ();
 
     uint8_t* buf_data = in_buf->map ();
-    static SmartPtr<GLTexture> tex = GLTexture::create_texture (buf_data, in_info.width, in_info.height, in_info.format);
+    SmartPtr<GLTexture> tex = GLTexture::create_texture (buf_data, in_info.width, in_info.height, in_info.format);
     in_buf->unmap ();
     XCAM_FAIL_RETURN (
         ERROR, tex.ptr () != NULL, NULL,
