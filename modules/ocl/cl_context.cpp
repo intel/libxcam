@@ -142,7 +142,7 @@ CLContext::finish ()
         WARNING,
         error_code == CL_SUCCESS,
         XCAM_RETURN_ERROR_CL,
-        "CL finish cmdqueue failed with %d", error_string (error_code));
+        "CL finish cmdqueue failed with %s", error_string (error_code));
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -505,11 +505,11 @@ CLContext::enqueue_read_buffer (
     XCAM_ASSERT (_context_id);
     XCAM_ASSERT (cmd_queue_id);
     error_code = clEnqueueReadBuffer (
-                  cmd_queue_id, buf_id,
-                  (block ? CL_BLOCKING : CL_NON_BLOCKING),
-                  offset, size, ptr,
-                  num_of_events_wait, (num_of_events_wait ? events_id_wait : NULL),
-                  event_out_id);
+                     cmd_queue_id, buf_id,
+                     (block ? CL_BLOCKING : CL_NON_BLOCKING),
+                     offset, size, ptr,
+                     num_of_events_wait, (num_of_events_wait ? events_id_wait : NULL),
+                     event_out_id);
 
     XCAM_FAIL_RETURN (
         WARNING,
@@ -544,11 +544,11 @@ CLContext::enqueue_write_buffer (
     XCAM_ASSERT (_context_id);
     XCAM_ASSERT (cmd_queue_id);
     error_code = clEnqueueWriteBuffer (
-                  cmd_queue_id, buf_id,
-                  (block ? CL_BLOCKING : CL_NON_BLOCKING),
-                  offset, size, ptr,
-                  num_of_events_wait, (num_of_events_wait ? events_id_wait : NULL),
-                  event_out_id);
+                     cmd_queue_id, buf_id,
+                     (block ? CL_BLOCKING : CL_NON_BLOCKING),
+                     offset, size, ptr,
+                     num_of_events_wait, (num_of_events_wait ? events_id_wait : NULL),
+                     event_out_id);
 
     XCAM_FAIL_RETURN (
         WARNING,
@@ -678,9 +678,9 @@ CLContext::enqueue_unmap (
     XCAM_ASSERT (_context_id);
     XCAM_ASSERT (cmd_queue_id);
     error_code = clEnqueueUnmapMemObject (
-                  cmd_queue_id, mem_id, ptr,
-                  num_of_events_wait, (num_of_events_wait ? events_id_wait : NULL),
-                  event_out_id);
+                     cmd_queue_id, mem_id, ptr,
+                     num_of_events_wait, (num_of_events_wait ? events_id_wait : NULL),
+                     event_out_id);
 
     XCAM_FAIL_RETURN (
         WARNING,

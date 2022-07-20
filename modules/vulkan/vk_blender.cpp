@@ -605,7 +605,7 @@ check_desc (
         in0_info.width && in0_info.height && in1_info.width &&
         in0_info.height == in1_info.height,
         XCAM_RETURN_ERROR_PARAM,
-        "vk-blend invalid buffer size: in0:%dx%d in1:%dx%d out:%dx%d",
+        "vk-blend invalid buffer size: in0:%dx%d in1:%dx%d",
         in0_info.width, in0_info.height, in1_info.width, in1_info.height);
 
     XCAM_FAIL_RETURN (

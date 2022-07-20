@@ -608,7 +608,7 @@ SoftBlenderPriv::BlenderPrivConfig::start_blend_task (
         SmartPtr<VideoBuffer> out_buf = pyr_layer[last_level].overlap_pool->get_buffer ();
         XCAM_FAIL_RETURN (
             ERROR, out_buf.ptr (), XCAM_RETURN_ERROR_MEM,
-            "blender:(%s) start_blend_task failed, last level blend buffer empty.",
+            "blender:(%s) start_blend_task %d failed, last level blend buffer empty.",
             XCAM_STR (_blender->get_name ()), (int)idx);
 
         const VideoBufferInfo &out_info = out_buf->get_video_info ();

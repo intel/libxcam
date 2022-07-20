@@ -127,7 +127,7 @@ VKCmdBuf::DispatchParam::fill_cmd_buf (VKCmdBuf &buf)
     for (size_t i = 0; i < _push_consts.size (); ++i) {
         XCAM_RETURN_CHECK (
             ERROR, _pipeline->push_consts_by (buf, _push_consts[i]),
-            "VKCmdBuf DispatchParam fill command buffer failed when push consts (:%d)", i);
+            "VKCmdBuf DispatchParam fill command buffer failed when push consts (:%lu)", i);
     }
     return buf.dispatch (_group_size);
 }

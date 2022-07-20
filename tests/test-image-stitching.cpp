@@ -479,7 +479,7 @@ int main (int argc, char *argv[])
 
     if ((ins.size () != 1) && (ins.size () != (uint32_t)fisheye_num)) {
         XCAM_LOG_ERROR (
-            "multiple-input mode: conflicting input number(%d) and fisheye number(%d)",
+            "multiple-input mode: conflicting input number(%lu) and fisheye number(%d)",
             ins.size (), fisheye_num);
         return -1;
     }

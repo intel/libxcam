@@ -261,7 +261,7 @@ SoftWorker::work_range (const SmartPtr<Arguments> &args, const WorkRange &range)
 XCamReturn
 SoftWorker::work_unit (const SmartPtr<Arguments> &, const WorkSize &)
 {
-    XCAM_LOG_ERROR ("SoftWorker(%s) work_pixel was not derived. check code");
+    XCAM_LOG_ERROR ("SoftWorker(%s) work_pixel was not derived. check code", get_name ());
     return XCAM_RETURN_ERROR_PARAM;
 }
 

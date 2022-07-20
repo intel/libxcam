@@ -214,9 +214,7 @@ StitchContext::execute (SmartPtr<VideoBuffer> &buf_in, SmartPtr<VideoBuffer> &bu
         att_buf = pre_buf->find_typed_attach<VideoBuffer> ();
     }
 
-    _stitcher->stitch_buffers (in_buffers, buf_out);
-
-    return XCAM_RETURN_NO_ERROR;
+    return _stitcher->stitch_buffers (in_buffers, buf_out);
 }
 
 SmartPtr<Stitcher>
