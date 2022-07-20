@@ -404,6 +404,7 @@ int main (int argc, char *argv[])
                 usage (argv[0]);
                 return -1;
             }
+            break;
         case 'o':
             XCAM_ASSERT (optarg);
             PUSH_STREAM (SoftStream, outs, optarg);

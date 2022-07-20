@@ -227,7 +227,7 @@ GLProgram::link_shaders (const GLShaderInfoList &infos)
     ret = link ();
     XCAM_FAIL_RETURN (
         ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
-        "GLProgram(%s) link program(%s) failed", get_name ());
+        "GLProgram(%s) link program failed", get_name ());
 
     return XCAM_RETURN_NO_ERROR;
 }

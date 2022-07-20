@@ -145,7 +145,7 @@ GLImageShader::set_commands (const GLCmdList &cmds)
         XCamReturn ret = cmd->run (prog_id);
         XCAM_FAIL_RETURN (
             WARNING, ret == XCAM_RETURN_NO_ERROR, ret,
-            "GLImageShader(%s) command(idx:%d) run failed", XCAM_STR (get_name ()));
+            "GLImageShader(%s) command(idx:%d) run failed", XCAM_STR (get_name ()), i_count);
     }
 
     ret = _program->disuse ();

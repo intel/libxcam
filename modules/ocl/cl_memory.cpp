@@ -191,7 +191,7 @@ CLSubBuffer::init_sub_buffer (
     sub_mem = context->create_sub_buffer (main_mem, region, flags);
     if (sub_mem == NULL) {
         XCAM_LOG_ERROR (
-            "CLBuffer create sub buffer failed, region offset:%d size:%d",
+            "CLBuffer create sub buffer failed, region offset:%lu size:%lu",
             region.origin, region.size);
         return false;
     }
@@ -391,7 +391,7 @@ CLImage::video_info_2_cl_image_desc (
         image_desc.format.image_channel_order = CL_BGRA;
         image_desc.format.image_channel_data_type = CL_UNORM_INT8;
         break;
-        // cl doesn'tn support ARGB32 up to now, how about consider V4L2_PIX_FMT_RGBA32
+    // cl doesn'tn support ARGB32 up to now, how about consider V4L2_PIX_FMT_RGBA32
     case V4L2_PIX_FMT_RGB32:
     case V4L2_PIX_FMT_ARGB32:
     case V4L2_PIX_FMT_XRGB32:
@@ -582,7 +582,7 @@ bool CLImage2D::init_image_2d (
             cl_desc.image_row_pitch = calculate_pixel_bytes(desc.format) * desc.width;
         }
         XCAM_FAIL_RETURN (
-            ERROR, cl_desc.image_row_pitch, false, "invalid row pitch:%d", cl_desc.image_row_pitch);
+            ERROR, cl_desc.image_row_pitch, false, "invalid row pitch:%lu", cl_desc.image_row_pitch);
 
         cl_desc.buffer = _bind_buf->get_mem_id ();
         XCAM_FAIL_RETURN (
@@ -592,7 +592,7 @@ bool CLImage2D::init_image_2d (
     mem_id = context->create_image (flags, desc.format, cl_desc);
     if (mem_id == NULL) {
         XCAM_LOG_ERROR (
-            "CLImage2D create image 2d failed, image desc width:%d height:%d row_pitch:%d slice_pitch:%d array_size:%d",
+            "CLImage2D create image 2d failed, image desc width:%lu height:%lu row_pitch:%lu slice_pitch:%lu array_size:%lu",
             cl_desc.image_width, cl_desc.image_height, cl_desc.image_row_pitch,
             cl_desc.image_slice_pitch, cl_desc.image_array_size);
         return false;

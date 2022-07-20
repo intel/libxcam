@@ -270,7 +270,7 @@ check_blend_area (const SmartPtr<GLBlender> &blender)
         in0_area.width == in1_area.width && in0_area.height == in1_area.height &&
         in0_area.width == out_area.width && in0_area.height == out_area.height,
         XCAM_RETURN_ERROR_PARAM,
-        "gl-blender invalid input or output overlap area, input0: %dx%d, input1: dx%d, output: %dx%d",
+        "gl-blender invalid input or output overlap area, input0: %dx%d, input1: %dx%d, output: %dx%d",
         in0_area.width, in0_area.height, in1_area.width, in1_area.height, out_area.width, out_area.height);
 
     return XCAM_RETURN_NO_ERROR;
@@ -360,7 +360,7 @@ BlenderImpl::create_shaders ()
 {
     PyrLayer &top_layer = _pyr_layer[_pyr_layers_num - 1];
     top_layer.blend = _is_nv12_fmt ?
-        create_pyr_shader (ShaderBlendPyr) : create_pyr_shader (ShaderYUV420BlendPyr);
+                      create_pyr_shader (ShaderBlendPyr) : create_pyr_shader (ShaderYUV420BlendPyr);
     XCAM_ASSERT (top_layer.blend.ptr ());
 
     for (uint32_t i = PYR_BOTTOM_LAYER; i < _pyr_layers_num; ++i) {
@@ -620,7 +620,7 @@ BlenderImpl::fix_lap_params (uint32_t level, BufIdx idx)
 
     const size_t unit_bytes = sizeof (uint32_t) * (_is_nv12_fmt ? 2 : 4);
     bool bottom_layer = level == PYR_BOTTOM_LAYER;
-    uint32_t in_img_width = (bottom_layer? _in_width[idx] : prev_layer.blend_width) / unit_bytes;
+    uint32_t in_img_width = (bottom_layer ? _in_width[idx] : prev_layer.blend_width) / unit_bytes;
     uint32_t in_offset_x = (bottom_layer ? _in_area[idx].pos_x : 0) / unit_bytes;
     uint32_t gaussscale_img_width = layer.blend_width / unit_bytes * 2;
     uint32_t merge_width = prev_layer.blend_width / unit_bytes;

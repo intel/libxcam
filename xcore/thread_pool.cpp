@@ -257,7 +257,7 @@ ThreadPool::queue (const SmartPtr<UserData> &data)
 
         XCamReturn err = create_user_thread_unsafe ();
         if (!xcam_ret_is_ok (err) && _allocated_threads) {
-            XCAM_LOG_WARNING ("thread pool(%s) create new thread failed but queue data can continue");
+            XCAM_LOG_WARNING ("thread pool(%s) create new thread failed but queue data can continue", XCAM_STR (get_name()));
             break;
         }
 
