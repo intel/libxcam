@@ -228,7 +228,7 @@ GLTexture::destroy_texture (SmartPtr<GLTexture>& tex)
     SmartPtr<EGLBase> egl_base = EGLBase::instance ();
 
     if (false == egl_base->destroy_image (_egl_image)) {
-        XCAM_LOG_WARNING ("destroy egl image failed!");
+        // XCAM_LOG_WARNING ("destroy egl image failed!");
         return XCAM_RETURN_ERROR_EGL;
     }
 
@@ -289,7 +289,7 @@ GLTexture::dump_texture_image (const char *file_name)
         XCAM_LOG_ERROR ("Error glReadPixels, id:%d, error flag: %s", _texture_id, gl_error_string (error));
     }
 
-    FILE* fbo_file = fopen (file_name, "wb");
+    FILE* fbo_file = fopen (file_name, "wb+");
     if (fbo_file != NULL) {
         fwrite (texture_data, height * width * 3 / 2, 1, fbo_file);
         fclose (fbo_file);

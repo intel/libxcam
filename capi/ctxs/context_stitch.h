@@ -35,6 +35,12 @@ enum StitchModule {
     StitchVulkan
 };
 
+enum GPU_ID {
+    RenderD128 = 0,
+    RenderD129,
+    Card0,
+};
+
 class StitchContext
     : public ContextBase
 {
@@ -74,12 +80,14 @@ private:
     FeatureMatchMode          _fm_mode;
     uint32_t                  _fm_frames;
     FeatureMatchStatus        _fm_status;
+    GPU_ID                    _gpu_id;
 
     FMConfig                  _fm_cfg;
     FMRegionRatio             _fm_region_ratio;
     StitchInfo                _stich_info;
     BowlDataConfig            _bowl_cfg;
     float                     _viewpoints_range[XCAM_STITCH_FISHEYE_MAX_NUM];
+    const char                *_node_name;
 };
 
 }

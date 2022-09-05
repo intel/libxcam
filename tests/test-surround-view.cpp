@@ -39,6 +39,7 @@
 using namespace XCam;
 
 #define ENABLE_FISHEYE_IMG_ROI 0
+#define XCAM_GL_RESERVED_BUF_COUNT 4
 
 enum FrameMode {
     FrameSingle = 0,
@@ -69,7 +70,7 @@ struct SVOutConfig {
 
 #if HAVE_GLES
 
-static void dump_dma_video_buf (SmartPtr<VideoBuffer> buf, const char *prefix_name, uint32_t idx)
+static void dump_dma_video_buf (SmartPtr<VideoBuffer> buf, const char *prefix_name)
 {
     char file_name[256];
     XCAM_ASSERT (prefix_name);
@@ -77,8 +78,8 @@ static void dump_dma_video_buf (SmartPtr<VideoBuffer> buf, const char *prefix_na
 
     const VideoBufferInfo &info = buf->get_video_info ();
     snprintf (
-        file_name, 256, "%s-%dx%d.%05d.%s.yuv",
-        prefix_name, info.width, info.height, idx, xcam_fourcc_to_string (info.format));
+        file_name, 256, "%s-%dx%d.%s.yuv",
+        prefix_name, info.width, info.height, xcam_fourcc_to_string (info.format));
 
     SmartPtr<GLTexture> tex = GLTexture::create_texture (buf);
 
@@ -504,7 +505,11 @@ single_frame (
         if (out_config.is_save()) {
             if (stitcher->complete_stitch ()) {
                 if (enable_dmabuf) {
-                    dump_dma_video_buf (out_dma_buf, "test-surround-view-output-dma-buffer", loop);
+#if HAVE_GLES
+                    dump_dma_video_buf (out_dma_buf, "test-surround-view-output-dma-buffer");
+#else
+                    XCAM_LOG_ERROR ("GLES module is unsupported");
+#endif
                 } else {
                     write_image (stitcher, ins, outs, out_config);
                 }
@@ -523,7 +528,7 @@ static int
 multi_frame (
     const SmartPtr<Stitcher> &stitcher,
     const SVStreams &ins, const SVStreams &outs,
-    const SVOutConfig &out_config, int loop)
+    const SVOutConfig &out_config, int loop, bool enable_dmabuf = false)
 {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
@@ -542,22 +547,48 @@ multi_frame (
                     break;
                 CHECK (ret, "read buffer from file(%s) failed.", ins[i]->get_file_name ());
 
-                in_buffers.push_back (ins[i]->get_buf ());
+                if (enable_dmabuf) {
+#if HAVE_GLES
+                    SmartPtr<DmaVideoBuffer> dma_buf = convert_to_dma_buffer (ins[i]->get_buf ());
+                    in_buffers.push_back (dma_buf);
+#else
+                    XCAM_LOG_ERROR ("GLES module is unsupported");
+#endif
+                } else {
+                    in_buffers.push_back (ins[i]->get_buf ());
+                }
             }
+
             if (ret == XCAM_RETURN_BYPASS)
                 break;
 
             XCAM_OBJ_PROFILING_START;
 
-            CHECK (
-                stitcher->stitch_buffers (in_buffers, outs[out_config.stitch_index]->get_buf ()),
-                "stitch buffer failed.");
+            SmartPtr<VideoBuffer> out_dma_buf;
+            if (enable_dmabuf) {
+#if HAVE_GLES
+                out_dma_buf = convert_to_dma_buffer (outs[out_config.stitch_index]->get_buf ());
+                CHECK (stitcher->stitch_buffers (in_buffers, out_dma_buf), "stitch buffer failed.");
+#else
+                XCAM_LOG_ERROR ("GLES module is unsupported");
+#endif
+            } else {
+                CHECK (stitcher->stitch_buffers (in_buffers, outs[out_config.stitch_index]->get_buf ()), "stitch buffer failed.");
+            }
 
             XCAM_OBJ_PROFILING_END ("stitch-buffers", XCAM_OBJ_DUR_FRAME_NUM);
 
             if (out_config.is_save()) {
                 if (stitcher->complete_stitch ()) {
-                    write_image (stitcher, ins, outs, out_config);
+                    if (enable_dmabuf) {
+#if HAVE_GLES
+                        dump_dma_video_buf (out_dma_buf, "test-surround-view-output-dma-buffer");
+#else
+                        XCAM_LOG_ERROR ("GLES module is unsupported");
+#endif
+                    } else {
+                        write_image (stitcher, ins, outs, out_config);
+                    }
                 }
             }
 
@@ -585,7 +616,7 @@ run_stitcher (
     if (frame_mode == FrameSingle)
         ret = single_frame (stitcher, ins, outs, out_config, loop, enable_dmabuf);
     else if (frame_mode == FrameMulti)
-        ret = multi_frame (stitcher, ins, outs, out_config, loop);
+        ret = multi_frame (stitcher, ins, outs, out_config, loop, enable_dmabuf);
     else
         XCAM_LOG_ERROR ("invalid frame mode: %d", frame_mode);
 
@@ -597,7 +628,7 @@ static void usage(const char* arg0)
     printf ("Usage:\n"
             "%s --module MODULE --input input0.nv12 --input input1.nv12 --input input2.nv12 ...\n"
             "\t--module            processing module, selected from: soft, gles, vulkan\n"
-            "\t--dma               enable input/output dmabuf\n"
+            "\t--dma               enable input/output dmabuf, select from [true/false], default: false\n"
             "\t                    read calibration files from exported path $FISHEYE_CONFIG_PATH\n"
             "\t--input             input image(NV12)\n"
             "\t--output            output image(NV12/MP4)\n"
@@ -616,6 +647,7 @@ static void usage(const char* arg0)
             "\t--scopic-mode       optional, scopic mode, select from [mono/stereoleft/stereoright], default: mono\n"
             "\t--scale-mode        optional, scaling mode for geometric mapping,\n"
             "\t                    select from [singleconst/dualconst/dualcurve], default: singleconst\n"
+            "\t--device-node       optional, Select GPU node, default: NULL\n"
 #if HAVE_OPENCV
             "\t--fm-mode           optional, feature match mode,\n"
             "\t                    select from [none/default/cluster/capi], default: none\n"

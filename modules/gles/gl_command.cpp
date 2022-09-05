@@ -280,7 +280,9 @@ GLCmdBindTexture::run (GLuint program)
 {
     XCAM_UNUSED (program);
 
-    XCamReturn ret = _texture->bind_image (_index);
+    // DG1 needs to use bind,waiting for bug to be fixed
+    // XCamReturn ret = _texture->bind_image (_index);
+    XCamReturn ret = _texture->bind (_index);
     XCAM_FAIL_RETURN (
         ERROR, ret == XCAM_RETURN_NO_ERROR, ret,
         "GLCmdBindTexture failed, idx:%d", _index);

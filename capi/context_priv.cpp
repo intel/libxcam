@@ -87,7 +87,7 @@ ContextBase::set_parameters (ContextParams &param_list)
     parse_value (param_list, "inw", _input_width);
     parse_value (param_list, "inh", _input_height);
     XCAM_FAIL_RETURN (
-        ERROR, _input_width || _input_height , XCAM_RETURN_ERROR_PARAM,
+        ERROR, _input_width || _input_height, XCAM_RETURN_ERROR_PARAM,
         "illegal input size %dx%d", _input_width, _input_height);
 
     VideoBufferInfo info;
@@ -100,7 +100,7 @@ ContextBase::set_parameters (ContextParams &param_list)
     parse_value (param_list, "outw", _output_width);
     parse_value (param_list, "outh", _output_height);
     XCAM_FAIL_RETURN (
-        ERROR, _output_width || _output_height , XCAM_RETURN_ERROR_PARAM,
+        ERROR, _output_width || _output_height, XCAM_RETURN_ERROR_PARAM,
         "illegal output size %dx%d", _output_width, _output_height);
 
     return XCAM_RETURN_NO_ERROR;

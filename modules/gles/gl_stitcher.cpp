@@ -81,6 +81,7 @@ public:
     XCamReturn start_geomappers (const SmartPtr<GLStitcher::StitcherParam> &param);
     XCamReturn start_blenders (const SmartPtr<GLStitcher::StitcherParam> &param);
     XCamReturn start_feature_matches ();
+    XCamReturn init_dmabuf_handler (const SmartPtr<GLStitcher::StitcherParam> &param);
 
     XCamReturn stop ();
 
@@ -162,6 +163,35 @@ StitcherImpl::StitcherImpl (GLStitcher *handler)
 }
 
 XCamReturn
+StitcherImpl::init_dmabuf_handler (const SmartPtr<GLStitcher::StitcherParam> &param)
+{
+    const VideoBufferInfo& info = param->in_dmabufs[0]->get_video_info ();
+    _pix_fmt = V4L2_PIX_FMT_NV12;
+
+    if (!_inbuf_pool.ptr ()) {
+        create_buffer_pool (_inbuf_pool, Rect (0, 0, info.width, info.height));
+    }
+
+    for (uint32_t idx = 0; idx < _camera_num; ++idx) {
+        param->in_bufs[idx] = _inbuf_pool->get_buffer ();
+        // input dma buffer
+        _dmabuf_handler[idx] = new GLDmaBufferHandler ();
+        if (!_dmabuf_handler[idx].ptr ()) {
+            XCAM_LOG_ERROR ("create dmabuffer reader failed!");
+        }
+        _dmabuf_handler[idx]->enable_allocator (false);
+    }
+    // output dma buffer
+    _dmabuf_handler[_camera_num] = new GLDmaBufferHandler ();
+    if (!_dmabuf_handler[_camera_num].ptr ()) {
+        XCAM_LOG_ERROR ("create dmabuffer writer failed!");
+    }
+    _dmabuf_handler[_camera_num]->enable_allocator (false);
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn
 StitcherImpl::init_config (const SmartPtr<GLStitcher::StitcherParam> &param)
 {
     _camera_num = _stitcher->get_camera_num ();
@@ -171,28 +201,7 @@ StitcherImpl::init_config (const SmartPtr<GLStitcher::StitcherParam> &param)
     }
 
     if (param->enable_dmabuf == true && param->in_dmabufs[0].ptr ()) {
-        const VideoBufferInfo& info = param->in_dmabufs[0]->get_video_info ();
-        _pix_fmt = V4L2_PIX_FMT_NV12;
-
-        if (!_inbuf_pool.ptr ()) {
-            create_buffer_pool (_inbuf_pool, Rect (0, 0, info.width, info.height));
-        }
-
-        for (uint32_t idx = 0; idx < _camera_num; ++idx) {
-            param->in_bufs[idx] = _inbuf_pool->get_buffer ();
-            // input dma buffer
-            _dmabuf_handler[idx] = new GLDmaBufferHandler ();
-            if (!_dmabuf_handler[idx].ptr ()) {
-                XCAM_LOG_ERROR ("create dmabuffer reader failed!");
-            }
-            _dmabuf_handler[idx]->enable_allocator (false);
-        }
-        // output dma buffer
-        _dmabuf_handler[_camera_num] = new GLDmaBufferHandler ();
-        if (!_dmabuf_handler[_camera_num].ptr ()) {
-            XCAM_LOG_ERROR ("create dmabuffer writer failed!");
-        }
-        _dmabuf_handler[_camera_num]->enable_allocator (false);
+        init_dmabuf_handler (param);
     } else if (NULL != param->in_bufs[0].ptr ()) {
         const VideoBufferInfo& info = param->in_bufs[0]->get_video_info ();
         _pix_fmt = info.format;
@@ -348,6 +357,7 @@ StitcherImpl::export_dma_buffer (const SmartPtr<GLStitcher::StitcherParam> &para
     _dmabuf_handler[_camera_num]->set_opt_type (CopySSBO2Tex);
 
     XCamReturn ret = _dmabuf_handler[_camera_num]->execute_buffer (dma_param, false);
+
     XCAM_FAIL_RETURN (
         ERROR, xcam_ret_is_ok (ret), ret, "gl-stitcher execute dmabuf write failed");
 
@@ -1053,6 +1063,15 @@ GLStitcher::stitch_buffers (const VideoBufferList &in_bufs, SmartPtr<VideoBuffer
     }
     if (!param->enable_dmabuf) {
         dump_buf_perfix_path (out_buf, "stitcher-out");
+    } else {
+        VideoBufferInfo info = param->out_buf->get_video_info ();
+        char file_name[256];
+        snprintf (file_name, 256, "gl_stitcher_hwcodec_gl_outbuf_%dx%d.nv12", info.width, info.height);
+        FILE* fbo_file = fopen (file_name, "wb+");
+        if (fbo_file != NULL) {
+            fwrite (param->out_buf->map (), info.width * info.height * 3 / 2, 1, fbo_file);
+            fclose (fbo_file);
+        }
     }
 #endif
 
@@ -1143,6 +1162,14 @@ GLStitcher::start_work (const SmartPtr<Parameters> &base)
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
     SmartPtr<StitcherParam> param = base.dynamic_cast_ptr<StitcherParam> ();
+
+    if (!param->in_bufs[0].ptr ()) {
+        ret = _impl->init_dmabuf_handler (param);
+        XCAM_FAIL_RETURN (
+            ERROR, xcam_ret_is_ok (ret), ret,
+            "gl-stitcher initialize private config failed");
+    }
+
     XCAM_FAIL_RETURN (
         ERROR, param.ptr () && param->in_bufs[0].ptr (), XCAM_RETURN_ERROR_MEM,
         "gl-stitcher execute failed, invalid parameters");

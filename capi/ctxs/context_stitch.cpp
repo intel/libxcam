@@ -87,6 +87,13 @@ static const Pair fmstatus_pairs[] = {
     {0, NULL}
 };
 
+static const Pair gpuid_pairs[] = {
+    {RenderD128, "renderD128"},
+    {RenderD129, "renderD129"},
+    {Card0, "card0"},
+    {0, NULL}
+};
+
 template <typename TypeT>
 static void parse_enum (const ContextParams &params, const Pair *pairs, const char *name, TypeT &value) {
     ContextParams::const_iterator iter = params.find (name);
@@ -135,6 +142,7 @@ StitchContext::set_parameters (ContextParams &param_list)
     parse_enum (param_list, scale_pairs, "scale", _scale_mode);
     parse_enum (param_list, fm_pairs, "fm", _fm_mode);
     parse_enum (param_list, fmstatus_pairs, "fmstatus", _fm_status);
+    parse_enum (param_list, gpuid_pairs, "gpuid", _gpu_id);
     parse_value (param_list, "fmframes", _fm_frames);
     parse_value (param_list, "fisheyenum", _fisheye_num);
     parse_value (param_list, "levels", _blend_pyr_levels);
@@ -143,6 +151,15 @@ StitchContext::set_parameters (ContextParams &param_list)
         set_alloc_out_buf (true);
         set_mem_type (XCAM_MEM_TYPE_GPU);
     }
+
+    if (_gpu_id == RenderD128)
+        _node_name = "/dev/dri/renderD128";
+    else if (_gpu_id == RenderD129)
+        _node_name = "/dev/dri/renderD129";
+    else if (_gpu_id == Card0)
+        _node_name = "/dev/dri/card0";
+    else
+        _node_name = NULL;
 
     create_buf_pool (_module);
 
@@ -249,7 +266,7 @@ StitchContext::create_buf_pool (StitchModule module)
         SmartPtr<EGLBase> egl = EGLBase::instance ();
         XCAM_ASSERT (egl.ptr ());
 
-        XCAM_FAIL_RETURN (ERROR, egl->init (), XCAM_RETURN_ERROR_MEM, "init EGL failed");
+        XCAM_FAIL_RETURN (ERROR, egl->init (_node_name), XCAM_RETURN_ERROR_MEM, "init EGL failed");
 
         pool = new GLVideoBufferPool ();
 #endif
@@ -342,6 +359,9 @@ StitchContext::show_help ()
         "  scale       : Scaling mode for geometric mapping\n"
         "                Range   : [singleconst, dualconst, dualcurve]\n"
         "                Default : singleconst\n"
+        "  gpuid       : GPU device node\n"
+        "                Range   : [renderd128, render129, card0]\n"
+        "                Default : NULL\n"
 #if HAVE_OPENCV
         "  fm          : Feature match mode\n"
         "                Range   : [none, default, cluster, capi]\n"
@@ -387,6 +407,7 @@ StitchContext::show_options ()
     printf ("  Feature match frames\t: %d\n", _fm_frames);
     printf ("  Feature match status\t: %s\n", fmstatus_pairs[_fm_status].name);
 #endif
+    printf ("  GPU id\t\t: %s\n", _node_name != NULL ? _node_name : "Not specified, use default model");
 }
 
 }

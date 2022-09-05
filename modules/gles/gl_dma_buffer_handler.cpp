@@ -165,7 +165,7 @@ DmaBufferReader::start (const SmartPtr<ImageHandler::Parameters> &param)
     if (!_texture.ptr ()) {
         return XCAM_RETURN_ERROR_GLES;
     }
-#if DUMP_TEST
+#ifdef DUMP_TEST
     _texture->dump_texture_image ("dmabuf_to_shader_input_texture.yuv");
 #endif
 

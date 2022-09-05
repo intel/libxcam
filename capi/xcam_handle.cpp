@@ -243,7 +243,11 @@ xcam_handle_execute (
         ERROR, context->is_handler_valid (), XCAM_RETURN_ERROR_PARAM,
         "context (%s) failed, handler was not initialized", context->get_type_name ());
 
-    bool append_buf = !context->need_alloc_out_buf ();
+    bool append_buf;
+    if ((*buf_in)->mem_type == XCAM_MEM_TYPE_GPU)
+        append_buf = context->need_alloc_out_buf ();
+    else
+        append_buf = !context->need_alloc_out_buf ();
 
     SmartPtr<VideoBuffer> input, output, pre, cur;
     for (int i = 0; buf_in[i] != NULL; i++) {

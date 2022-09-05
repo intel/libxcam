@@ -306,11 +306,16 @@ EGLBase::create_image (
         EGL_NONE
     };
 
+    XCAM_LOG_DEBUG("EGLBase::create_image width:%d height:%d fourcc:%d dmabuf_fd:%d offset:%d stride:%d modifiers:%d\n",
+                   width,   height,   fourcc,   dmabuf_fd,   offset,   stride,   modifiers);
+
     EGLImage egl_image = eglCreateImage (_display,
                                          NULL,
                                          EGL_LINUX_DMA_BUF_EXT,
                                          (EGLClientBuffer)NULL,
                                          attribute_list);
+
+    XCAM_LOG_DEBUG("EGLBase::create_image eglGetError:%d\n", eglGetError());
 
     XCAM_ASSERT (egl_image != EGL_NO_IMAGE);
 
