@@ -1,5 +1,0 @@
-if ENABLE_DNN
-INFERENCE_DIR = inference
-endif
-
-SUBDIRS = $(INFERENCE_DIR)

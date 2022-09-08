@@ -7,9 +7,8 @@ import torch.onnx
 from torch import nn
 
 import networks
-from utils import download_model_if_doesnt_exist
 
-output_path = "outputs/monodepth2x.onnx"
+output_path = "models_cvt/monodepth2.onnx"
 
 
 def parse_args():
@@ -17,17 +16,7 @@ def parse_args():
         description='Simple testing funtion for Monodepthv2 models.')
 
     parser.add_argument('--model_name', type=str,
-                        help='name of a pretrained model to use',
-                        choices=[
-                            "mono_640x192",
-                            "stereo_640x192",
-                            "mono+stereo_640x192",
-                            "mono_no_pt_640x192",
-                            "stereo_no_pt_640x192",
-                            "mono+stereo_no_pt_640x192",
-                            "mono_1024x320",
-                            "stereo_1024x320",
-                            "mono+stereo_1024x320"])
+                        help='name of a pretrained model to use')
     parser.add_argument("--no_cuda",
                         help='if set, disables CUDA',
                         action='store_true')
@@ -56,7 +45,6 @@ def convert_model(args):
     else:
         device = torch.device("cpu")
 
-    download_model_if_doesnt_exist(args.model_name)
     model_path = os.path.join("models", args.model_name)
     print("-> Loading model from ", model_path)
     encoder_path = os.path.join(model_path, "encoder.pth")

@@ -13,10 +13,10 @@ from torchvision import transforms, datasets
 from openvino.inference_engine import IECore
 
 
-image_path = "C:/Users/Avenger/Desktop/gsoc/monodepth2/assets/test_image.jpg"
-model_xml = "C:/Users/Avenger/Desktop/gsoc/monodepth2/outputs/monodepth2.xml"
-model_bin = "C:/Users/Avenger/Desktop/gsoc/monodepth2/outputs/monodepth2.bin"
-output_directory = "C:/Users/Avenger/Desktop/gsoc/monodepth2/assets/output_disp"
+image_path = "assets/test_image.jpg"
+model_xml = "models_cvt/monodepth2.xml"
+model_bin = "models_cvt/monodepth2.bin"
+output_directory = "assets/output_disp"
 
 paths = [image_path]
 
