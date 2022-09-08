@@ -40,7 +40,7 @@ python inference.py
 
 You can also visit [monodepth2](https://github.com/nianticlabs/monodepth2) and train the model with your own dataset. 
 
-After the training, convert your model into .onnx format file with:
+After the training, you can download the [folder](https://drive.google.com/drive/folders/1nIHY-36OuQEDiKxcZSdDpu_iuGUCAlJA?usp=sharing) and convert your model into .onnx format file with:
 
 ```shell
 python model_converter.py --model_name your_model_name
