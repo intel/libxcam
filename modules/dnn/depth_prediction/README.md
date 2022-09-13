@@ -50,7 +50,7 @@ Then use openvino's tool library 'mo_onnx.py' script converts the .onnx model in
 
 ## C++
 ### Setup
-Configure openvino and opencv.
+Configure openvino_2022.1.0.643 and opencv_3.3.1 .
 
 ### Prediction for a single image
 
