@@ -79,7 +79,9 @@ CLDemoImageHandler::prepare_parameters (SmartPtr<VideoBuffer> &input, SmartPtr<V
     work_size.local[0] = 8;
     work_size.local[1] = 4;
 
-    _copy_kernel->set_arguments (args, work_size);
+    XCAM_FAIL_RETURN (
+        ERROR, _copy_kernel->set_arguments (args, work_size) == XCAM_RETURN_NO_ERROR,
+        XCAM_RETURN_ERROR_PARAM, "_copy_kernel  set arguments failed");
 
     return XCAM_RETURN_NO_ERROR;
 }

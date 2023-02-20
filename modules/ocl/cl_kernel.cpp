@@ -157,7 +157,12 @@ CLKernel::build_kernel (const XCamKernelInfo& info, const char* options)
             XCAM_ASSERT (single_kernel.ptr ());
 
             if (access (cache_path.c_str (), F_OK) == -1) {
-                mkdir (cache_path.c_str (), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+                int mkret = mkdir (cache_path.c_str (), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+		if(mkret !=0 ){
+			XCAM_LOG_ERROR ("mkdir failed ... ");
+			return XCAM_RETURN_ERROR_UNKNOWN; 
+		}
+
             }
 
             ret = cache_file.open (cache_filename, "r");

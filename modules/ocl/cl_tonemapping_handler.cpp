@@ -163,7 +163,7 @@ CLTonemappingImageHandler::prepare_parameters (
         {
             y_medium = i;
         }
-        cumulative_value += i * stats_ptr->hist_y[i];
+        cumulative_value += i * (int64_t)stats_ptr->hist_y[i];
     }
 
     y_average = cumulative_value / pixel_totalnum;
