@@ -408,7 +408,11 @@ int main (int argc, char *argv[])
     cl_post_processor->set_image_warp (enable_image_warp);
     if (smart_analyzer.ptr () && (enable_wireframe || enable_image_warp)) {
         cl_post_processor->set_scaler (true);
-        cl_post_processor->set_scaler_factor (640.0 / image_width);
+	if (image_width >= 0){
+	        cl_post_processor->set_scaler_factor (640.0 / image_width);
+	}else{
+		XCAM_LOG_ERROR ("image_width can not be zero .");
+	}
     }
 
     pipe_manager->add_image_processor (cl_post_processor);

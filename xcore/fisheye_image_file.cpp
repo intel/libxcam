@@ -162,7 +162,9 @@ FisheyeImageFile::read_roi (const SmartPtr<VideoBuffer> &buf, uint32_t idx)
             h += y_step;
         }
 
-        fseek (_fp, fp_offset, SEEK_CUR);
+        int fret = fseek (_fp, fp_offset, SEEK_CUR);
+	if (fret != 0)
+	   return XCAM_RETURN_ERROR_MEM;
     }
     buf->unmap ();
 

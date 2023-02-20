@@ -347,7 +347,7 @@ CLContext::generate_kernel_id (
         WARNING,
         error_code == CL_SUCCESS,
         NULL,
-        "cl create program failed with %d", error_string (error_code));
+        "cl create program failed with %s", error_string (error_code));
     XCAM_ASSERT (program.id);
 
     error_code = clBuildProgram (program.id, 1, &device_id, build_option, CLContext::program_pfn_notify, this);
