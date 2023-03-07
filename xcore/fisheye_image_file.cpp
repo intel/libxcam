@@ -141,8 +141,10 @@ FisheyeImageFile::read_roi (const SmartPtr<VideoBuffer> &buf, uint32_t idx)
             x_min = _x_min[idx][h] / x_step;
             x_max = (_x_max[idx][h] + x_step - 1) / x_step;
 
-            fseek (_fp, fp_offset + x_min, SEEK_CUR);
-            bytes = (x_max - x_min) * planar.pixel_bytes;
+            if (fseek (_fp, fp_offset + x_min, SEEK_CUR) < 0)
+                return XCAM_RETURN_ERROR_MEM;
+
+	    bytes = (x_max - x_min) * planar.pixel_bytes;
 
             if (fread (start + x_min, 1, bytes, _fp) != bytes) {
                 XCamReturn ret = XCAM_RETURN_NO_ERROR;
@@ -162,9 +164,9 @@ FisheyeImageFile::read_roi (const SmartPtr<VideoBuffer> &buf, uint32_t idx)
             h += y_step;
         }
 
-        int fret = fseek (_fp, fp_offset, SEEK_CUR);
-	if (fret != 0)
-	   return XCAM_RETURN_ERROR_MEM;
+        if (fseek (_fp, fp_offset, SEEK_CUR) < 0)
+            return XCAM_RETURN_ERROR_MEM;
+
     }
     buf->unmap ();
 
