@@ -846,7 +846,7 @@ int main (int argc, char *argv[])
         cl_post_processor->set_image_warp (image_warp_type);
         if (smart_analyzer.ptr () && (wireframe_type || image_warp_type)) {
             cl_post_processor->set_scaler (true);
-            if (frame_width > 0) {
+            if (frame_width > 0U) {
                 cl_post_processor->set_scaler_factor (640.0 / frame_width);
 	    } else {
                 XCAM_LOG_ERROR ("frame_width can not be zero .");
