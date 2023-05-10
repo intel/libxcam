@@ -48,23 +48,23 @@ public:
     virtual void get_correspondence (std::vector<PointFloat2> &left_match, std::vector<PointFloat2> &right_match);
 
 protected:
-    void add_detected_data (cv::Mat image, cv::Ptr<cv::Feature2D> detector, std::vector<cv::Point2f> &corners);
+    void add_detected_data (cv::Mat &image, cv::Ptr<cv::Feature2D> detector, std::vector<cv::Point2f> &corners);
 
     void debug_write_image (
         const SmartPtr<VideoBuffer> &left_buf, const SmartPtr<VideoBuffer> &right_buf,
         const Rect &left_rect, const Rect &right_rect, uint32_t frame_num, int fm_idx);
 
 private:
-    virtual void detect_and_match (cv::Mat img_left, cv::Mat img_right);
+    virtual void detect_and_match (cv::Mat &img_left, cv::Mat &img_right);
     virtual void calc_of_match (
-        cv::Mat image0, cv::Mat image1, std::vector<cv::Point2f> &corner0, std::vector<cv::Point2f> &corner1,
+        cv::Mat &image0, cv::Mat &image1, std::vector<cv::Point2f> &corner0, std::vector<cv::Point2f> &corner1,
         std::vector<uchar> &status, std::vector<float> &error);
 
     void get_valid_offsets (
         std::vector<cv::Point2f> &corner0, std::vector<cv::Point2f> &corner1,
         std::vector<uchar> &status, std::vector<float> &error,
         std::vector<float> &offsets, float &sum, int &count,
-        cv::Mat debug_img, cv::Size &img0_size);
+        cv::Mat &debug_img, cv::Size &img0_size);
 
     void adjust_crop_area ();
 

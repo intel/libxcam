@@ -271,7 +271,7 @@ write_in_image (const SmartPtr<Stitcher> &stitcher, const SVStreams &ins, uint32
     if (stitcher->get_dewarp_mode () == DewarpBowl) {
         for (uint32_t i = 0; i < ins.size (); ++i) {
             std::snprintf (idx_str, XCAM_TEST_MAX_STR_SIZE, "idx:%d", i);
-            std::snprintf (img_name, XCAM_TEST_MAX_STR_SIZE, "orig_fisheye_%d_%d.jpg", frame_num, i);
+            std::snprintf (img_name, XCAM_TEST_MAX_STR_SIZE, "%s//orig_fisheye_%d_%d.jpg", XCAM_TEST_STREAM_FOLDER, frame_num, i);
             ins[i]->debug_write_image (img_name, frame_str, idx_str);
         }
     } else {
@@ -288,7 +288,7 @@ write_in_image (const SmartPtr<Stitcher> &stitcher, const SVStreams &ins, uint32
             cv::putText (mat, frame_str, cv::Point(20, 50), cv::FONT_HERSHEY_COMPLEX, 2.0,
                          cv::Scalar(0, 0, 255), 2, 8, false);
 
-            std::snprintf (img_name, XCAM_TEST_MAX_STR_SIZE, "orig_fisheye_%d.jpg", frame_num);
+            std::snprintf (img_name, XCAM_TEST_MAX_STR_SIZE, "%s//orig_fisheye_%d.jpg", XCAM_TEST_STREAM_FOLDER, frame_num);
             cv::imwrite (img_name, mat);
         } else {
             char idx_str[XCAM_TEST_MAX_STR_SIZE] = {'\0'};
@@ -304,7 +304,7 @@ write_in_image (const SmartPtr<Stitcher> &stitcher, const SVStreams &ins, uint32
                 cv::putText (mat, idx_str, cv::Point (20, 110), cv::FONT_HERSHEY_COMPLEX, 2.0,
                              cv::Scalar (0, 0, 255), 2, 8, false);
 
-                std::snprintf (img_name, XCAM_TEST_MAX_STR_SIZE, "orig_fisheye_%d_%d.jpg", frame_num, i);
+                std::snprintf (img_name, XCAM_TEST_MAX_STR_SIZE, "%s//orig_fisheye_%d_%d.jpg", XCAM_TEST_STREAM_FOLDER, frame_num, i);
                 cv::imwrite (img_name, mat);
             }
         }

@@ -35,15 +35,15 @@ public:
         const SmartPtr<VideoBuffer> &left_buf, const SmartPtr<VideoBuffer> &right_buf);
 
 private:
-    virtual void detect_and_match (cv::Mat img_left, cv::Mat img_right);
+    virtual void detect_and_match (cv::Mat &img_left, cv::Mat &img_right);
     virtual void calc_of_match (
-        cv::Mat image0, cv::Mat image1, std::vector<cv::Point2f> &corner0,
+        cv::Mat &image0, cv::Mat &image1, std::vector<cv::Point2f> &corner0,
         std::vector<cv::Point2f> &corner1, std::vector<uchar> &status, std::vector<float> &error);
 
     bool calc_mean_offset (
         std::vector<cv::Point2f> &corner0, std::vector<cv::Point2f> &corner1, std::vector<uchar> &status,
         std::vector<float> &error, float &mean_offset_x, float &mean_offset_y,
-        cv::Mat debug_img, cv::Size &img0_size, cv::Size &img1_size);
+        cv::Mat &debug_img, cv::Size &img0_size, cv::Size &img1_size);
 
 private:
     XCAM_DEAD_COPY (CVFeatureMatchCluster);
