@@ -27,6 +27,7 @@
 #endif
 
 #define XCAM_CV_FM_DEBUG 0
+#define XCAM_CV_FM_DEBUG_FOLDER "."
 #define XCAM_CV_OF_DRAW_SCALE 2
 
 namespace XCam {
@@ -56,7 +57,7 @@ CVFeatureMatch::enable_adjust_crop_area ()
 
 void
 CVFeatureMatch::add_detected_data (
-    cv::Mat image, cv::Ptr<cv::Feature2D> detector, std::vector<cv::Point2f> &corners)
+    cv::Mat &image, cv::Ptr<cv::Feature2D> detector, std::vector<cv::Point2f> &corners)
 {
     std::vector<cv::KeyPoint> keypoints;
     detector->detect (image, keypoints);
@@ -72,7 +73,7 @@ CVFeatureMatch::get_valid_offsets (
     std::vector<cv::Point2f> &corner0, std::vector<cv::Point2f> &corner1,
     std::vector<uchar> &status, std::vector<float> &error,
     std::vector<float> &offsets, float &sum, int &count,
-    cv::Mat debug_img, cv::Size &img0_size)
+    cv::Mat &debug_img, cv::Size &img0_size)
 {
     count = 0;
     sum = 0.0f;
@@ -112,7 +113,7 @@ CVFeatureMatch::get_valid_offsets (
 
 void
 CVFeatureMatch::calc_of_match (
-    cv::Mat image0, cv::Mat image1, std::vector<cv::Point2f> &corner0, std::vector<cv::Point2f> &corner1,
+    cv::Mat &image0, cv::Mat &image1, std::vector<cv::Point2f> &corner0, std::vector<cv::Point2f> &corner1,
     std::vector<uchar> &status, std::vector<float> &error)
 {
     cv::Mat debug_img;
@@ -146,7 +147,7 @@ CVFeatureMatch::calc_of_match (
 #if XCAM_CV_FM_DEBUG
     XCAM_LOG_INFO ("FeatureMatch(idx:%d): valid offsets:%d", _fm_idx, offsets.size ());
     char file_name[256];
-    std::snprintf (file_name, 256, "fm_optical_flow_%d_%d.jpg", _frame_num, _fm_idx);
+    std::snprintf (file_name, 256, "%s//fm_optical_flow_%d_%d.jpg", XCAM_CV_FM_DEBUG_FOLDER, _frame_num, _fm_idx);
     cv::imwrite (file_name, debug_img);
 #endif
 
@@ -194,7 +195,7 @@ CVFeatureMatch::adjust_crop_area ()
 }
 
 void
-CVFeatureMatch::detect_and_match (cv::Mat img_left, cv::Mat img_right)
+CVFeatureMatch::detect_and_match (cv::Mat &img_left, cv::Mat &img_right)
 {
     std::vector<float> err;
     std::vector<uchar> status;
@@ -278,10 +279,10 @@ CVFeatureMatch::debug_write_image (
     std::snprintf (fm_idx_str, 64, "fm_idx:%d", fm_idx);
 
     char img_name[256] = {'\0'};
-    std::snprintf (img_name, 256, "fm_in_stitch_area_%d_%d_0.jpg", frame_num, fm_idx);
+    std::snprintf (img_name, 256, "%s//fm_in_stitch_area_%d_%d_0.jpg", XCAM_CV_FM_DEBUG_FOLDER, frame_num, fm_idx);
     write_image (left_buf, left_rect, img_name, frame_str, fm_idx_str);
 
-    std::snprintf (img_name, 256, "fm_in_stitch_area_%d_%d_1.jpg", frame_num, fm_idx);
+    std::snprintf (img_name, 256, "%s//fm_in_stitch_area_%d_%d_1.jpg", XCAM_CV_FM_DEBUG_FOLDER, frame_num, fm_idx);
     write_image (right_buf, right_rect, img_name, frame_str, fm_idx_str);
 
     XCAM_LOG_INFO ("FeatureMatch(idx:%d): frame number:%d done", fm_idx, frame_num);

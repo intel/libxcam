@@ -23,6 +23,7 @@
 #include "cv_feature_match_cluster.h"
 
 #define XCAM_CV_FM_DEBUG 0
+#define XCAM_CV_FM_DEBUG_FOLDER "."
 #define XCAM_CV_OF_DRAW_SCALE 2
 
 namespace XCam {
@@ -36,7 +37,7 @@ CVFeatureMatchCluster::calc_mean_offset (
     std::vector<cv::Point2f> &corner0, std::vector<cv::Point2f> &corner1,
     std::vector<uchar> &status, std::vector<float> &error,
     float &mean_offset_x, float &mean_offset_y,
-    cv::Mat debug_img, cv::Size &img0_size, cv::Size &img1_size)
+    cv::Mat &debug_img, cv::Size &img0_size, cv::Size &img1_size)
 {
     std::vector<std::vector<uint32_t>> clusters;
     std::vector<std::vector<cv::Point2f>> clusters_offsets;
@@ -195,7 +196,7 @@ CVFeatureMatchCluster::calc_mean_offset (
 
 void
 CVFeatureMatchCluster::calc_of_match (
-    cv::Mat image0, cv::Mat image1, std::vector<cv::Point2f> &corner0, std::vector<cv::Point2f> &corner1,
+    cv::Mat &image0, cv::Mat &image1, std::vector<cv::Point2f> &corner0, std::vector<cv::Point2f> &corner1,
     std::vector<uchar> &status, std::vector<float> &error)
 {
     cv::Mat debug_img;
@@ -230,7 +231,7 @@ CVFeatureMatchCluster::calc_of_match (
 
 #if XCAM_CV_FM_DEBUG
     char file_name[256];
-    std::snprintf (file_name, 256, "fm_optical_flow_%d_%d.jpg", _frame_num, _fm_idx);
+    std::snprintf (file_name, 256, "%s//fm_optical_flow_%d_%d.jpg", XCAM_CV_FM_DEBUG_FOLDER, _frame_num, _fm_idx);
     cv::imwrite (file_name, debug_img);
 #endif
 
@@ -255,7 +256,7 @@ CVFeatureMatchCluster::calc_of_match (
 }
 
 void
-CVFeatureMatchCluster::detect_and_match (cv::Mat img_left, cv::Mat img_right)
+CVFeatureMatchCluster::detect_and_match (cv::Mat &img_left, cv::Mat &img_right)
 {
     std::vector<float> err;
     std::vector<uchar> status;

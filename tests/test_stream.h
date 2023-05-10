@@ -32,6 +32,7 @@
 #include <fcntl.h>
 
 #define XCAM_TEST_STREAM_DEBUG 0
+#define XCAM_TEST_STREAM_FOLDER "."
 
 #define XCAM_TEST_MAX_STR_SIZE 256
 

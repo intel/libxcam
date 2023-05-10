@@ -45,6 +45,7 @@
 #define MAP_FACTOR_Y  16
 
 #define DUMP_STITCHER 0
+#define DUMP_STITCHER_FOLDER "."
 
 namespace XCam {
 
@@ -54,7 +55,7 @@ stitcher_dump_buf (const SmartPtr<VideoBuffer> buf, uint32_t idx, const char *pr
 {
     XCAM_ASSERT (prefix);
     char name[256];
-    snprintf (name, 256, "%s-%d", prefix, idx);
+    snprintf (name, 256, "%s//%s-%d", DUMP_STITCHER_FOLDER, prefix, idx);
     dump_buf_perfix_path (buf, name);
 }
 
@@ -63,7 +64,8 @@ stitcher_dump_fisheye_lut (FisheyeDewarp::MapTable &lut, uint32_t idx, const cha
 {
     XCAM_ASSERT (prefix);
     char table_name[XCAM_MAX_STR_SIZE] = {'\0'};
-    snprintf (table_name, XCAM_MAX_STR_SIZE, "%s-%d.data", prefix, idx);
+    snprintf (table_name, XCAM_MAX_STR_SIZE, "%s//%s-%d.data", DUMP_STITCHER_FOLDER, prefix, idx);
+
     size_t size = lut.size () * sizeof (PointFloat2);
     dump_data_buf (lut.data (), size, table_name);
 }

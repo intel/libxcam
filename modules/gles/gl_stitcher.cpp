@@ -37,6 +37,7 @@
 #define MAP_FACTOR_Y  16
 
 #define DUMP_BUFFER 0
+#define DUMP_BUFFER_FOLDER "."
 
 #define XCAM_FISHEYE_IMG_ROI_RADIUS 0
 
@@ -1048,7 +1049,7 @@ GLStitcher::stitch_buffers (const VideoBufferList &in_bufs, SmartPtr<VideoBuffer
 #if DUMP_BUFFER
     char name[256];
     for (uint32_t i = 0; i < in_bufs.size (); ++i) {
-        snprintf (name, 256, "stitcher-in%d", i);
+        snprintf (name, 256, "%s//stitcher-in%d", DUMP_BUFFER_FOLDER, i);
         dump_buf_perfix_path (param->in_bufs[i], name);
     }
     if (!param->enable_dmabuf) {

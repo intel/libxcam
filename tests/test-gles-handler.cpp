@@ -164,11 +164,14 @@ int main (int argc, char **argv)
     GLStreams outs;
     GLType type = GLTypeNone;
 
+    const char* device_node = NULL;
+
     int loop = 1;
     bool save_output = true;
 
     const struct option long_opts[] = {
         {"type", required_argument, NULL, 't'},
+        {"device-node", required_argument, NULL, 'D'},
         {"input0", required_argument, NULL, 'i'},
         {"input1", required_argument, NULL, 'j'},
         {"output", required_argument, NULL, 'o'},
@@ -203,6 +206,10 @@ int main (int argc, char **argv)
                 usage (argv[0]);
                 return -1;
             }
+            break;
+        case 'D':
+            XCAM_ASSERT (optarg);
+            device_node = optarg;
             break;
         case 'i':
             XCAM_ASSERT (optarg);
@@ -278,9 +285,14 @@ int main (int argc, char **argv)
     printf ("pixel format:\t\t%s\n", pix_fmt == V4L2_PIX_FMT_NV12 ? "nv12" : "yuv420");
     printf ("save output:\t\t%s\n", save_output ? "true" : "false");
     printf ("loop count:\t\t%d\n", loop);
+    printf ("device node:\t\t%s\n", device_node != NULL ? device_node : "Not specified, use default model");
 
-    SmartPtr<EGLBase> egl = EGLBase::instance ();
-    XCAM_FAIL_RETURN (ERROR, egl->init (), -1, "init EGL failed");
+    SmartPtr<EGLBase> egl;
+    if (NULL == device_node) {
+        XCAM_FAIL_RETURN (ERROR, egl->init (), -1, "init EGL failed");
+    } else {
+        XCAM_FAIL_RETURN (ERROR, egl->init (device_node), -1, "init EGL failed");
+    }
 
     for (uint32_t i = 0; i < ins.size (); ++i) {
         ins[i]->set_buf_size (input_width, input_height);
