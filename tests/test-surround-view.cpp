@@ -504,7 +504,11 @@ single_frame (
         if (out_config.is_save()) {
             if (stitcher->complete_stitch ()) {
                 if (enable_dmabuf) {
+#if HAVE_GLES
                     dump_dma_video_buf (out_dma_buf, "test-surround-view-output-dma-buffer", loop);
+#else
+                    XCAM_LOG_ERROR ("GLES module is unsupported");
+#endif
                 } else {
                     write_image (stitcher, ins, outs, out_config);
                 }
@@ -1060,8 +1064,12 @@ int main (int argc, char *argv[])
 
     outs[out_config.stitch_index]->set_buf_size (output_width, output_height);
     if (enable_dmabuf) {
+#if HAVE_GLES
         outs[out_config.stitch_index]->set_module (module);
         CHECK (outs[out_config.stitch_index]->create_buf_pool (XCAM_GL_RESERVED_BUF_COUNT, input_format), "create buffer pool failed");
+#else
+        XCAM_LOG_ERROR ("GLES module is unsupported");
+#endif
     }
 
     if (out_config.save_output) {
