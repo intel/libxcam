@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  * Author: Zong Wei <wei.zong@intel.com>
+ * Author: Ali Mansouri <ali.m.t1992@gmail.com>
  */
 
 #ifndef XCAM_DNN_INFERENCE_ENGINE_H
@@ -25,7 +26,7 @@
 
 #include <vector>
 #include <string>
-#include <inference_engine.hpp>
+#include <openvino/openvino.hpp>
 
 #include <xcam_std.h>
 #include <video_buffer.h>
@@ -61,9 +62,8 @@ enum DnnInferPrecisionType {
     DnnInferPrecisionFP16,
     DnnInferPrecisionI32,
     DnnInferPrecisionFP32,
-    DnnInferPrecisionMixed,
-    DnnInferPrecisionCustom,
-    DnnInferPrecisionUnspecified = -1
+    DnnInferPrecisionDynamic,
+    DnnInferPrecisionUndefined = -1
 };
 
 enum DnnInferLayoutType {
@@ -77,6 +77,19 @@ enum DnnInferLayoutType {
     DnnInferLayoutNC,
     DnnInferLayoutCN,
     DnnInferLayoutBlocked
+};
+
+enum ov_layout_value {
+    ov_layout_any = 0,
+    ov_layout_nchw,
+    ov_layout_nhwc,
+    ov_layout_oihw,
+    ov_layout_c,
+    ov_layout_chw,
+    ov_layout_hw,
+    ov_layout_nc,
+    ov_layout_cn,
+    ov_layout_blocked
 };
 
 enum DnnInferMemoryType {
@@ -170,10 +183,11 @@ struct DnnInferConfig {
     DnnInferInputOutputInfo input_infos;
     DnnInferInputOutputInfo output_infos;
 
-    const std::map<std::string, std::string> config_file;
+    std::string config_file;
     std::string device_name;
-    std::string mkldnn_ext;
-    std::string cldnn_ext;
+    std::string cpu_ext;
+    std::string gpu_ext;
+    std::string gna_ext;
     std::string model_filename;
 
     DnnInferConfig () {
@@ -183,6 +197,7 @@ struct DnnInferConfig {
 };
 
 typedef std::map<DnnInferModelType, const char*> DnnOutputLayerType;
+typedef std::map<std::string, ov_layout_value> OvLayoutType;
 
 class DnnInferenceEngine {
 public:
@@ -242,22 +257,22 @@ public:
 protected:
     virtual XCamReturn set_output_layer_type (const char* type) = 0;
 
-    InferenceEngine::Layout estimate_layout_type (const int ch_num);
-    InferenceEngine::Layout convert_layout_type (DnnInferLayoutType layout);
-    DnnInferLayoutType convert_layout_type (InferenceEngine::Layout layout);
+    ov::Layout estimate_layout_type (const int ch_num);
+    ov::Layout convert_layout_type (DnnInferLayoutType layout);
+    DnnInferLayoutType convert_layout_type (ov::Layout layout);
 
-    InferenceEngine::Precision convert_precision_type (DnnInferPrecisionType precision);
-    DnnInferPrecisionType convert_precision_type (InferenceEngine::Precision precision);
+    ov::element::Type convert_precision_type (DnnInferPrecisionType precision);
+    DnnInferPrecisionType convert_precision_type (ov::element::Type precision);
 
     std::string get_filename_prefix (const std::string &file_path);
 
-    void print_performance_counts (const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& performance_map);
+    void print_performance_counts (const std::map<std::string, ov::ProfilingInfo>& performance_map);
 
-    XCamReturn set_input_blob (uint32_t idx, DnnInferData& data);
+    XCamReturn set_input_tensor (uint32_t idx, DnnInferData& data);
 
 private:
-    template <typename T> XCamReturn copy_image_to_blob (const DnnInferData& data, InferenceEngine::Blob::Ptr& blob, int batch_index);
-    template <typename T> XCamReturn copy_data_to_blob (const DnnInferData& data, InferenceEngine::Blob::Ptr& blob, int batch_index);
+    template <typename T> XCamReturn copy_image_to_input_tensor (const DnnInferData& data, ov::Tensor& input_tensor, int batch_index);
+    template <typename T> XCamReturn copy_data_to_input_tensor (const DnnInferData& data, ov::Tensor& input_tensor, int batch_index);
 
 protected:
 
@@ -268,11 +283,12 @@ protected:
     std::vector<uint32_t> _input_image_width;
     std::vector<uint32_t> _input_image_height;
 
-    SmartPtr<InferenceEngine::Core> _ie;
-    InferenceEngine::CNNNetwork _network;
-    InferenceEngine::InferRequest _infer_request;
+    SmartPtr<ov::Core> _ie;
+    std::shared_ptr<ov::Model> _network;
+    ov::InferRequest _infer_request;
 
     DnnOutputLayerType _output_layer_type;
+    OvLayoutType layout_types;
 };
 
 }  // namespace XCam

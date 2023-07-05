@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  * Author: Zong Wei <wei.zong@intel.com>
+ * Author: Ali Mansouri <ali.m.t1992@gmail.com>
  *
  */
 
@@ -37,7 +38,7 @@
 #include "dnn/inference/dnn_semantic_segmentation.h"
 
 using namespace XCam;
-using namespace InferenceEngine;
+using namespace ov;
 
 class InferStream
     : public Stream
@@ -215,15 +216,15 @@ int main (int argc, char *argv[])
     if (DnnInferDeviceCPU == infer_config.target_id) {
         infer_config.device_name = "CPU";
         if (NULL != ext_path ) {
-            infer_config.mkldnn_ext = ext_path;
+            infer_config.cpu_ext = ext_path;
         }
-        XCAM_LOG_DEBUG ("Device(%s) load extension: %s", infer_config.device_name.c_str (), infer_config.mkldnn_ext.c_str ());
+        XCAM_LOG_DEBUG ("Device(%s) load extension: %s", infer_config.device_name.c_str (), infer_config.cpu_ext.c_str ());
     } else if (DnnInferDeviceGPU == infer_config.target_id) {
         infer_config.device_name = "GPU";
         if (NULL != ext_path ) {
-            infer_config.cldnn_ext = ext_path;
+            infer_config.gpu_ext = ext_path;
         }
-        XCAM_LOG_DEBUG ("Device(%s) load extension: %s", infer_config.device_name.c_str (), infer_config.cldnn_ext.c_str ());
+        XCAM_LOG_DEBUG ("Device(%s) load extension: %s", infer_config.device_name.c_str (), infer_config.gpu_ext.c_str ());
     }
 
     if (optind < argc || argc < 2) {

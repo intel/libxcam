@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  * Author: Zong Wei <wei.zong@intel.com>
+ * Author: Ali Mansouri <ali.m.t1992@gmail.com>
  */
 
 #include "test_common.h"
@@ -24,18 +25,20 @@
 #include <interface/stitcher.h>
 #include <calibration_parser.h>
 #include <soft/soft_video_buf_allocator.h>
-#if HAVE_GLES
-#include <gles/gl_video_buffer.h>
-#include <gles/egl/egl_base.h>
-#endif
-#if HAVE_VULKAN
-#include <vulkan/vk_device.h>
-#endif
 
 #if ENABLE_DNN
 #include "dnn/inference/dnn_inference_utils.h"
 #include "dnn/inference/dnn_inference_engine.h"
 #include "dnn/inference/dnn_object_detection.h"
+#endif
+
+#if HAVE_GLES
+#include <gles/gl_video_buffer.h>
+#include <gles/egl/egl_base.h>
+#endif
+
+#if HAVE_VULKAN
+#include <vulkan/vk_device.h>
 #endif
 
 #include <render/render_osg_viewer.h>
@@ -323,6 +326,7 @@ create_car_model (const char *name)
     float rotation_y = 0.0f;
     float rotation_z = 1.0f;
     float rotation_degrees = -180.0;
+    float scale = 1.0f;
 
     car_model->setup_model_matrix (
         translation_x,
@@ -469,8 +473,7 @@ create_dnn_inference_engine ()
 
     infer_engine->get_model_input_info (infer_config.input_infos);
     for (uint32_t i = 0; i < infer_config.input_infos.numbers; i++) {
-        infer_config.input_infos.data_type[i] = DnnInferDataTypeImage;
-        infer_engine->set_input_precision (i, DnnInferPrecisionU8);
+        infer_engine->set_model_input_info (infer_config.input_infos);
         XCAM_LOG_DEBUG ("Idx %d : [%d X %d X %d] , [%d %d %d], batch size = %d", i,
                         infer_config.input_infos.width[i], infer_config.input_infos.height[i], infer_config.input_infos.channels[i],
                         infer_config.input_infos.precision[i], infer_config.input_infos.layout[i], infer_config.input_infos.data_type[i],
@@ -481,7 +484,7 @@ create_dnn_inference_engine ()
     XCAM_LOG_DEBUG ("Output info (numbers %d) :", infer_config.output_infos.numbers);
 
     for (uint32_t i = 0; i < infer_config.output_infos.numbers; i++) {
-        infer_engine->set_output_precision (i, DnnInferPrecisionFP32);
+        infer_engine->set_model_output_info (infer_config.output_infos);
         XCAM_LOG_DEBUG ("Idx %d : [%d X %d X %d] , [%d %d %d], batch size = %d", i,
                         infer_config.output_infos.width[i],
                         infer_config.output_infos.height[i],
