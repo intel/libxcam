@@ -16,14 +16,15 @@
  * limitations under the License.
  *
  * Author: Zong Wei <wei.zong@intel.com>
+ * Author: Ali Mansouri <ali.m.t1992@gmail.com>
  */
 
-#include <inference_engine.hpp>
+#include <openvino/openvino.hpp>
 
 #include "dnn_semantic_segmentation.h"
 
 using namespace std;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace XCam {
 
@@ -54,36 +55,27 @@ DnnSemanticSegmentation::get_model_input_info (DnnInferInputOutputInfo& info)
         return XCAM_RETURN_ERROR_ORDER;
     }
 
-    InputsDataMap inputs_info (_network.getInputsInfo ());
-    InputInfo::Ptr input_info = nullptr;
-
-    int id = 0;
-    InferenceEngine::Precision precision;
-    for (auto & item : inputs_info) {
-        if (item.second->getInputData()->getTensorDesc().getDims().size() == 4) {
-            input_info = item.second;
-            XCAM_LOG_DEBUG ("Batch size is: %d", _network.getBatchSize());
-            precision = Precision::U8;
-            item.second->setPrecision(Precision::U8);
-        } else if (item.second->getInputData()->getTensorDesc().getDims().size() == 2) {
-            precision = Precision::FP32;
-            item.second->setPrecision(Precision::FP32);
-            if ((item.second->getTensorDesc().getDims()[1] != 3 && item.second->getTensorDesc().getDims()[1] != 6)) {
+    for (size_t id = 0; id < get_input_size (); id ++) {
+        if (_network->input (id).get_shape ().size() == 4) {
+            XCAM_LOG_DEBUG ("Batch size is: %d", _network->input (id).get_shape ()[0]);
+            info.width[id] = _network->input (id).get_shape ()[3];
+            info.height[id] = _network->input (id).get_shape ()[2];
+            info.channels[id] = _network->input (id).get_shape ()[1];
+            info.object_size[id] = _network->input (id).get_shape ()[0];
+            info.data_type[id] = DnnInferDataTypeImage;
+            info.precision[id] = DnnInferPrecisionU8;
+            info.layout[id] = DnnInferLayoutNCHW;
+        } else if (_network->input (id).get_shape ().size() == 2) {
+            info.precision[id] = DnnInferPrecisionFP32;
+            if ((_network->input (id).get_shape ()[1] != 3 && _network->input (id).get_shape ()[1] != 6)) {
                 XCAM_LOG_ERROR ("Invalid input info. Should be 3 or 6 values length");
                 return XCAM_RETURN_ERROR_PARAM;
             }
         }
-
-        info.width[id] = inputs_info[item.first]->getTensorDesc().getDims()[3];
-        info.height[id] = inputs_info[item.first]->getTensorDesc().getDims()[2];
-        info.channels[id] = inputs_info[item.first]->getTensorDesc().getDims()[1];
-        info.object_size[id] = inputs_info[item.first]->getTensorDesc().getDims()[0];
-        info.precision[id] = convert_precision_type (precision);
-        id++;
     }
 
-    info.batch_size = get_batch_size ();
-    info.numbers = inputs_info.size ();
+    info.batch_size = _network->input (0).get_shape ()[0];
+    info.numbers = get_input_size ();
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -98,20 +90,24 @@ DnnSemanticSegmentation::set_model_input_info (DnnInferInputOutputInfo& info)
         return XCAM_RETURN_ERROR_ORDER;
     }
 
-    InputsDataMap inputs_info (_network.getInputsInfo ());
-    if (info.numbers != inputs_info.size ()) {
+    if (info.numbers != get_input_size ()) {
         XCAM_LOG_ERROR ("Input size is not matched with model info numbers %d !", info.numbers);
         return XCAM_RETURN_ERROR_PARAM;
     }
 
-    int idx = 0;
-    for (auto & in : inputs_info) {
-        Precision precision = convert_precision_type (info.precision[idx]);
-        in.second->setPrecision (precision);
-        Layout layout = convert_layout_type (info.layout[idx]);
-        in.second->setLayout (layout);
-        idx++;
+    ov::preprocess::PrePostProcessor ppp (_network);
+
+    for (size_t idx = 0; idx < get_input_size (); idx ++) {
+        ov::preprocess::InputInfo& input_info = ppp.input (idx);
+        ov::element::Type precision = convert_precision_type (info.precision[idx]);
+        ov::Layout layout = convert_layout_type (info.layout[idx]);
+
+        input_info.tensor().set_element_type (precision);
+        input_info.tensor().set_layout (layout);
+        input_info.model().set_layout (layout);
     }
+
+    _network = ppp.build();
 
     return XCAM_RETURN_NO_ERROR;
 }
@@ -125,43 +121,26 @@ DnnSemanticSegmentation::get_model_output_info (DnnInferInputOutputInfo& info)
     }
 
     std::string output_name;
-    OutputsDataMap outputs_info (_network.getOutputsInfo ());
-    DataPtr output_info;
-    uint32_t idx = 0;
-
-    for (const auto& out : outputs_info) {
+    for (size_t idx = 0; idx < get_output_size (); idx ++) {
         if (output_name.empty ()) {
-            output_name = out.first;
+            output_name = *(_network->output(idx).get_names ().begin ());
         }
 
-        output_info = out.second;
-        if (output_info.get ()) {
-            const InferenceEngine::SizeVector output_dims = output_info->getTensorDesc ().getDims ();
+        const ov::Shape output_dims = _network->output (idx).get_shape ();
 
-            info.object_size[idx] = output_dims[0];
-            info.channels[idx] = output_dims[1];
-            info.height[idx] = output_dims[2];
-            info.width[idx] = output_dims[3];
-            info.precision[idx] = convert_precision_type (output_info->getPrecision ());
-            info.layout[idx] = convert_layout_type (output_info->getLayout ());
-            info.data_type[idx] = DnnInferDataTypeNonImage;
-            info.format[idx] = DnnInferImageFormatGeneric1D;
-            info.batch_size = idx + 1;
-            info.numbers = outputs_info.size ();
-        } else {
-            XCAM_LOG_ERROR ("output data pointer is not valid");
-            return XCAM_RETURN_ERROR_UNKNOWN;
-        }
-        idx ++;
-        out.second->setPrecision (Precision::FP32);
+        info.object_size[idx] = output_dims[0];
+        info.channels[idx] = output_dims[1];
+        info.height[idx] = output_dims[2];
+        info.width[idx] = output_dims[3];
+        info.precision[idx] = DnnInferPrecisionFP32;
+        info.layout[idx] = DnnInferLayoutNCHW;
+        info.data_type[idx] = DnnInferDataTypeNonImage;
+        info.format[idx] = DnnInferImageFormatGeneric1D;
     }
 
+    info.batch_size = _network->output (0).get_shape ()[0];
+    info.numbers = get_output_size ();
 
-    if (output_info.get ()) {
-    } else {
-        XCAM_LOG_ERROR ("Get output info error!");
-        return XCAM_RETURN_ERROR_UNKNOWN;
-    }
     return XCAM_RETURN_NO_ERROR;
 }
 
@@ -173,20 +152,25 @@ DnnSemanticSegmentation::set_model_output_info (DnnInferInputOutputInfo& info)
         return XCAM_RETURN_ERROR_ORDER;
     }
 
-    OutputsDataMap outputs_info (_network.getOutputsInfo ());
-    if (info.numbers != outputs_info.size ()) {
+    if (info.numbers != get_output_size ()) {
         XCAM_LOG_ERROR ("Output size is not matched with model!");
         return XCAM_RETURN_ERROR_PARAM;
     }
 
-    int idx = 0;
-    for (auto & out : outputs_info) {
-        Precision precision = convert_precision_type (info.precision[idx]);
-        out.second->setPrecision (precision);
-        Layout layout = convert_layout_type (info.layout[idx]);
-        out.second->setLayout (layout);
+    ov::preprocess::PrePostProcessor ppp (_network);
+
+    for (size_t idx = 0; idx < get_output_size (); idx ++) {
+        ov::preprocess::OutputInfo& output_info = ppp.output (idx);
+        ov::element::Type precision = convert_precision_type (info.precision[idx]);
+        ov::Layout layout = convert_layout_type (info.layout[idx]);
+
+        output_info.tensor().set_element_type (precision);
+        output_info.tensor().set_layout (layout);
+        output_info.model().set_layout (layout);
         idx++;
     }
+
+    _network = ppp.build();
 
     return XCAM_RETURN_NO_ERROR;
 }

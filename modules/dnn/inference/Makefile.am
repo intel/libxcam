@@ -4,22 +4,20 @@ XCAM_DNN_CXXFLAGS = \
     $(XCAM_CXXFLAGS)        \
     -I$(top_srcdir)/xcore   \
     -I$(top_srcdir)/modules \
-    -I$(OPENVINO_IE_INC_PATH)/ngraph/include \
-    -I$(OPENVINO_IE_INC_PATH)/inference_engine/include \
-    -I$(OPENVINO_IE_INC_PATH)/inference_engine/samples/cpp/common/format_reader \
+    -I$(OPENVINO_IE_INC_PATH) \
+    -I$(OPENVINO_IE_LIBS_PATH)/../../../samples/cpp/common/format_reader/include \
     $(NULL)
 
 XCAM_DNN_LIBS = \
     $(top_builddir)/xcore/libxcam_core.la \
     -L$(OPENVINO_IE_LIBS_PATH) \
-    -linference_engine_transformations \
-    -linference_engine \
-    -lclDNNPlugin \
-    -lMKLDNNPlugin \
-    -lGNAPlugin \
-    -lmyriadPlugin \
+    -lopenvino \
+    -lopenvino_intel_gpu_plugin \
+    -lopenvino_intel_cpu_plugin \
+    -lopenvino_intel_gna_plugin \
+    -lopenvino_hetero_plugin \
     -lformat_reader \
-    -lngraph \
+    -lie_samples_utils \
     $(NULL)
 
 if HAVE_OPENCV
