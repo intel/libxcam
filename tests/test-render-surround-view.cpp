@@ -326,7 +326,6 @@ create_car_model (const char *name)
     float rotation_y = 0.0f;
     float rotation_z = 1.0f;
     float rotation_degrees = -180.0;
-    float scale = 1.0f;
 
     car_model->setup_model_matrix (
         translation_x,
