@@ -2,15 +2,15 @@ lib_LTLIBRARIES = libxcam_dnn.la
 
 XCAM_DNN_CXXFLAGS = \
     $(XCAM_CXXFLAGS)        \
+    $(LIBOPENVINO_CFLAGS)   \
     -I$(top_srcdir)/xcore   \
     -I$(top_srcdir)/modules \
-    -I$(OPENVINO_IE_INC_PATH) \
-    -I$(OPENVINO_IE_LIBS_PATH)/../../../samples/cpp/common/format_reader/include \
+    -I$(OPENVINO_EXTRAS_PATH)/samples/cpp/common/format_reader/include \
     $(NULL)
 
 XCAM_DNN_LIBS = \
     $(top_builddir)/xcore/libxcam_core.la \
-    -L$(OPENVINO_IE_LIBS_PATH) \
+    -L$(OPENVINO_EXTRAS_PATH)/bin/intel64/Release \
     -lopenvino \
     -lopenvino_intel_gpu_plugin \
     -lopenvino_intel_cpu_plugin \

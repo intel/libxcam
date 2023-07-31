@@ -172,17 +172,28 @@ AC_DEFUN([XCAM_CHECK_OSG],
         [$4])
 ])
 
-# XCAM_CHECK_DNN([$1:value], [$2:inc-path], [$3:libs-path], [$4:if-found], [$5:if-not-found])
+# XCAM_CHECK_DNN([$1:value], [$2:openvino-min], [$3:extras-path], [$4:if-found], [$5:if-not-found])
 AC_DEFUN([XCAM_CHECK_DNN],
 [
     AS_IF([test "x$1" = "xyes"],
         [
-            AS_IF([test -z $2 || test -z $3],
+            PKG_CHECK_MODULES([LIBOPENVINO], [openvino >= $2], [have_openvino=1], [have_openvino=0])
+            AS_IF([test -z $3],
                 [
-                    AC_MSG_WARN(Please export OPENVINO_IE_INC_PATH and OPENVINO_IE_LIBS_PATH environment variables)
-                    AC_MSG_ERROR(OpenVino inc-path and libs-path have not been set!)
-                ],
-                [$4])
+                    AC_MSG_WARN(Please export OPENVINO_EXTRAS_PATH environment variable)
+                    AC_MSG_ERROR(OpenVino extras-path has not been set!)
+                    $5
+                ], [
+                    AS_IF([test $have_openvino = 0],
+                    [
+                        AC_MSG_ERROR(OpenVino required version: >= $2)
+                        $5
+                    ], [
+                        openvino_version=`$PKG_CONFIG --modversion openvino`
+                        AC_MSG_NOTICE(OpenVino version: $openvino_version)
+                        $4
+                    ])
+                ])
         ],
         [$5])
 ])
