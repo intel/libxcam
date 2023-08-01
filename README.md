@@ -1,6 +1,6 @@
 ## libXCam
 
-Copyright (C) 2014-2020 Intel Corporation
+Copyright (C) 2014-2023 Intel Corporation
 
 libxcam core source code under the terms of Apache License, Version 2.0
 
@@ -70,7 +70,7 @@ OpenCL is used to improve performance in different platforms.
   * If --enable-gles, need to install [Mesa3D](https://www.mesa3d.org) library
   * If --enable-vulkan, need to install [Mesa3D](https://www.mesa3d.org) library
   * If --enable-avx512, need to install [GCC version > 4.9](https://gcc.gnu.org/gcc-4.9/changes.html) ([ CPUs With AVX-512 required](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#CPUs_with_AVX-512))
-  * If --enable-dnn, need to compile [OpenVino](https://github.com/opencv/dldt) [inference-engine](https://github.com/opencv/dldt/blob/2018/inference-engine)
+  * If --enable-dnn, need to compile [OpenVino](https://github.com/openvinotoolkit/openvino)
   * If --enable-json, need to install [json.hpp](https://github.com/nlohmann/json/releases/download/v3.7.3/json.hpp)
 
 #### Building and installing:
@@ -80,11 +80,15 @@ OpenCL is used to improve performance in different platforms.
 
         export LD_LIBRARY_PATH=/usr/local/lib/:$LD_LIBRARY_PATH
         export GST_PLUGIN_PATH=/usr/local/lib/gstreamer-1.0:$GST_PLUGIN_PATH
+        export OPENVINO_EXTRAS_PATH=WORKDIR/openvino/
+        source /usr/local/setupvars.sh
 
     --prefix=/usr:
 
         export LD_LIBRARY_PATH=/usr/lib/:$LD_LIBRARY_PATH
         export GST_PLUGIN_PATH=/usr/lib/gstreamer-1.0:$GST_PLUGIN_PATH
+        export OPENVINO_EXTRAS_PATH=WORKDIR/openvino/
+        source /usr/setupvars.sh
 
   * $ ./autogen.sh [options]
 
@@ -131,6 +135,7 @@ OpenCL is used to improve performance in different platforms.
   * Wei Zong <wei.zong@intel.com>
 
 #### Contributors: (orders by first name)
+  * Ali Mansouri <ali.m.t1992@gmail.com>
   * Andrey Parfenov <a1994ndrey@gmail.com>
   * Fei Wang <feix.w.wang@intel.com>
   * Jia Meng <jia.meng@intel.com>
