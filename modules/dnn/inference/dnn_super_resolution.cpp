@@ -22,6 +22,7 @@
 #include <openvino/openvino.hpp>
 
 #include "dnn_super_resolution.h"
+#include "dnn_inference_utils.h"
 
 using namespace std;
 using namespace ov;
@@ -57,25 +58,26 @@ DnnSuperResolution::get_model_input_info (DnnInferInputOutputInfo& info)
     }
 
     for (size_t id = 0; id < get_input_size (); id ++) {
-        if (_network->input (id).get_shape ().size() == 4) {
-            XCAM_LOG_DEBUG ("Batch size is: %d", _network->input (id).get_shape ()[0]);
-            info.width[id] = _network->input (id).get_shape ()[3];
-            info.height[id] = _network->input (id).get_shape ()[2];
-            info.channels[id] = _network->input (id).get_shape ()[1];
-            info.object_size[id] = _network->input (id).get_shape ()[0];
+        const ov::PartialShape input_dims = _network->input (id).get_partial_shape ();
+        if (input_dims.size() == 4) {
+            XCAM_LOG_DEBUG ("Batch size is: %d", XCamDNN::convert_dim(input_dims[0]));
+            info.width[id] = XCamDNN::convert_dim(input_dims[3]);
+            info.height[id] = XCamDNN::convert_dim(input_dims[2]);
+            info.channels[id] = XCamDNN::convert_dim(input_dims[1]);
+            info.object_size[id] = XCamDNN::convert_dim(input_dims[0]);
             info.data_type[id] = DnnInferDataTypeImage;
             info.precision[id] = DnnInferPrecisionU8;
-            info.layout[id] = DnnInferLayoutNCHW;
-        } else if (_network->input (id).get_shape ().size() == 2) {
+            info.layout[id] = DnnInferLayoutBCHW;
+        } else if (input_dims.size() == 2) {
             info.precision[id] = DnnInferPrecisionFP32;
-            if ((_network->input (id).get_shape ()[1] != 3 && _network->input (id).get_shape ()[1] != 6)) {
+            if ((XCamDNN::convert_dim(input_dims[1]) != 3 && XCamDNN::convert_dim(input_dims[1]) != 6)) {
                 XCAM_LOG_ERROR ("Invalid input info. Should be 3 or 6 values length");
                 return XCAM_RETURN_ERROR_PARAM;
             }
         }
     }
 
-    info.batch_size = _network->input (0).get_shape ()[0];
+    info.batch_size = XCamDNN::convert_dim(_network->input (0).get_partial_shape ()[0]);
     info.numbers = get_input_size ();
 
     return XCAM_RETURN_NO_ERROR;
@@ -127,19 +129,19 @@ DnnSuperResolution::get_model_output_info (DnnInferInputOutputInfo& info)
             output_name = *(_network->output(idx).get_names ().begin ());
         }
 
-        const ov::Shape output_dims = _network->output (idx).get_shape ();
+        const ov::PartialShape output_dims = _network->output (idx).get_partial_shape ();
 
-        info.object_size[idx] = output_dims[0];
-        info.channels[idx] = output_dims[1];
-        info.height[idx] = output_dims[2];
-        info.width[idx] = output_dims[3];
+        info.object_size[idx] = XCamDNN::convert_dim(output_dims[0]);
+        info.channels[idx] = XCamDNN::convert_dim(output_dims[1]);
+        info.height[idx] = XCamDNN::convert_dim(output_dims[2]);
+        info.width[idx] = XCamDNN::convert_dim(output_dims[3]);
         info.precision[idx] = DnnInferPrecisionFP32;
-        info.layout[idx] = DnnInferLayoutNCHW;
+        info.layout[idx] = DnnInferLayoutBCHW;
         info.data_type[idx] = DnnInferDataTypeImage;
         info.format[idx] = DnnInferImageFormatBGRPlanar;
     }
 
-    info.batch_size = _network->output (0).get_shape ()[0];
+    info.batch_size = XCamDNN::convert_dim(_network->output (0).get_partial_shape ()[0]);
     info.numbers = get_output_size ();
 
     return XCAM_RETURN_NO_ERROR;

@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  * Author: Zong Wei <wei.zong@intel.com>
+ * Author: Ali Mansouri <ali.m.t1992@gmail.com>
  */
 
 #ifndef XCAM_DNN_INFERENCE_UTILS_H
@@ -28,6 +29,8 @@
 #include "dnn_inference_engine.h"
 
 namespace XCamDNN {
+
+int32_t convert_dim (const ov::Dimension& dim);
 
 XCamReturn
 draw_bounding_boxes (

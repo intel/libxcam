@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  * Author: Zong Wei <wei.zong@intel.com>
+ * Author: Ali Mansouri <ali.m.t1992@gmail.com>
  */
 
 #include <iomanip>
@@ -123,6 +124,19 @@ static inline void
 clamp (float &value, float min, float max)
 {
     value = (value < min) ? min : ((value > max) ? max : value);
+}
+
+int32_t
+convert_dim (const ov::Dimension& dim)
+{
+    if (dim.is_static())
+    {
+        return dim.get_length();
+    }
+    else
+    {
+        return -1;
+    }
 }
 
 XCamReturn

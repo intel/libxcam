@@ -68,11 +68,13 @@ enum DnnInferPrecisionType {
 
 enum DnnInferLayoutType {
     DnnInferLayoutAny = 0,
-    DnnInferLayoutNCHW,
-    DnnInferLayoutNHWC,
+    DnnInferLayoutBCHW,
+    DnnInferLayoutBHWC,
     DnnInferLayoutOIHW,
     DnnInferLayoutC,
-    DnnInferLayoutCHW,
+    DnnInferLayoutN,
+    DnnInferLayoutNHW,
+    DnnInferLayoutBHW,
     DnnInferLayoutHW,
     DnnInferLayoutNC,
     DnnInferLayoutCN,
@@ -81,11 +83,13 @@ enum DnnInferLayoutType {
 
 enum ov_layout_value {
     ov_layout_any = 0,
-    ov_layout_nchw,
-    ov_layout_nhwc,
+    ov_layout_bchw,
+    ov_layout_bhwc,
     ov_layout_oihw,
     ov_layout_c,
-    ov_layout_chw,
+    ov_layout_n,
+    ov_layout_nhw,
+    ov_layout_bhw,
     ov_layout_hw,
     ov_layout_nc,
     ov_layout_cn,
@@ -146,15 +150,15 @@ struct DnnInferenceEngineInfo {
 
 #define DNN_INFER_MAX_INPUT_OUTPUT 10
 struct DnnInferInputOutputInfo {
-    uint32_t width[DNN_INFER_MAX_INPUT_OUTPUT];
-    uint32_t height[DNN_INFER_MAX_INPUT_OUTPUT];
-    uint32_t channels[DNN_INFER_MAX_INPUT_OUTPUT];
-    uint32_t object_size[DNN_INFER_MAX_INPUT_OUTPUT];
+    int32_t width[DNN_INFER_MAX_INPUT_OUTPUT];
+    int32_t height[DNN_INFER_MAX_INPUT_OUTPUT];
+    int32_t channels[DNN_INFER_MAX_INPUT_OUTPUT];
+    int32_t object_size[DNN_INFER_MAX_INPUT_OUTPUT];
     DnnInferPrecisionType precision[DNN_INFER_MAX_INPUT_OUTPUT];
     DnnInferLayoutType layout[DNN_INFER_MAX_INPUT_OUTPUT];
     DnnInferDataType data_type[DNN_INFER_MAX_INPUT_OUTPUT];
     DnnInferImageFormatType format[DNN_INFER_MAX_INPUT_OUTPUT];
-    uint32_t batch_size;
+    int32_t batch_size;
     uint32_t numbers;
 };
 

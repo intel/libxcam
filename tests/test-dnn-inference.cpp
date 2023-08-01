@@ -304,6 +304,9 @@ int main (int argc, char *argv[])
         CHECK (
             infer_engine->set_input_precision (i, DnnInferPrecisionU8),
             "set input presion failed!");
+        CHECK (
+            infer_engine->set_input_layout  (i, DnnInferLayoutBCHW),
+            "set input layout failed!");
         XCAM_LOG_DEBUG ("Idx %d : [%d X %d X %d] , [%d %d %d], batch size = %d", i,
                         infer_config.input_infos.width[i], infer_config.input_infos.height[i], infer_config.input_infos.channels[i],
                         infer_config.input_infos.precision[i], infer_config.input_infos.layout[i], infer_config.input_infos.data_type[i],
@@ -317,10 +320,32 @@ int main (int argc, char *argv[])
         "get model output info failed!");
     XCAM_LOG_DEBUG ("Output info (numbers %d) :", infer_config.output_infos.numbers);
 
+    std::vector<DnnInferLayoutType> output_layout;
+
+    if (DnnInferObjectDetection == infer_config.model_type) {
+        if (infer_engine->get_output_size() == 1) {
+            output_layout.push_back(DnnInferLayoutBHWC);
+        } else {
+            output_layout.push_back(DnnInferLayoutNC);
+            output_layout.push_back(DnnInferLayoutN);
+        }
+    } else {
+        if (infer_engine->get_output_size() == 1) {
+            output_layout.push_back(DnnInferLayoutBCHW);
+        } else {
+            output_layout.push_back(DnnInferLayoutNC);
+            output_layout.push_back(DnnInferLayoutN);
+            output_layout.push_back(DnnInferLayoutNHW);
+        }
+    }
+
     for (uint32_t i = 0; i < infer_config.output_infos.numbers; i++) {
         CHECK (
             infer_engine->set_output_precision (i, DnnInferPrecisionFP32),
             "set output presion failed!");
+        CHECK (
+            infer_engine->set_output_layout  (i, output_layout[i]),
+            "set output layout failed!");
         XCAM_LOG_DEBUG ("Idx %d : [%d X %d X %d] , [%d %d %d], batch size = %d", i,
                         infer_config.output_infos.width[i],
                         infer_config.output_infos.height[i],
@@ -353,13 +378,15 @@ int main (int argc, char *argv[])
                     "inference failed!");
             }
 
-            size_t batch_size = infer_engine->get_output_size ();
+            size_t batch_size = infer_engine->get_batch_size ();
             uint32_t blob_size = 0;
-            float* result_ptr = NULL;
+            std::vector<float*> result_ptr;
 
             for (uint32_t batch_idx = 0; batch_idx < batch_size; batch_idx ++) {
-                result_ptr = (float*)infer_engine->get_inference_results (batch_idx, blob_size);
-                if (NULL == result_ptr) {
+                for (uint32_t output_idx = 0; output_idx <infer_engine->get_output_size () ; output_idx ++) {
+                    result_ptr.push_back ((float*)infer_engine->get_inference_results (output_idx, blob_size));
+                }
+                if (result_ptr.empty()) {
                     continue;
                 }
 
@@ -408,7 +435,7 @@ int main (int argc, char *argv[])
         // --------------------------- 8. Process inference results -------------------------------------------------------
         XCAM_LOG_DEBUG ("Processing inference results");
 
-        size_t batch_size = infer_engine->get_output_size ();
+        size_t batch_size = infer_engine->get_batch_size ();
         if (batch_size != images.size ()) {
             XCAM_LOG_DEBUG ( "Number of images: %d ", images.size ());
             batch_size = std::min(batch_size, images.size ());
@@ -416,11 +443,13 @@ int main (int argc, char *argv[])
         }
 
         uint32_t blob_size = 0;
-        float* result_ptr = NULL;
+        std::vector<float*> result_ptr;
 
         for (uint32_t batch_idx = 0; batch_idx < batch_size; batch_idx ++) {
-            result_ptr = (float*)infer_engine->get_inference_results (batch_idx, blob_size);
-            if (NULL == result_ptr) {
+            for (uint32_t output_idx = 0; output_idx <infer_engine->get_output_size () ; output_idx ++) {
+                result_ptr.push_back ((float*)infer_engine->get_inference_results (output_idx, blob_size));
+            }
+            if (result_ptr.empty()) {
                 continue;
             }
 
@@ -472,8 +501,8 @@ int main (int argc, char *argv[])
                 SmartPtr<DnnSemanticSegmentation> semantic_seg = infer_engine.dynamic_cast_ptr<DnnSemanticSegmentation> ();
                 if (save_output) {
                     const std::string image_path = images[batch_idx] + "_semantic_seg_out_" + std::to_string (batch_idx) + ".bmp";
-                    uint32_t map_width = infer_config.output_infos.width[batch_idx];
-                    uint32_t map_height = infer_config.output_infos.height[batch_idx];
+                    uint32_t map_width = infer_config.input_infos.width[batch_idx];
+                    uint32_t map_height = infer_config.input_infos.height[batch_idx];
 
                     std::vector<std::vector<uint32_t>> seg_map (map_height, std::vector<uint32_t>(map_width, 0));
                     CHECK (

@@ -22,6 +22,7 @@
 #include <openvino/openvino.hpp>
 
 #include "dnn_object_detection.h"
+#include "dnn_inference_utils.h"
 
 using namespace std;
 using namespace ov;
@@ -56,25 +57,26 @@ DnnObjectDetection::get_model_input_info (DnnInferInputOutputInfo& info)
     }
 
     for (size_t id = 0; id < get_input_size (); id ++) {
-        if (_network->input (id).get_shape ().size() == 4) {
-            XCAM_LOG_DEBUG ("Batch size is: %d", _network->input (id).get_shape ()[0]);
-            info.width[id] = _network->input (id).get_shape ()[3];
-            info.height[id] = _network->input (id).get_shape ()[2];
-            info.channels[id] = _network->input (id).get_shape ()[1];
-            info.object_size[id] = _network->input (id).get_shape ()[0];
+        const ov::PartialShape input_dims = _network->input (id).get_partial_shape ();
+        if (input_dims.size () == 4) {
+            XCAM_LOG_DEBUG ("Batch size is: %d", XCamDNN::convert_dim(input_dims[0]));
+            info.width[id] = XCamDNN::convert_dim(input_dims[3]);
+            info.height[id] = XCamDNN::convert_dim(input_dims[2]);
+            info.channels[id] = XCamDNN::convert_dim(input_dims[1]);
+            info.object_size[id] = XCamDNN::convert_dim(input_dims[0]);
             info.data_type[id] = DnnInferDataTypeImage;
             info.precision[id] = DnnInferPrecisionU8;
-            info.layout[id] = DnnInferLayoutNCHW;
-        } else if (_network->input (id).get_shape ().size() == 2) {
+            info.layout[id] = DnnInferLayoutBCHW;
+        } else if (input_dims.size () == 2) {
             info.precision[id] = DnnInferPrecisionFP32;
-            if ((_network->input (id).get_shape ()[1] != 3 && _network->input (id).get_shape ()[1] != 6)) {
+            if ((XCamDNN::convert_dim(input_dims[1]) != 3 && XCamDNN::convert_dim(input_dims[1]) != 6)) {
                 XCAM_LOG_ERROR ("Invalid input info. Should be 3 or 6 values length");
                 return XCAM_RETURN_ERROR_PARAM;
             }
         }
     }
 
-    info.batch_size = _network->input (0).get_shape ()[0];
+    info.batch_size = XCamDNN::convert_dim(_network->input (0).get_partial_shape ()[0]);
     info.numbers = get_input_size ();
 
     return XCAM_RETURN_NO_ERROR;
@@ -126,19 +128,46 @@ DnnObjectDetection::get_model_output_info (DnnInferInputOutputInfo& info)
             output_name = *(_network->output(idx).get_names ().begin ());
         }
 
-        const ov::Shape output_dims = _network->output (idx).get_shape ();
+        if (_network->output (idx).get_partial_shape ().size() == 4) {
+            const ov::PartialShape output_dims = _network->output (idx).get_partial_shape ();
 
-        info.width[idx]    = output_dims[0];
-        info.height[idx]   = output_dims[1];
-        info.channels[idx] = output_dims[2];
-        info.object_size[idx] = output_dims[3];
-        info.precision[idx] = DnnInferPrecisionFP32;
-        info.layout[idx] = DnnInferLayoutNHWC;
-        info.data_type[idx] = DnnInferDataTypeNonImage;
-        info.format[idx] = DnnInferImageFormatUnknown;
+            info.width[idx]    = XCamDNN::convert_dim(output_dims[0]);
+            info.height[idx]   = XCamDNN::convert_dim(output_dims[1]);
+            info.channels[idx] = XCamDNN::convert_dim(output_dims[3]);
+            info.object_size[idx] = XCamDNN::convert_dim(output_dims[2]);
+            info.precision[idx] = DnnInferPrecisionFP32;
+            info.layout[idx] = DnnInferLayoutBHWC;
+            info.data_type[idx] = DnnInferDataTypeNonImage;
+            info.format[idx] = DnnInferImageFormatUnknown;
+        } else if (_network->output (idx).get_partial_shape ().size() == 2) {
+            const ov::PartialShape output_dims = _network->output (idx).get_partial_shape ();
+
+            info.width[idx]    = 1;
+            info.height[idx]   = 1;
+            info.object_size[idx]    = XCamDNN::convert_dim(output_dims[0]);
+            info.channels[idx]   = XCamDNN::convert_dim(output_dims[1]);
+            info.precision[idx] = DnnInferPrecisionFP32;
+            info.layout[idx] = DnnInferLayoutNC;
+            info.data_type[idx] = DnnInferDataTypeNonImage;
+            info.format[idx] = DnnInferImageFormatUnknown;
+        } else if (_network->output (idx).get_partial_shape ().size() == 1) {
+            const ov::PartialShape output_dims = _network->output (idx).get_partial_shape ();
+
+            info.width[idx]    = 1;
+            info.height[idx]   = 1;
+            info.channels[idx]   = 1;
+            info.object_size[idx]    = XCamDNN::convert_dim(output_dims[0]);
+            info.precision[idx] = DnnInferPrecisionFP32;
+            info.layout[idx] = DnnInferLayoutN;
+            info.data_type[idx] = DnnInferDataTypeNonImage;
+            info.format[idx] = DnnInferImageFormatUnknown;
+        } else {
+            XCAM_LOG_ERROR ("Dimension of output  %d is invalid!", idx);
+            return XCAM_RETURN_ERROR_ORDER;
+        }
     }
 
-    info.batch_size = _network->output (0).get_shape ()[0];
+    info.batch_size = XCamDNN::convert_dim(_network->output (0).get_partial_shape ()[0]);
     info.numbers = get_output_size ();
 
     return XCAM_RETURN_NO_ERROR;
@@ -176,7 +205,7 @@ DnnObjectDetection::set_model_output_info (DnnInferInputOutputInfo& info)
 }
 
 XCamReturn
-DnnObjectDetection::get_bounding_boxes (const float* result_ptr,
+DnnObjectDetection::get_bounding_boxes (const std::vector<float*> result_ptr,
                                         const uint32_t idx,
                                         std::vector<Vec4i> &boxes,
                                         std::vector<int32_t> &classes)
@@ -186,7 +215,7 @@ DnnObjectDetection::get_bounding_boxes (const float* result_ptr,
         return XCAM_RETURN_ERROR_ORDER;
     }
 
-    if (!result_ptr) {
+    if (result_ptr.empty()) {
         XCAM_LOG_ERROR ("Inference results error!");
         return XCAM_RETURN_ERROR_PARAM;
     }
@@ -196,22 +225,37 @@ DnnObjectDetection::get_bounding_boxes (const float* result_ptr,
 
     uint32_t image_width = get_input_image_width (idx);
     uint32_t image_height = get_input_image_height (idx);
-    uint32_t max_proposal_count = output_infos.channels[idx];
-    uint32_t object_size = output_infos.object_size[idx];
+
+    uint32_t max_proposal_count = (output_infos.object_size[0] == -1) ? _infer_request.get_output_tensor(0).get_shape ()[0] : output_infos.object_size[0];
+    uint32_t channels = output_infos.channels[0];
+    uint32_t stride = max_proposal_count * channels;
 
     uint32_t box_count = 0;
     for (uint32_t cur_proposal = 0; cur_proposal < max_proposal_count; cur_proposal++) {
-        float image_id = result_ptr[cur_proposal * object_size + 0];
-        if (image_id < 0) {
-            break;
-        }
+        float label = 0, confidence = 0, xmin = 0, ymin = 0, xmax = 0, ymax = 0;
 
-        float label = result_ptr[cur_proposal * object_size + 1];
-        float confidence = result_ptr[cur_proposal * object_size + 2];
-        float xmin = result_ptr[cur_proposal * object_size + 3] * image_width;
-        float ymin = result_ptr[cur_proposal * object_size + 4] * image_height;
-        float xmax = result_ptr[cur_proposal * object_size + 5] * image_width;
-        float ymax = result_ptr[cur_proposal * object_size + 6] * image_height;
+        if (get_output_size () == 1) {
+            float image_id = result_ptr[0][idx * stride + cur_proposal * channels + 0];
+            if (image_id < 0) {
+                break;
+            }
+            label = result_ptr[0][idx * stride + cur_proposal * channels + 1];
+            confidence = result_ptr[0][idx * stride + cur_proposal * channels + 2];
+            xmin = result_ptr[0][idx * stride + cur_proposal * channels + 3] * image_width;
+            ymin = result_ptr[0][idx * stride + cur_proposal * channels + 4] * image_height;
+            xmax = result_ptr[0][idx * stride + cur_proposal * channels + 5] * image_width;
+            ymax = result_ptr[0][idx * stride + cur_proposal * channels + 6] * image_height;
+        } else if (get_output_size () == 2) {
+            label = result_ptr[1][idx * max_proposal_count + cur_proposal * channels + 0];
+            confidence = result_ptr[0][idx * stride + cur_proposal * channels + 4];
+            xmin = result_ptr[0][idx * stride + cur_proposal * channels + 0] * image_width;
+            ymin = result_ptr[0][idx * stride + cur_proposal * channels + 1] * image_height;
+            xmax = result_ptr[0][idx * stride + cur_proposal * channels + 2] * image_width;
+            ymax = result_ptr[0][idx * stride + cur_proposal * channels + 3] * image_height;
+        } else {
+            XCAM_LOG_ERROR ("Number of outputs is invalid!");
+            return XCAM_RETURN_ERROR_ORDER;
+        }
 
         if (confidence > 0.5) {
             classes.push_back(static_cast<int32_t>(label));

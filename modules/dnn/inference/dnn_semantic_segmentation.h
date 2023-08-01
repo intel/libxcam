@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  * Author: Zong Wei <wei.zong@intel.com>
+ * Author: Ali Mansouri <ali.m.t1992@gmail.com>
  */
 
 #ifndef XCAM_DNN_SEMANTIC_SEGMENTATION_H
@@ -43,7 +44,7 @@ public:
     virtual XCamReturn set_model_output_info (DnnInferInputOutputInfo& info);
     virtual XCamReturn get_model_output_info (DnnInferInputOutputInfo& info);
 
-    XCamReturn get_segmentation_map (const float* result_ptr,
+    XCamReturn get_segmentation_map (const std::vector<float*> result_ptr,
                                      const uint32_t idx,
                                      std::vector<std::vector<uint32_t>>& out_classes);
 
