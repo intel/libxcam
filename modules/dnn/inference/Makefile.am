@@ -47,7 +47,6 @@ libxcam_dnn_la_LIBADD = \
 
 libxcam_dnn_la_LDFLAGS = \
     $(XCAM_LT_LDFLAGS)   \
-    -Wl,-rpath,$(OPENVINO_IE_LIBS_PATH) \
     $(NULL)
 
 libxcam_dnnincludedir = $(includedir)/xcam/dnn
