@@ -80,15 +80,13 @@ OpenCL is used to improve performance in different platforms.
 
         export LD_LIBRARY_PATH=/usr/local/lib/:$LD_LIBRARY_PATH
         export GST_PLUGIN_PATH=/usr/local/lib/gstreamer-1.0:$GST_PLUGIN_PATH
-        export OPENVINO_EXTRAS_PATH=WORKDIR/openvino/
-        source /usr/local/setupvars.sh
+        source OPENVINO_INSTALLDIR/setupvars.sh
 
     --prefix=/usr:
 
         export LD_LIBRARY_PATH=/usr/lib/:$LD_LIBRARY_PATH
         export GST_PLUGIN_PATH=/usr/lib/gstreamer-1.0:$GST_PLUGIN_PATH
-        export OPENVINO_EXTRAS_PATH=WORKDIR/openvino/
-        source /usr/setupvars.sh
+        source OPENVINO_INSTALLDIR/setupvars.sh
 
   * $ ./autogen.sh [options]
 

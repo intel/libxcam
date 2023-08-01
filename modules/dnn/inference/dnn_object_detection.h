@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  * Author: Zong Wei <wei.zong@intel.com>
+ * Author: Ali Mansouri <ali.m.t1992@gmail.com>
  */
 
 #ifndef XCAM_DNN_OBJECT_DETECTION_H
@@ -44,7 +45,7 @@ public:
     virtual XCamReturn set_model_output_info (DnnInferInputOutputInfo& info);
     virtual XCamReturn get_model_output_info (DnnInferInputOutputInfo& info);
 
-    XCamReturn get_bounding_boxes (const float* result_ptr,
+    XCamReturn get_bounding_boxes (const std::vector<float*> result_ptr,
                                    const uint32_t idx,
                                    std::vector<Vec4i> &boxes,
                                    std::vector<int32_t> &classes);

@@ -23,7 +23,6 @@
 #include "dnn_inference_utils.h"
 
 #include <iomanip>
-#include <format_reader_ptr.h>
 #include <ngraph/ngraph.hpp>
 
 #if HAVE_OPENCV
@@ -43,17 +42,18 @@ DnnInferenceEngine::DnnInferenceEngine (DnnInferConfig& config)
     _input_image_width.clear ();
     _input_image_height.clear ();
 
-    layout_types["NCHW"] = ov_layout_nchw;
-    layout_types["NHWC"] = ov_layout_nhwc;
+    layout_types["BCHW"] = ov_layout_bchw;
+    layout_types["BHWC"] = ov_layout_bhwc;
     layout_types["OIHW"] = ov_layout_oihw;
     layout_types["C"] = ov_layout_c;
-    layout_types["CHW"] = ov_layout_chw;
+    layout_types["NHW"] = ov_layout_nhw;
+    layout_types["BHW"] = ov_layout_bhw;
     layout_types["HW"] = ov_layout_hw;
     layout_types["NC"] = ov_layout_nc;
     layout_types["CN"] = ov_layout_cn;
     layout_types["BLOCKED"] = ov_layout_blocked;
     layout_types["ANY"] = ov_layout_any;
-    
+
     create_model (config);
 }
 
@@ -104,7 +104,7 @@ DnnInferenceEngine::create_model (DnnInferConfig& config)
         _ie->add_extension (config.cpu_ext.c_str ());
         XCAM_LOG_DEBUG ("Load CPU extensions: %s", config.cpu_ext.c_str ());
         _ie->add_extension (config.gpu_ext.c_str ());
-        
+
         _ie->set_property ({ ov::device::priorities("GPU", "CPU") });
     }
 
@@ -420,24 +420,28 @@ DnnInferenceEngine::set_inference_data (std::vector<std::string> images)
     uint32_t idx = 0;
 
     for (auto & i : images) {
-        FormatReader::ReaderPtr reader (i.c_str ());
-        if (reader.get () == NULL) {
+        cv::Mat img = cv::imread (i.c_str ());
+        if (img.data == NULL) {
             XCAM_LOG_WARNING ("Image %d cannot be read!", i);
             continue;
         }
 
-        _input_image_width.push_back (reader->width ());
-        _input_image_height.push_back (reader->height ());
+        _input_image_width.push_back (img.size ().width);
+        _input_image_height.push_back (img.size ().height);
 
-        uint32_t image_width = 0;
-        uint32_t image_height = 0;
+        int32_t image_width = 0;
+        int32_t image_height = 0;
 
         for (uint32_t index = 0; index > get_input_size (); index ++) {
-            image_width = _network->input (index).get_shape ()[3];
-            image_height = _network->input (index).get_shape ()[2];
+            image_width = XCamDNN::convert_dim(_network->input (index).get_partial_shape ()[3]);
+            image_height = XCamDNN::convert_dim(_network->input (index).get_partial_shape ()[2]);
         }
 
-        std::shared_ptr<unsigned char> data (reader->getData (image_width, image_height));
+        std::shared_ptr<unsigned char> data;
+        size_t size = image_width * image_height * img.channels();
+        data.reset(new unsigned char[size], std::default_delete<unsigned char[]>());
+        cv::Mat resized(cv::Size(image_width, image_height), img.type(), data.get());
+        cv::resize(img, resized, cv::Size(image_width, image_height));
 
         if (data.get () != NULL) {
             DnnInferData image;
@@ -483,12 +487,12 @@ DnnInferenceEngine::set_inference_data (const VideoBufferList& images)
         _input_image_width.push_back (buf_info.width);
         _input_image_height.push_back (buf_info.height);
 
-        uint32_t image_width = 0;
-        uint32_t image_height = 0;
+        int32_t image_width = 0;
+        int32_t image_height = 0;
 
         for (uint32_t index = 0; index < get_input_size (); index ++) {
-            image_width = _network->input(index).get_shape()[3];
-            image_height = _network->input(index).get_shape()[2];
+            image_width = XCamDNN::convert_dim(_network->input (index).get_partial_shape ()[3]);
+            image_height = XCamDNN::convert_dim(_network->input (index).get_partial_shape ()[2]);
         }
 
         float x_ratio = float(image_width) / float(buf_info.width);
@@ -535,16 +539,21 @@ DnnInferenceEngine::set_inference_data (const VideoBufferList& images)
 std::shared_ptr<uint8_t>
 DnnInferenceEngine::read_input_image (std::string& image)
 {
-    FormatReader::ReaderPtr reader (image.c_str ());
-    if (reader.get () == NULL) {
+    cv::Mat img = cv::imread (image.c_str ());
+    if (img.data == NULL) {
         XCAM_LOG_WARNING ("Image cannot be read!");
         return NULL;
     }
 
-    uint32_t image_width = reader->width ();
-    uint32_t image_height = reader->height ();
+    uint32_t image_width = img.size ().width;
+    uint32_t image_height = img.size ().height;
 
-    std::shared_ptr<uint8_t> data (reader->getData (image_width, image_height));
+    std::shared_ptr<uint8_t> data;
+    size_t size = image_width * image_height * img.channels();
+    data.reset(new unsigned char[size], std::default_delete<unsigned char[]>());
+    cv::Mat resized(cv::Size(image_width, image_height), img.type(), data.get());
+    cv::resize(img, resized, cv::Size(image_width, image_height));
+
 
     if (data.get () != NULL) {
         return data;
@@ -574,18 +583,7 @@ DnnInferenceEngine::save_output_image (const std::string& image_name, uint32_t i
 
     std::string output_name;
 
-    for (uint32_t idx = 0; idx < get_output_size (); idx ++) {
-        for (const auto & op : _network->get_ops ()) {
-            if (op->get_type_info () == ngraph::op::DetectionOutput::get_type_info_static ()) {
-                output_name = *(_network->output(idx).get_names ().begin ());
-                break;
-            }
-        }
-    }
-
-    if (output_name.empty ()) {
-        output_name = *(_network->output(0).get_names ().begin ());
-    }
+    output_name = *(_network->output(index).get_names ().begin ());
 
     if (output_name.empty ()) {
         XCAM_LOG_ERROR ("out name is empty!");
@@ -657,18 +655,7 @@ DnnInferenceEngine::get_inference_results (uint32_t idx, uint32_t& size)
         return NULL;
     }
 
-    for (uint32_t idx = 0; idx < get_output_size (); idx ++) {
-        for (const auto & op : _network->get_ops ()) {
-            if (op->get_type_info () == ngraph::op::DetectionOutput::get_type_info_static ()) {
-                output_name = *(_network->output(idx).get_names ().begin ());
-                break;
-            }
-        }
-    }
-
-    if (output_name.empty ()) {
-        output_name = *(_network->output(0).get_names ().begin ());
-    }
+    output_name = *(_network->output(idx).get_names ().begin ());
 
     if (output_name.empty ()) {
         XCAM_LOG_ERROR ("out name is empty!");
@@ -687,9 +674,9 @@ ov::Layout
 DnnInferenceEngine::estimate_layout_type (const int ch_num)
 {
     if (ch_num == 4) {
-        return ov::Layout("NCHW");
+        return ov::Layout("BCHW");
     } else if (ch_num == 3) {
-        return ov::Layout("CHW");
+        return ov::Layout("NHW");
     } else if (ch_num == 2) {
         return ov::Layout("NC");
     } else {
@@ -701,16 +688,20 @@ ov::Layout
 DnnInferenceEngine::convert_layout_type (DnnInferLayoutType layout)
 {
     switch (layout) {
-    case DnnInferLayoutNCHW:
-        return ov::Layout("NCHW");
-    case DnnInferLayoutNHWC:
-        return ov::Layout("NHWC");
+    case DnnInferLayoutBCHW:
+        return ov::Layout("BCHW");
+    case DnnInferLayoutBHWC:
+        return ov::Layout("BHWC");
     case DnnInferLayoutOIHW:
         return ov::Layout("OIHW");
     case DnnInferLayoutC:
         return ov::Layout("C");
-    case DnnInferLayoutCHW:
-        return ov::Layout("CHW");
+    case DnnInferLayoutN:
+        return ov::Layout("N");
+    case DnnInferLayoutNHW:
+        return ov::Layout("NHW");
+    case DnnInferLayoutBHW:
+        return ov::Layout("BHW");
     case DnnInferLayoutHW:
         return ov::Layout("HW");
     case DnnInferLayoutNC:
@@ -730,16 +721,20 @@ DnnInferLayoutType
 DnnInferenceEngine::convert_layout_type (ov::Layout layout)
 {
     switch (layout_types[layout.to_string ()]) {
-    case ov_layout_nchw:
-        return DnnInferLayoutNCHW;
-    case ov_layout_nhwc:
-        return DnnInferLayoutNHWC;
+    case ov_layout_bchw:
+        return DnnInferLayoutBCHW;
+    case ov_layout_bhwc:
+        return DnnInferLayoutBHWC;
     case ov_layout_oihw:
         return DnnInferLayoutOIHW;
     case ov_layout_c:
         return DnnInferLayoutC;
-    case ov_layout_chw:
-        return DnnInferLayoutCHW;
+    case ov_layout_n:
+        return DnnInferLayoutN;
+    case ov_layout_nhw:
+        return DnnInferLayoutNHW;
+    case ov_layout_bhw:
+        return DnnInferLayoutBHW;
     case ov_layout_hw:
         return DnnInferLayoutHW;
     case ov_layout_nc:

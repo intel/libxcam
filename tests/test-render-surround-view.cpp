@@ -395,7 +395,7 @@ run_stitcher (
                     "inference failed!");
             }
 
-            size_t batch_size = infer_engine->get_output_size ();
+            size_t batch_size = infer_engine->get_batch_size ();
             if (batch_size != detect_buffers.size ()) {
                 XCAM_LOG_DEBUG ( "Number of images: %d ", detect_buffers.size ());
                 batch_size = std::min(batch_size, detect_buffers.size ());
@@ -403,11 +403,13 @@ run_stitcher (
             }
 
             uint32_t blob_size = 0;
-            float* result_ptr = NULL;
+            std::vector<float*> result_ptr;
 
             for (uint32_t batch_idx = 0; batch_idx < batch_size; batch_idx ++) {
-                result_ptr = (float*)infer_engine->get_inference_results (batch_idx, blob_size);
-                if (NULL == result_ptr) {
+                for (uint32_t output_idx = 0; output_idx <infer_engine->get_output_size () ; output_idx ++) {
+                    result_ptr.push_back ((float*)infer_engine->get_inference_results (output_idx, blob_size));
+                }
+                if (result_ptr.empty()) {
                     continue;
                 }
 

@@ -22,6 +22,7 @@
 #include <openvino/openvino.hpp>
 
 #include "dnn_semantic_segmentation.h"
+#include "dnn_inference_utils.h"
 
 using namespace std;
 using namespace ov;
@@ -56,25 +57,26 @@ DnnSemanticSegmentation::get_model_input_info (DnnInferInputOutputInfo& info)
     }
 
     for (size_t id = 0; id < get_input_size (); id ++) {
-        if (_network->input (id).get_shape ().size() == 4) {
-            XCAM_LOG_DEBUG ("Batch size is: %d", _network->input (id).get_shape ()[0]);
-            info.width[id] = _network->input (id).get_shape ()[3];
-            info.height[id] = _network->input (id).get_shape ()[2];
-            info.channels[id] = _network->input (id).get_shape ()[1];
-            info.object_size[id] = _network->input (id).get_shape ()[0];
+        const ov::PartialShape input_dims = _network->input (id).get_partial_shape ();
+        if (input_dims.size() == 4) {
+            XCAM_LOG_DEBUG ("Batch size is: %d", XCamDNN::convert_dim(input_dims[0]));
+            info.width[id] = XCamDNN::convert_dim(input_dims[3]);
+            info.height[id] = XCamDNN::convert_dim(input_dims[2]);
+            info.channels[id] = XCamDNN::convert_dim(input_dims[1]);
+            info.object_size[id] = XCamDNN::convert_dim(input_dims[0]);
             info.data_type[id] = DnnInferDataTypeImage;
             info.precision[id] = DnnInferPrecisionU8;
-            info.layout[id] = DnnInferLayoutNCHW;
-        } else if (_network->input (id).get_shape ().size() == 2) {
+            info.layout[id] = DnnInferLayoutBCHW;
+        } else if (input_dims.size() == 2) {
             info.precision[id] = DnnInferPrecisionFP32;
-            if ((_network->input (id).get_shape ()[1] != 3 && _network->input (id).get_shape ()[1] != 6)) {
+            if ((XCamDNN::convert_dim(input_dims[1]) != 3 && XCamDNN::convert_dim(input_dims[1]) != 6)) {
                 XCAM_LOG_ERROR ("Invalid input info. Should be 3 or 6 values length");
                 return XCAM_RETURN_ERROR_PARAM;
             }
         }
     }
 
-    info.batch_size = _network->input (0).get_shape ()[0];
+    info.batch_size = XCamDNN::convert_dim(_network->input (0).get_partial_shape ()[0]);
     info.numbers = get_input_size ();
 
     return XCAM_RETURN_NO_ERROR;
@@ -126,19 +128,57 @@ DnnSemanticSegmentation::get_model_output_info (DnnInferInputOutputInfo& info)
             output_name = *(_network->output(idx).get_names ().begin ());
         }
 
-        const ov::Shape output_dims = _network->output (idx).get_shape ();
+        if (_network->output (idx).get_partial_shape ().size() == 4) {
+            const ov::PartialShape output_dims = _network->output (idx).get_partial_shape ();
 
-        info.object_size[idx] = output_dims[0];
-        info.channels[idx] = output_dims[1];
-        info.height[idx] = output_dims[2];
-        info.width[idx] = output_dims[3];
-        info.precision[idx] = DnnInferPrecisionFP32;
-        info.layout[idx] = DnnInferLayoutNCHW;
-        info.data_type[idx] = DnnInferDataTypeNonImage;
-        info.format[idx] = DnnInferImageFormatGeneric1D;
+            info.object_size[idx] = XCamDNN::convert_dim(output_dims[0]);
+            info.channels[idx] = XCamDNN::convert_dim(output_dims[1]);
+            info.height[idx] = XCamDNN::convert_dim(output_dims[2]);
+            info.width[idx] = XCamDNN::convert_dim(output_dims[3]);
+            info.precision[idx] = DnnInferPrecisionFP32;
+            info.layout[idx] = DnnInferLayoutBCHW;
+            info.data_type[idx] = DnnInferDataTypeNonImage;
+            info.format[idx] = DnnInferImageFormatGeneric1D;
+        } else if (_network->output (idx).get_partial_shape ().size() == 3) {
+            const ov::PartialShape output_dims = _network->output (idx).get_partial_shape ();
+
+            info.object_size[idx] = 1;
+            info.channels[idx] = 1;
+            info.height[idx] = XCamDNN::convert_dim(output_dims[1]);
+            info.width[idx] = XCamDNN::convert_dim(output_dims[2]);
+            info.precision[idx] = DnnInferPrecisionFP32;
+            info.layout[idx] = DnnInferLayoutBHW;
+            info.data_type[idx] = DnnInferDataTypeNonImage;
+            info.format[idx] = DnnInferImageFormatGeneric1D;
+        } else if (_network->output (idx).get_partial_shape ().size() == 2) {
+            const ov::PartialShape output_dims = _network->output (idx).get_partial_shape ();
+
+            info.object_size[idx] = XCamDNN::convert_dim(output_dims[0]);
+            info.channels[idx] = XCamDNN::convert_dim(output_dims[1]);
+            info.height[idx] = 1;
+            info.width[idx] = 1;
+            info.precision[idx] = DnnInferPrecisionFP32;
+            info.layout[idx] = DnnInferLayoutNC;
+            info.data_type[idx] = DnnInferDataTypeNonImage;
+            info.format[idx] = DnnInferImageFormatGeneric1D;
+        } else if (_network->output (idx).get_partial_shape ().size() == 1) {
+            const ov::PartialShape output_dims = _network->output (idx).get_partial_shape ();
+
+            info.object_size[idx] = XCamDNN::convert_dim(output_dims[0]);
+            info.channels[idx] = 1;
+            info.height[idx] = 1;
+            info.width[idx] = 1;
+            info.precision[idx] = DnnInferPrecisionFP32;
+            info.layout[idx] = DnnInferLayoutN;
+            info.data_type[idx] = DnnInferDataTypeNonImage;
+            info.format[idx] = DnnInferImageFormatGeneric1D;
+        } else {
+            XCAM_LOG_ERROR ("Dimension of output  %d is invalid!", idx);
+            return XCAM_RETURN_ERROR_ORDER;
+        }
     }
 
-    info.batch_size = _network->output (0).get_shape ()[0];
+    info.batch_size = XCamDNN::convert_dim(_network->output (0).get_partial_shape ()[0]);
     info.numbers = get_output_size ();
 
     return XCAM_RETURN_NO_ERROR;
@@ -176,7 +216,7 @@ DnnSemanticSegmentation::set_model_output_info (DnnInferInputOutputInfo& info)
 }
 
 XCamReturn
-DnnSemanticSegmentation::get_segmentation_map (const float* result_ptr,
+DnnSemanticSegmentation::get_segmentation_map (const std::vector<float*> result_ptr,
         const uint32_t idx,
         std::vector<std::vector<uint32_t>>& out_classes)
 {
@@ -185,38 +225,89 @@ DnnSemanticSegmentation::get_segmentation_map (const float* result_ptr,
         return XCAM_RETURN_ERROR_ORDER;
     }
 
-    if (!result_ptr) {
+    if (result_ptr.empty()) {
         XCAM_LOG_ERROR ("Inference results error!");
         return XCAM_RETURN_ERROR_PARAM;
     }
 
-    DnnInferInputOutputInfo output_infos;
-    get_model_output_info (output_infos);
+    if (get_output_size () == 1) {
+        DnnInferInputOutputInfo output_infos;
+        get_model_output_info (output_infos);
 
-    uint32_t map_width = output_infos.width[idx];
-    uint32_t map_height = output_infos.height[idx];
-    uint32_t channels = output_infos.channels[idx];
-    //uint32_t object_size = output_infos.object_size[idx];
-    uint32_t stride = map_width * map_height * channels;
+        uint32_t map_width = output_infos.width[0];
+        uint32_t map_height = output_infos.height[0];
+        uint32_t channels = output_infos.channels[0];
+        uint32_t stride = map_width * map_height * channels;
 
-    const auto output_data = result_ptr;
+        const auto output_data = result_ptr[0];
 
-    std::vector<std::vector<float>> out_prob (map_height, std::vector<float>(map_width, 0.0));
+        std::vector<std::vector<float>> out_prob (map_height, std::vector<float>(map_width, 0.0));
 
-    for (uint32_t w = 0; w < map_width; w++) {
-        for (uint32_t h = 0; h < map_height; h++) {
-            if (channels == 1) {
-                out_classes[h][w] = output_data[stride * idx + map_width * h + w];
-            } else {
-                for (uint32_t ch = 0; ch < channels; ch++) {
-                    auto data = output_data[stride * idx + map_width * map_height * ch + map_width * h + w];
-                    if (data > out_prob[h][w]) {
-                        out_classes[h][w] = ch;
-                        out_prob[h][w] = data;
+        for (uint32_t w = 0; w < map_width; w++) {
+            for (uint32_t h = 0; h < map_height; h++) {
+                if (channels == 1) {
+                    out_classes[h][w] = output_data[stride * idx + map_width * h + w];
+                } else {
+                    for (uint32_t ch = 0; ch < channels; ch++) {
+                        auto data = output_data[stride * idx + map_width * map_height * ch + map_width * h + w];
+                        if (data > out_prob[h][w]) {
+                            out_classes[h][w] = ch;
+                            out_prob[h][w] = data;
+                        }
                     }
                 }
             }
         }
+    } else if (get_output_size () == 3) {
+        DnnInferInputOutputInfo output_infos;
+        get_model_output_info (output_infos);
+        DnnInferInputOutputInfo input_infos;
+        get_model_output_info (input_infos);
+
+        uint32_t map_width = input_infos.width[0];
+        uint32_t map_height = input_infos.height[0];
+        uint32_t channels = output_infos.channels[1];
+        uint32_t max_proposal_count = _infer_request.get_output_tensor(0).get_shape ()[0];
+        uint32_t stride0 = max_proposal_count;
+        uint32_t stride1 = max_proposal_count * channels;
+        uint32_t stride2 = max_proposal_count * output_infos.width[2] * output_infos.height[2];
+
+        std::vector<std::vector<float>> out_prob (map_height, std::vector<float>(map_width, 0.0));
+
+        for (uint32_t w = 0; w < map_width; w++) {
+            for (uint32_t h = 0; h < map_height; h++) {
+                out_classes[h][w] = 0;
+                out_prob[h][w] = 1.0f;
+                }
+        }
+
+        for (uint32_t cur_proposal = 0; cur_proposal < max_proposal_count; cur_proposal++) {
+            float label = 0, confidence = 0, xmin = 0, ymin = 0, xmax = 0, ymax = 0;
+
+            label = result_ptr[1][idx * stride0 + cur_proposal * channels + 0];
+            confidence = result_ptr[0][idx * stride1 + cur_proposal * channels + 4];
+            xmin = result_ptr[0][idx * stride1 + cur_proposal * channels + 0] * map_width;
+            ymin = result_ptr[0][idx * stride1 + cur_proposal * channels + 1] * map_height;
+            xmax = result_ptr[0][idx * stride1 + cur_proposal * channels + 2] * map_width;
+            ymax = result_ptr[0][idx * stride1 + cur_proposal * channels + 3] * map_height;
+
+            if (confidence > 0.5) {
+                for (uint32_t w = xmin; w < xmax; w++) {
+                    for (uint32_t h = ymin; h < ymax; h++) {
+                        out_prob[h][w] = result_ptr[2][idx * stride2 + cur_proposal *  output_infos.height[2] * output_infos.width[2] +
+                        static_cast<int>(((h - ymin) * output_infos.height[2]) / (ymax - ymin)) * output_infos.width[2] +
+                        static_cast<int>(((w - xmin) * output_infos.width[2]) / (xmax - xmin))];
+                        if (out_prob[h][w] > 0.5) {
+                            out_classes[h][w] = label;
+                        }
+                    }
+                }
+            }
+        }
+
+    } else {
+        XCAM_LOG_ERROR ("Number of outputs is invalid!");
+        return XCAM_RETURN_ERROR_ORDER;
     }
     return XCAM_RETURN_NO_ERROR;
 }
