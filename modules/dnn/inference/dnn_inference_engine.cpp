@@ -432,7 +432,7 @@ DnnInferenceEngine::set_inference_data (std::vector<std::string> images)
         int32_t image_width = 0;
         int32_t image_height = 0;
 
-        for (uint32_t index = 0; index > get_input_size (); index ++) {
+        for (uint32_t index = 0; index < get_input_size (); index ++) {
             image_width = XCamDNN::convert_dim(_network->input (index).get_partial_shape ()[3]);
             image_height = XCamDNN::convert_dim(_network->input (index).get_partial_shape ()[2]);
         }
