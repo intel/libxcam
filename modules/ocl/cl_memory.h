@@ -21,6 +21,8 @@
 #ifndef XCAM_CL_MEMORY_H
 #define XCAM_CL_MEMORY_H
 
+#include <CL/cl_gl.h>
+
 #include "ocl/cl_context.h"
 #include "ocl/cl_event.h"
 #include "video_buffer.h"
